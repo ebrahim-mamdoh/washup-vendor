@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carzen Vendor · نظام المغاسل</title>
+  <script>
+    try {
+      const l = localStorage.getItem("carzen_lang") || "ar";
+      document.documentElement.lang = l;
+      document.documentElement.dir = l === "ar" ? "rtl" : "ltr";
+      if (localStorage.getItem("carzen_theme") === "dark") document.documentElement.dataset.theme = "dark";
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="./shared/css/tokens.css" />
+  <link rel="stylesheet" href="./shared/css/base.css" />
+  <link rel="stylesheet" href="./shared/css/components.css" />
+  <style>
+    .launch { max-width: 960px; margin: 0 auto; padding: 40px 20px 80px; }
+    .launch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+    .launch a.card { padding: 20px; display: flex; flex-direction: column; gap: 8px; min-height: 140px; color: inherit; text-decoration: none; border-radius: var(--radius-lg, 12px); border: 1px solid var(--border-color, #e2e8f0); transition: all 0.2s ease; }
+    .launch a.card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); border-color: var(--primary, #1463FF); }
+  </style>
+</head>
+<body>
+  <main class="launch">
+    <div style="display:flex;align-items:center;gap:12px">
+      <img src="./shared/assets/logo.svg" width="52" height="52" alt="Carzen" />
+      <div>
+        <h1 style="font-size:32px;margin:0">Carzen Vendor</h1>
+        <p class="muted" style="margin:4px 0 0">نظام إدارة وتشغيل المغاسل والشركاء — القاهرة</p>
+      </div>
+    </div>
+    
+    <div class="launch-grid">
+      <a class="card" href="./wash/dashboard/index.html">
+        <b style="font-size:18px">لوحة المغسلة</b>
+        <span class="small muted">Owner & Manager Dashboard (Web)</span>
+        <span class="btn sm" style="margin-top:auto">فتح اللوحة</span>
+      </a>
+      <a class="card" href="./wash/employee/index.html">
+        <b style="font-size:18px">تطبيق الموظف</b>
+        <span class="small muted">Employee Mobile App</span>
+        <span class="btn sm" style="margin-top:auto">فتح التطبيق</span>
+      </a>
+      <a class="card" href="./wash/register/index.html">
+        <b style="font-size:18px">طلب انضمام مغسلة</b>
+        <span class="small muted">Partner Registration Wizard</span>
+        <span class="btn sm" style="margin-top:auto">فتح النموذج</span>
+      </a>
+    </div>
+
+    <div style="margin-top:28px;display:flex;gap:12px;align-items:center">
+      <button class="btn ghost" id="reset">إعادة ضبط بيانات العرض</button>
+      <span class="small muted" id="reset-msg" style="display:none;color:var(--success, #12C8B6)">تمت إعادة الضبط بنجاح</span>
+    </div>
+  </main>
+
+  <script type="module">
+    import { resetDb } from "./shared/js/db.js";
+    import { mountDemoBar } from "./shared/js/demo-bar.js";
+    import { applyLang } from "./shared/js/i18n.js";
+    applyLang();
+    mountDemoBar({ surface: "launcher" });
+    document.getElementById("reset").addEventListener("click", () => {
+      resetDb();
+      const msg = document.getElementById("reset-msg");
+      if (msg) {
+        msg.style.display = "inline";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+      }
+    });
+  </script>
+</body>
+</html>

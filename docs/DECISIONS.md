@@ -1,0 +1,48 @@
+# Decisions
+
+- Built the demo in this repo root because `docs/` was already here, instead of a new `carzen-demo/` folder.
+- The three MVP spec files were not in the repo. This prompt is the source of truth, including onboarding copy.
+- Person names are a single Latin string, matching the prompt. Wash, service, area, offer and review text is bilingual.
+- Default area is Nasr City so the demo script starts there. Location permission and the area picker remain available from the header.
+- A bay is occupied by orders in `pending`, `confirmed`, `waiting`, or `in_service` whose scheduled interval overlaps the slot. Close time `00:00` means midnight.
+- Egyptian mobiles are stored as `+20 1XX XXX XXXX`. The field accepts a local `01…` number or the 10 digits after `+20`.
+- Interior + Exterior at the demo branch has no offer, so the script total stays 180 EGP. A 15% offer applies to deep cleaning there, and a platform offer applies to exterior washes.
+- Branch rating is the average of visible reviews. The Nasr City seed is 20 reviews averaging 4.8.
+- `transactions.flag = discrepancy` marks a collected amount that does not match the order total. The status enum has no discrepancy value.
+- Reviews may set `reportedByWash` while staying visible.
+- Ahmed Hassan also has one no-show, so that history state is visible, in addition to his 7 completed visits.
+- Reschedule is available for `pending` / `confirmed` only while cancellation would still be free.
+- Help is a short screen fed by `settings.support` so the profile row is not a dead end.
+- Unbuilt Employee, Wash dashboard, Register and Admin routes are placeholders with the demo bar, so surface switching does not 404. Prompt 2 and 3 replace them.
+- CDN versions are pinned in `shared/js/cdn.js`. Chart.js and Alpine are pinned for later surfaces and are not loaded in the customer app.
+- The demo bar can force the next confirm to fail once with “slot taken”, so that recovery can be shown before the wash app exists.
+- OTP is prefilled with `123456` and the phone with Ahmed’s number. Any other code still follows the invalid / expired / lock rules.
+- Reset restores the database, clock, session, draft and onboarding flag, and keeps language and theme.
+- Built Employee app in `/wash/employee` inside a responsive 390x844 mobile phone stage matching the customer app design tokens and logical properties.
+- Start-shift gate on Employee app blocks order operations until an active shift is started, recording start time and initial cash expectation.
+- Walk-in orders start directly in `waiting` status; typing plate or phone triggers instant recognition of returning customers (e.g., Ahmed Hassan with 7 visits, usual service preselected). Prices are computed strictly through `pricing` and cannot be manually entered.
+- When all bays are occupied, walk-in creation displays an estimated wait banner (~20 min) without rejecting the order.
+- Check-in supports camera simulation, 5-character code entry (`5K8P2`), and search; early and late arrivals display contextual badges.
+- Employee discounts are capped at 10%; attempts above this threshold require manager PIN (`1234`), which audits the override under the manager.
+- Ending a shift is blocked while in-service or unpaid orders exist; difference calculation requires a documented reason and dispatches an alert to the owner.
+- Wash Dashboard `/wash/dashboard` enforces role scoping: Khaled Mansour (Owner) has all-branch access and switcher; Mohamed Adel (Branch Manager) is locked to Nasr City and has read-only access to services.
+- Live operations board features a 5-column Kanban layout with a real-time bay utilization meter, overdue indicators, and state progression actions.
+- Partner registration wizard `/wash/register` includes an interactive Leaflet map pin picker, service templates, simulated document uploads, and live application status tracking.
+- Built Platform Admin dashboard in `/admin` with hash-routed SPA architecture (`#/dashboard`, `#/customers`, `#/orders`, etc.) with responsive collapsible sidebar matching tokens and CSS logical properties.
+- Implemented high-performance data table pattern across all entities with column sorting, live search, quick filter chips, pagination, CSV export, and right slide-over drawer for quick inspection.
+- Role-based access control (RBAC) enforced on navigation, route guards, and service mutations across all 4 admin personas (Sara Nabil · Super, Omar Fathy · Operations, Nour Salem · Finance, Mona Adel · Support).
+- Sensitive administrative mutations (suspension, review hiding, order cancellation, business data edits, commission overrides) mandate documented reason prompt modals recorded in the immutable audit log.
+- Wash suspension view displays an impact preview of upcoming bookings with choice to cancel or retain them, and immediately hides the wash from discovery.
+- Financial transactions are non-editable by design; provided "Flag for finance review" workflow with internal notes and dispatch to Finance admins.
+- Seeded discrepancy transaction provides a dedicated side-by-side modal displaying booking invoice, cashier ledger, and audit trail for reconciliation.
+- Added Leaflet map integration for physical coverage inspection on branches and location verification during wash application reviews.
+- Applications review screen includes an interactive 6-point verification checklist, internal notes, and one-click approval with automatic business, branch, and owner provisioning.
+- Built interactive Roles × Modules permission matrix editor allowing Super Admin to dynamically customize module permissions with immediate effect.
+- Provided global command palette (`Ctrl/⌘ K`) searching across customers, vehicles/plates, washes, branches, and orders with keyboard navigation and role scoping.
+- Added 15-minute simulated idle session timeout modal triggerable from demo bar and automatic activity watcher.
+- Built the Super Admin panel as a separate Next.js 16 app in `/super-admin`, using the same stack and structure as the aroma project (App Router, Tailwind 4, shadcn base-nova, TanStack Query, Zustand, axios, zod). The vanilla `/admin` demo stays untouched.
+- The Super Admin talks to a bundled mock REST API (`/api/v1/*`) with Laravel-style `{status, message, data}` envelopes, so moving to the real Laravel backend only means setting `NEXT_PUBLIC_API_URL`.
+- The mock database is a TypeScript port of `shared/js/seed.js`, keeping the same deterministic records, so numbers line up with the customer and wash demos.
+- Only `super` role accounts can sign in to the Super Admin panel. The other roles are managed from it (Admins, Roles matrix).
+- The Super Admin UI is Arabic-only, following aroma's approach. Data keeps `{ar, en}` for a later i18n pass.
+- Branch coverage is shown as an area summary instead of a Leaflet map, to keep the bundle small. A map view is a follow-up.
