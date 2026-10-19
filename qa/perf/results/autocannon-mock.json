@@ -1,0 +1,140 @@
+{
+  "base": "http://localhost:3300",
+  "connections": 20,
+  "duration": 10,
+  "at": "2026-10-19T10:25:08.409Z",
+  "rows": [
+    {
+      "endpoint": "auth/me",
+      "req/s": 601,
+      "p50 ms": 22,
+      "p97.5 ms": 145,
+      "p99 ms": 184,
+      "max ms": 269,
+      "2xx": 6014,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "dashboard today",
+      "req/s": 82,
+      "p50 ms": 225,
+      "p97.5 ms": 608,
+      "p99 ms": 678,
+      "max ms": 781,
+      "2xx": 815,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "dashboard 30d",
+      "req/s": 26,
+      "p50 ms": 716,
+      "p97.5 ms": 1601,
+      "p99 ms": 1628,
+      "max ms": 1697,
+      "2xx": 263,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "live board",
+      "req/s": 228,
+      "p50 ms": 77,
+      "p97.5 ms": 127,
+      "p99 ms": 137,
+      "max ms": 1029,
+      "2xx": 2284,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "orders list",
+      "req/s": 517,
+      "p50 ms": 37,
+      "p97.5 ms": 76,
+      "p99 ms": 87,
+      "max ms": 118,
+      "2xx": 5167,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "order detail",
+      "req/s": 924,
+      "p50 ms": 16,
+      "p97.5 ms": 67,
+      "p99 ms": 78,
+      "max ms": 105,
+      "2xx": 9239,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "availability",
+      "req/s": 458,
+      "p50 ms": 32,
+      "p97.5 ms": 135,
+      "p99 ms": 151,
+      "max ms": 190,
+      "2xx": 4580,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "customers",
+      "req/s": 193,
+      "p50 ms": 102,
+      "p97.5 ms": 226,
+      "p99 ms": 281,
+      "max ms": 349,
+      "2xx": 1930,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "reports revenue",
+      "req/s": 186,
+      "p50 ms": 108,
+      "p97.5 ms": 194,
+      "p99 ms": 236,
+      "max ms": 269,
+      "2xx": 1864,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "finance 30d",
+      "req/s": 54,
+      "p50 ms": 380,
+      "p97.5 ms": 491,
+      "p99 ms": 533,
+      "max ms": 543,
+      "2xx": 536,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "search",
+      "req/s": 200,
+      "p50 ms": 79,
+      "p97.5 ms": 294,
+      "p99 ms": 368,
+      "max ms": 446,
+      "2xx": 1996,
+      "non2xx": 0,
+      "errors": 0
+    },
+    {
+      "endpoint": "page /dashboard (HTML)",
+      "req/s": 1169,
+      "p50 ms": 15,
+      "p97.5 ms": 30,
+      "p99 ms": 44,
+      "max ms": 95,
+      "2xx": 11685,
+      "non2xx": 0,
+      "errors": 0
+    }
+  ]
+}
