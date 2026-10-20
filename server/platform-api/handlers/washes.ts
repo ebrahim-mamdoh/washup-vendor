@@ -132,8 +132,10 @@ export const washRoutes = [
     const pendingPayout = db.payouts
       .filter((p) => p.businessId === business.id && p.status === "due")
       .reduce((s, p) => s + p.amountDue - p.amountPaid, 0);
-    const gross = transactions.reduce((s, t) => s + t.gross, 0);
-    const commission = transactions.reduce((s, t) => s + t.commission, 0);
+    // Collected money only, on the same basis as the washes list GMV (completed + paid orders);
+    // commission from the ledger, without unpaid or refunded transactions.
+    const gross = orders.filter((o) => o.status === "completed" && o.paymentStatus === "paid").reduce((s, o) => s + o.total, 0);
+    const commission = transactions.filter((t) => t.status === "paid" || t.status === "settled").reduce((s, t) => s + t.commission, 0);
 
     const details: WashDetails = {
       business,

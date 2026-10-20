@@ -247,6 +247,7 @@ export const AUDIT_ACTION: Record<string, string> = {
   update_complaint_status: "تحديث حالة شكوى",
   hide_review: "إخفاء تقييم",
   restore_review: "استعادة تقييم",
+  keep_review: "إبقاء تقييم مُبلغ عنه",
   create_offer: "إنشاء عرض",
   update_offer: "تعديل عرض",
   enable_offer: "تفعيل عرض",

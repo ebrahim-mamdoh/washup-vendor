@@ -10,7 +10,7 @@ import type { VendorActor } from "../../router";
 import type { Shift } from "../../schema";
 import { defaultPermissions } from "../../seed";
 import { assertClosableDay, cleanShiftPatterns, dayKey, hasManualDiscount, isPlausibleDuration, normalizePhone } from "../../vendor/engine";
-import { createPhoneLogin, isLocalAuth } from "../auth";
+import { createLogin, isLocalAuth, loginNotice } from "../auth";
 import { PHONE, auditWhere, dayClosingsWhere, e164, shiftsWhere, staffById, staffWhere } from "../entities";
 import { dayBounds, paged, searchPattern } from "../list";
 import { branchNames, onShiftAt, staffNames } from "../lookups";
@@ -240,19 +240,12 @@ export const vendorTeamRoutes = [
       await replacePatterns(t, id, [{ start: "09:00", end: "17:00", days: [0, 1, 2, 3, 4, 5, 6] }]);
       await audit(t, actor, "staff.create", "staff", id, branchId, null, `${name} · ${role}`);
       // Local auth accepts the demo password for every profile; otherwise create the Supabase Auth login and link it.
-      const login = isLocalAuth() ? null : await createPhoneLogin(e164(phone));
+      const login = isLocalAuth() ? null : await createLogin({ phone: e164(phone) });
       if (login && "userId" in login) await t`update public.staff set user_id = ${login.userId} where id = ${id}`;
       return { ...(await staffById(t, id)), login };
     });
     const { login, ...staff } = member;
-    const message = !login
-      ? `تمت إضافة ${staff.name} — كلمة المرور المؤقتة demo1234`
-      : "userId" in login
-        ? `تمت إضافة ${staff.name} — كلمة المرور المؤقتة: ${login.password} (أرسلها له، تظهر مرة واحدة فقط)`
-        : login.skipped === "taken"
-          ? `تمت إضافة ${staff.name} — هذا الرقم له حساب دخول آخر على كارزن، تواصل مع الدعم لربطه`
-          : `تمت إضافة ${staff.name} — لم يُنشأ حساب الدخول (مفتاح Supabase السري غير مضبوط على الخادم)`;
-    return ok(staff, message);
+    return ok(staff, `تمت إضافة ${staff.name} — ${loginNotice(login)}`);
   }),
 
   vroute("PATCH", "/vendor/staff/:id", async ({ params, body, actor }) => {

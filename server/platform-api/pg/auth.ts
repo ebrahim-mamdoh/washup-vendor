@@ -100,27 +100,39 @@ export async function identityFromToken(token: string): Promise<Identity | null>
   return identity;
 }
 
+export type NewLogin = { userId: string; password: string } | { skipped: "no_key" | "taken" };
+
 /**
- * Creates the Supabase Auth login of a new wash account (phone + temporary
- * password, phone pre-confirmed) with the server-only secret key. Returns the
- * auth user id and the password to hand over, or a reason when it can't:
- * no secret key configured, or the phone already has a login (e.g. a customer
- * of the mobile app) — never linked automatically.
+ * Creates the Supabase Auth login of a new account (wash staff by phone, admins
+ * by email) with a temporary password, pre-confirmed, using the server-only
+ * secret key. Returns the auth user id and the password to hand over, or a
+ * reason when it can't: no secret key configured, or the phone/email already
+ * has a login (e.g. a customer of the mobile app) — never linked automatically.
  */
-export async function createPhoneLogin(phoneE164: string): Promise<{ userId: string; password: string } | { skipped: "no_key" | "taken" }> {
+export async function createLogin(credentials: { phone: string } | { email: string }): Promise<NewLogin> {
   const secret = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) return { skipped: "no_key" };
   const { url } = supabaseEnv();
   const password = randomBytes(6).toString("base64url");
+  const confirm = "phone" in credentials ? { phone_confirm: true } : { email_confirm: true };
   const res = await fetch(`${url}/auth/v1/admin/users`, {
     method: "POST",
     headers: { apikey: secret, Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ phone: phoneE164, password, phone_confirm: true }),
+    body: JSON.stringify({ ...credentials, password, ...confirm }),
   });
   if (res.status === 422 || res.status === 409) return { skipped: "taken" };
   if (!res.ok) throw new Error(`Supabase Auth user creation failed: ${res.status}`);
   const user = (await res.json()) as { id: string };
   return { userId: user.id, password };
+}
+
+/** The account-created message suffix for a `createLogin` result (null: local auth, demo password). */
+export function loginNotice(login: NewLogin | null): string {
+  if (!login) return "كلمة المرور المؤقتة demo1234";
+  if ("userId" in login) return `كلمة المرور المؤقتة: ${login.password} (أرسلها لصاحب الحساب، تظهر مرة واحدة فقط)`;
+  return login.skipped === "taken"
+    ? "هذا الرقم/البريد له حساب دخول آخر على كارزن — تواصل مع الدعم لربطه"
+    : "لم يُنشأ حساب الدخول (مفتاح Supabase السري غير مضبوط على الخادم)";
 }
 
 export async function signOut(token: string): Promise<void> {

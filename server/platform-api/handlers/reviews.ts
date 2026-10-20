@@ -51,6 +51,15 @@ export const reviewRoutes = [
   route("POST", "/admin/reviews/:id/visibility", ({ db, params, body, admin }) => {
     const review = findOrThrow(db.reviews, params.id, "التقييم");
     const hidden = Boolean(body.hidden);
+    // Keeping a reported review visible closes the wash's report (it leaves the "reported" queue).
+    if (!hidden && review.status === "visible" && review.reportedByWash) {
+      const reason = requireText(body.reason, "reason", "سبب الإبقاء");
+      review.reportedByWash = false;
+      review.reportReason = null;
+      logAudit(db, { actorId: admin.id, action: "keep_review", entity: "reviews", entityId: review.id, branchId: review.branchId, oldValue: "reported", newValue: "visible", reason });
+      pushVendorNotification(db, review.businessId, review.branchId, "review", "تمت مراجعة بلاغك على تقييم", "راجعت كارزن التقييم وقررت إبقاءه ظاهرًا.", "/reviews");
+      return ok(review, "تم إغلاق البلاغ وإبقاء التقييم ظاهرًا");
+    }
     if ((review.status === "hidden") === hidden) {
       throw new MockApiError(hidden ? "التقييم مخفي بالفعل" : "التقييم ظاهر بالفعل", 409);
     }

@@ -5,7 +5,7 @@ import type { AdminRole, AdminUser } from "@/types/auth";
 
 import { MockApiError, ok, requireText } from "../../http";
 import { DEFAULT_ROLES_MATRIX } from "../../seed";
-import { isLocalAuth } from "../auth";
+import { createLogin, isLocalAuth, loginNotice } from "../auth";
 import { adminsWhere } from "../entities";
 import { logAudit } from "../platform";
 import { route } from "../router";
@@ -47,10 +47,7 @@ export const adminRoutes = [
     return ok(await adminsWhere(sql, sql`true`, sql`order by a.role, a.created_at, a.id`));
   }),
 
-  /**
-   * Creates the admin profile only. The Supabase Auth account is created or
-   * invited separately and linked through admin_users.user_id (null until then).
-   */
+  /** Creates the admin profile and its Supabase Auth login (email + temporary password), linked through user_id. */
   route("POST", "/admin/admins", async ({ body, admin }) => {
     const name = requireText(body.name, "name", "الاسم", 3);
     const email = requireText(body.email, "email", "البريد الإلكتروني", 5).toLowerCase();
@@ -64,13 +61,12 @@ export const adminRoutes = [
       const [row] = await t<{ id: string }[]>`
         insert into public.admin_users (name, email, role, status) values (${name}, ${email}, ${role}, 'active') returning id`;
       await logAudit(t, { actorId: admin.id, action: "create_admin_user", entity: "admins", entityId: row.id, newValue: { email, role } });
-      return adminById(t, row.id);
+      // Local auth accepts the demo password for any active profile; otherwise create the Supabase Auth login.
+      const login = isLocalAuth() ? null : await createLogin({ email });
+      if (login && "userId" in login) await t`update public.admin_users set user_id = ${login.userId} where id = ${row.id}`;
+      return { admin: await adminById(t, row.id), login };
     });
-    // Local auth accepts the demo password for any active profile; on Supabase Auth the account is invited separately.
-    const message = isLocalAuth()
-      ? `تمت دعوة ${name} — كلمة المرور المؤقتة demo1234`
-      : `تمت إضافة ${name} — أرسل له دعوة الدخول من Supabase Auth لتفعيل حسابه`;
-    return ok(record, message);
+    return ok(record.admin, `تمت إضافة ${name} — ${loginNotice(record.login)}`);
   }),
 
   route("PATCH", "/admin/admins/:id", async ({ params, body, admin }) => {
