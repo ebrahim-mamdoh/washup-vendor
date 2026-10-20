@@ -143,8 +143,10 @@ export const washRoutes = [
         complaintsWhere(sql, sql`c.business_id = ${business.id}`, sql`order by c.created_at desc`),
         transactionsWhere(sql, sql`t.business_id = ${business.id}`, sql`order by t.date desc limit 15`),
         sql<{ gross: number; commission: number; pendingPayout: number }[]>`
-          select coalesce((select sum(gross) from public.transactions where business_id = ${business.id}), 0) as gross,
-                 coalesce((select sum(commission) from public.transactions where business_id = ${business.id}), 0) as commission,
+          -- Collected money only, on the same basis as the washes list GMV (completed + paid orders);
+          -- commission from the ledger, without unpaid or refunded transactions.
+          select coalesce((select sum(total) from public.orders where business_id = ${business.id} and status = 'completed' and payment_status = 'paid'), 0) as gross,
+                 coalesce((select sum(commission) from public.transactions where business_id = ${business.id} and status in ('paid', 'settled')), 0) as commission,
                  coalesce((select sum(amount_due - amount_paid) from public.payouts where business_id = ${business.id} and status = 'due'), 0) as "pendingPayout"`,
         defaultCommissionPct(sql),
         auditWhere(

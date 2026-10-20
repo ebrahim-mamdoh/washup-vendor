@@ -1,14 +1,15 @@
 import "server-only";
 
 import type { Offer } from "@/types/offers";
-import type { VendorBranch, VendorNotificationType, VendorOffer, VendorService, VendorSettings } from "@/types/vendor/catalog";
-import type { BranchSettings, ServiceType, WorkingDay } from "@/types/washes";
+import type { VendorBranch, VendorOffer, VendorService, VendorSettings } from "@/types/vendor/catalog";
+import type { BranchSettings, ServiceType } from "@/types/washes";
 
 import { daysAgo, now } from "../../db";
 import { MockApiError, ok, requireText } from "../../http";
 import type { VendorActor } from "../../router";
 import { defaultPermissions } from "../../seed";
-import { DEFAULT_NOTIFICATION_PREFS } from "../../vendor/notify";
+import { cleanWorkingHours } from "../../vendor/engine";
+import { DEFAULT_NOTIFICATION_PREFS, cleanNotificationPrefs, slotInterval } from "../../vendor/notify";
 import { BRANCH_COLS, SERVICE_COLS, branchById, e164, offersWhere, servicesWhere } from "../entities";
 import { dayBounds, searchPattern } from "../list";
 import { defaultCommissionPct, logAudit, pushAdminNotification, vendorSettingsFor } from "../platform";
@@ -24,7 +25,6 @@ import { assertBranch, assertOwner, inScope, scopeBranches } from "./scope";
 
 const CATEGORIES = ["exterior", "interior", "full", "deep"];
 const OFFER_STATUSES = ["draft", "scheduled", "active", "expired", "disabled"] as const;
-const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function audit(q: Q, actor: VendorActor, action: string, entity: string, entityId: string, branchId: string | null, oldValue: unknown, newValue: unknown, reason?: string | null) {
   return logAudit(q, { actorType: "staff", actorId: actor.staff.id, action, entity, entityId, branchId, oldValue, newValue, reason: reason ?? null });
@@ -308,11 +308,7 @@ export const vendorCatalogRoutes = [
       const address = (body.address ?? {}) as { ar?: string; en?: string };
       const capacity = Number(body.capacity);
       if (Number.isNaN(capacity) || capacity < 1 || capacity > 30) throw new MockApiError("السعة بين 1 و 30 مكان", 422, { capacity: ["قيمة غير صالحة"] });
-      const hours = Array.isArray(body.workingHours) ? (body.workingHours as WorkingDay[]) : target.workingHours;
-      if (hours.length !== 7) throw new MockApiError("ساعات العمل يجب أن تغطي 7 أيام", 422);
-      const workingHours = hours.map((d) => ({ open: String(d.open), close: String(d.close), closed: Boolean(d.closed) }));
-      // The database stores real times: reject what the mock would have kept as free text.
-      if (workingHours.some((d) => !HHMM.test(d.open) || !HHMM.test(d.close))) throw new MockApiError("صيغة الوقت غير صحيحة", 422);
+      const workingHours = cleanWorkingHours(body.workingHours === undefined ? target.workingHours : body.workingHours);
       const before = { name: target.name.ar, capacity: target.capacity, active: target.active };
       const deactivating = target.active && body.active === false;
 
@@ -376,7 +372,7 @@ export const vendorCatalogRoutes = [
       };
       const next: BranchSettings = {
         autoConfirm: Boolean(s.autoConfirm),
-        slotIntervalMin: [15, 20, 30, 45, 60].includes(Number(s.slotIntervalMin)) ? Number(s.slotIntervalMin) : 30,
+        slotIntervalMin: slotInterval(s.slotIntervalMin),
         leadTimeMin: num(s.leadTimeMin, 0, 240, "مهلة الحجز"),
         maxAdvanceDays: num(s.maxAdvanceDays, 1, 30, "أقصى أيام مسبقة"),
         freeCancelMin: num(s.freeCancelMin, 0, 1440, "نافذة الإلغاء المجاني"),
@@ -445,7 +441,7 @@ export const vendorCatalogRoutes = [
         changes.push("managerCanEditServices");
       }
       if (body.notificationPrefs && typeof body.notificationPrefs === "object") {
-        const prefs = { ...DEFAULT_NOTIFICATION_PREFS, ...(body.notificationPrefs as Record<VendorNotificationType, boolean>) };
+        const prefs = cleanNotificationPrefs(body.notificationPrefs, s.notificationPrefs);
         await t`update public.business_settings set notification_prefs = ${t.json(prefs)} where business_id = ${actor.business.id}`;
         changes.push("notificationPrefs");
       }

@@ -2,7 +2,6 @@ import "server-only";
 
 import type { Order } from "@/types/orders";
 import type {
-  CreateOrderPayload,
   LiveBoard,
   OrderActionPayload,
   ScheduleDay,
@@ -16,6 +15,7 @@ import { vroute } from "../router";
 import {
   allowedActions,
   availability,
+  cleanOrderPayload,
   clockToMin,
   createOrder,
   dayKey,
@@ -23,8 +23,10 @@ import {
   nextActionFor,
   occupiedAt,
   onShiftAt,
+  parseDay,
   performAction,
   priceServices,
+  recognitionForWash,
   recognize,
   toVendorItem,
 } from "./engine";
@@ -116,10 +118,10 @@ export const vendorOperationRoutes = [
   }),
 
   vroute("POST", "/vendor/orders", ({ db, body, actor }) => {
-    const payload = body as unknown as CreateOrderPayload;
+    const payload = cleanOrderPayload(body);
     if (payload.source !== "phone" && payload.source !== "walk_in") throw new MockApiError("نوع الطلب غير صالح", 422);
-    assertBranch(actor, String(payload.branchId ?? ""));
-    const order = createOrder(db, actor, { ...payload, serviceIds: Array.isArray(payload.serviceIds) ? payload.serviceIds.map(String) : [] });
+    assertBranch(actor, payload.branchId);
+    const order = createOrder(db, actor, payload);
     const busy = db.orders.filter((o) => o.branchId === order.branchId && o.status === "in_service").length;
     const capacity = db.branches.find((b) => b.id === order.branchId)!.capacity;
     const wait = order.source === "walk_in" && busy >= capacity ? " — كل الأماكن مشغولة، الانتظار المتوقع ~20 دقيقة" : "";
@@ -152,14 +154,18 @@ export const vendorOperationRoutes = [
     return ok(priceServices(db, branchId, ids));
   }),
 
-  vroute("GET", "/vendor/recognize", ({ db, query, actor }) => ok(recognize(db, actor.business.id, query.get("plate"), query.get("phone")))),
+  vroute("GET", "/vendor/recognize", ({ db, query, actor }) => {
+    const rec = recognize(db, actor.business.id, query.get("plate"), query.get("phone"));
+    const known = Boolean(rec.customer && db.orders.some((o) => o.customerId === rec.customer!.id && o.businessId === actor.business.id));
+    return ok(recognitionForWash(rec, known));
+  }),
 
   vroute("GET", "/vendor/availability", ({ db, query, actor }) => {
     const branchId = singleBranch(actor, query.get("branchId"));
     const branch = db.branches.find((b) => b.id === branchId)!;
     const ids = (query.get("serviceIds") ?? "").split(",").filter(Boolean);
     const duration = ids.length ? priceServices(db, branchId, ids).durationMin : 30;
-    const date = query.get("date") ? new Date(`${query.get("date")}T12:00:00`) : now();
+    const date = query.get("date") ? parseDay(query.get("date")!) : now();
     return ok(availability(db, branch, date, duration));
   }),
 
@@ -190,7 +196,7 @@ export const vendorOperationRoutes = [
   vroute("GET", "/vendor/schedule", ({ db, query, actor }) => {
     const branchId = singleBranch(actor, query.get("branchId"));
     const branch = db.branches.find((b) => b.id === branchId)!;
-    const date = query.get("date") ? new Date(`${query.get("date")}T12:00:00`) : now();
+    const date = query.get("date") ? parseDay(query.get("date")!) : now();
     const hours = hoursFor(branch, date);
     const step = branch.settings.slotIntervalMin || 30;
     const slots: ScheduleDay["slots"] = [];

@@ -134,7 +134,7 @@ export function occupiedAt(db: MockDatabase, branchId: string, start: Date, end:
 
 export function availability(db: MockDatabase, branch: Branch, date: Date, durationMin: number): AvailabilitySlot[] {
   const h = hoursFor(branch, date);
-  if (h.closed || !branch.active) return [];
+  if (h.closed || !branch.active || atMinutes(date, 0) > bookingHorizon(branch)) return [];
   const step = branch.settings.slotIntervalMin || 30;
   const open = clockToMin(h.open);
   const close = clockToMin(h.close, true);
@@ -422,11 +422,8 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       }
       const old = o.total;
       const manual = payload.discountType === "fixed" ? Math.min(value, o.subtotal) : Math.round((o.subtotal * value) / 100);
-      // A manual discount stacks on an applied offer (it never replaces it); a new manual discount replaces an older manual one.
-      const offerPart = o.discount?.reason.startsWith("عرض") ? o.discount : null;
-      o.discount = offerPart
-        ? { amount: Math.min(o.subtotal, offerPart.amount + manual), pct: 0, reason: `${offerPart.reason} + ${reason}` }
-        : { amount: manual, pct: payload.discountType === "fixed" ? 0 : value, reason };
+      const offer = o.offerId ? db.offers.find((x) => x.id === o.offerId) : undefined;
+      o.discount = withManualDiscount(o, offer ? offerAmount(offer, o.subtotal) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       recomputeTotals(db, o);
       audit(db, actor, o, "order.discount", old, o.total, reason);
       return `تم تطبيق الخصم — الإجمالي الآن ${o.total} ج.م`;
@@ -632,6 +629,118 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   cancelled: "ملغي",
   no_show: "لم يحضر",
 };
+
+// ── Shared rules (mock + Postgres) ──────────────────────────
+
+/** Amount an offer takes off `subtotal` (same formula as `bestOffer`). */
+export function offerAmount(offer: { discountType: "percent" | "fixed"; discountValue: number }, subtotal: number): number {
+  return Math.min(subtotal, offer.discountType === "percent" ? Math.round((subtotal * offer.discountValue) / 100) : offer.discountValue);
+}
+
+/**
+ * The order discount after a manual discount of `manual` EGP. It stacks on the
+ * applied offer only: a newer manual discount replaces the older one instead of
+ * piling up (so offer + manual never passes offer + maxDiscountPct).
+ * `offerPart` is the offer's own amount (null when the offer row is gone: the
+ * current discount is then taken as the offer part).
+ */
+export function withManualDiscount(o: Order, offerPart: number | null, manual: number, pct: number, reason: string): NonNullable<Order["discount"]> {
+  if (!o.discount?.reason.startsWith("عرض")) return { amount: manual, pct, reason };
+  const offerReason = o.discount.reason.split(" + ")[0];
+  return { amount: Math.min(o.subtotal, (offerPart ?? o.discount.amount) + manual), pct: 0, reason: `${offerReason} + ${reason}` };
+}
+
+/**
+ * Recognition as the wash may see it: only customers who already have an order
+ * at this wash, and never the platform's moderation data (status, reason).
+ */
+export function recognitionForWash(rec: CustomerRecognition, knownHere: boolean): CustomerRecognition {
+  if (!rec.customer || !knownHere) {
+    return { customer: null, vehicle: null, visits: 0, lastVisitAt: null, usualServiceId: null, usualServiceName: null };
+  }
+  return { ...rec, customer: { ...rec.customer, status: "active", statusReason: null } };
+}
+
+/** Last day a booking may be made for: today + `maxAdvanceDays` (end of that day). */
+export function bookingHorizon(branch: Branch, at: Date = now()): Date {
+  const d = new Date(at);
+  d.setDate(d.getDate() + (branch.settings.maxAdvanceDays || 7));
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+/** Validates the free-text fields of a new order (wrong types → 422, never a crash). */
+export function cleanOrderPayload(body: Record<string, unknown>): CreateOrderPayload {
+  const text = (key: string, max = 200): string | undefined => {
+    const v = body[key];
+    if (v === undefined || v === null || v === "") return undefined;
+    if (typeof v !== "string") throw new MockApiError("بيانات الطلب غير صالحة", 422, { [key]: ["قيمة غير صالحة"] });
+    return v.slice(0, max);
+  };
+  return {
+    source: body.source as CreateOrderPayload["source"],
+    branchId: String(body.branchId ?? ""),
+    serviceIds: Array.isArray(body.serviceIds) ? body.serviceIds.map(String) : [],
+    plate: text("plate", 20) ?? "",
+    customerPhone: text("customerPhone", 30),
+    customerName: text("customerName", 80),
+    vehicleMake: text("vehicleMake", 40),
+    vehicleModel: text("vehicleModel", 40),
+    vehicleColor: text("vehicleColor", 20),
+    scheduledAt: text("scheduledAt", 40),
+    notes: text("notes", 500),
+  } as CreateOrderPayload;
+}
+
+/** "HH:MM" working hours for 7 days, each open before close unless closed; else a 422. */
+export function cleanWorkingHours(raw: unknown): WorkingDay[] {
+  const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!Array.isArray(raw) || raw.length !== 7) throw new MockApiError("ساعات العمل يجب أن تغطي 7 أيام", 422);
+  return raw.map((d) => {
+    const day = (d && typeof d === "object" ? d : {}) as Partial<WorkingDay>;
+    const open = String(day.open ?? "");
+    const close = String(day.close ?? "");
+    if (!HHMM.test(open) || !HHMM.test(close)) throw new MockApiError("صيغة الوقت غير صحيحة", 422);
+    const closed = Boolean(day.closed);
+    if (!closed && clockToMin(close, true) <= clockToMin(open)) throw new MockApiError("وقت الإغلاق يجب أن يكون بعد وقت الفتح", 422);
+    return { open, close, closed };
+  });
+}
+
+/** Weekly shift patterns from a request body; anything malformed is a 422. */
+export function cleanShiftPatterns(raw: unknown): { start: string; end: string; days: number[] }[] {
+  const HHMM = /^(([01]\d|2[0-3]):[0-5]\d|24:00)$/;
+  if (!Array.isArray(raw)) throw new MockApiError("جدول الورديات غير صالح", 422);
+  return raw.map((p) => {
+    const item = (p && typeof p === "object" ? p : {}) as { start?: unknown; end?: unknown; days?: unknown };
+    const start = String(item.start ?? "");
+    const end = String(item.end ?? "");
+    if (!HHMM.test(start) || !HHMM.test(end)) throw new MockApiError("صيغة الوقت غير صحيحة", 422);
+    if (clockToMin(end, true) <= clockToMin(start)) throw new MockApiError("نهاية الوردية يجب أن تكون بعد بدايتها", 422);
+    const days = Array.isArray(item.days) ? item.days.map(Number) : [];
+    if (!days.length || !days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) throw new MockApiError("أيام غير صالحة", 422);
+    return { start, end, days: [...new Set(days)].sort() };
+  });
+}
+
+/** "YYYY-MM-DD" → that calendar day (noon, server time), or a 422. */
+export function parseDay(raw: string, field = "date"): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
+  if (!d || Number.isNaN(+d) || dayKey(d) !== raw) throw new MockApiError("تاريخ غير صالح", 422, { [field]: ["تاريخ غير صالح"] });
+  return d;
+}
+
+/** A service duration (minutes) worth averaging: events out of order or days apart are bad data. */
+export function isPlausibleDuration(d: number | null): d is number {
+  return d !== null && d >= 0 && d <= 12 * 60;
+}
+
+/** A day that may be closed: a valid "YYYY-MM-DD" that is today or earlier. */
+export function assertClosableDay(date: string): void {
+  parseDay(date);
+  if (date > dayKey(now())) throw new MockApiError("لا يمكن إغلاق يوم لم يأتِ بعد", 422, { date: ["تاريخ في المستقبل"] });
+}
 
 /** True when staff applied a manual discount (alone or stacked on an offer). */
 export function hasManualDiscount(o: Order): boolean {

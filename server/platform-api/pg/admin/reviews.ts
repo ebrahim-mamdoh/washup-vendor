@@ -106,6 +106,28 @@ export const reviewRoutes = [
   }),
 
   route("POST", "/admin/reviews/:id/visibility", async ({ params, body, admin }) => {
+    // Keeping a reported review visible closes the wash's report (it leaves the "reported" queue).
+    if (!body.hidden) {
+      const kept = await tx(async (t) => {
+        const current = await reviewById(t, params.id);
+        if (current.status !== "visible" || !current.reportedByWash) return null;
+        const reason = requireText(body.reason, "reason", "سبب الإبقاء");
+        await t`update public.reviews set reported_by_wash = false, report_reason = null where id = ${current.id}`;
+        await logAudit(t, {
+          actorId: admin.id,
+          action: "keep_review",
+          entity: "reviews",
+          entityId: current.id,
+          branchId: current.branchId,
+          oldValue: "reported",
+          newValue: "visible",
+          reason,
+        });
+        await pushVendorNotification(t, current.businessId, current.branchId, "review", "تمت مراجعة بلاغك على تقييم", "راجعت كارزن التقييم وقررت إبقاءه ظاهرًا.", "/reviews");
+        return reviewById(t, current.id);
+      });
+      if (kept) return ok(kept, "تم إغلاق البلاغ وإبقاء التقييم ظاهرًا");
+    }
     const { review, rating } = await tx(async (t) => {
       const current = await reviewById(t, params.id);
       const hidden = Boolean(body.hidden);

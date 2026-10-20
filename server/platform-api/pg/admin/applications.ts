@@ -4,6 +4,7 @@ import type { ApplicationStatus, WashApplication } from "@/types/applications";
 
 import { MockApiError, ok, requireText } from "../../http";
 import { defaultPermissions } from "../../seed";
+import { createLogin, isLocalAuth, loginNotice } from "../auth";
 import { DEFAULT_NOTIFICATION_PREFS } from "../../vendor/notify";
 import { PHONE, applicationsWhere } from "../entities";
 import { countsOf, orderBy, paged, searchPattern } from "../list";
@@ -202,9 +203,13 @@ export const applicationRoutes = [
         },
         `/washes/${biz.id}`,
       );
-      return { application: await applicationById(t, app.id), businessId: biz.id };
+      // The owner signs in to the partner portal with this phone: create and link the Supabase Auth login.
+      const login = isLocalAuth() ? null : await createLogin({ phone: raw.phone });
+      if (login && "userId" in login) await t`update public.staff set user_id = ${login.userId} where id = ${owner.id}`;
+      return { application: await applicationById(t, app.id), businessId: biz.id, login };
     });
-    return ok(result, `تمت الموافقة على ${result.application.businessName}`);
+    const { login, ...data } = result;
+    return ok(data, `تمت الموافقة على ${data.application.businessName} — حساب المالك: ${loginNotice(login)}`);
   }),
 
   route("POST", "/admin/applications/:id/reject", async ({ params, body, admin }) => {

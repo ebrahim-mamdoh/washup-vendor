@@ -484,7 +484,9 @@ export const vendorInsightRoutes = [
   }),
 
   vroute("POST", "/vendor/notifications/:id/read", ({ db, params, actor }) => {
-    const n = db.vendorNotifications.find((x) => x.id === params.id && x.businessId === actor.business.id);
+    const n = db.vendorNotifications.find(
+      (x) => x.id === params.id && x.businessId === actor.business.id && (x.branchId === null || actor.branchIds.includes(x.branchId)),
+    );
     if (!n) throw new MockApiError("الإشعار غير موجود", 404);
     n.read = true;
     return ok(n);

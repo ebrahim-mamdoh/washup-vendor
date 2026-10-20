@@ -2,15 +2,26 @@ import "server-only";
 
 import type { PaymentMethod } from "@/types/orders";
 import type { DayClosing, DayClosingSummary, MethodTotals, ShiftClosing, StaffPerformance, VendorStaffMember } from "@/types/vendor/team";
-import type { ShiftPattern, StaffPermissions, StaffRole } from "@/types/washes";
+import type { StaffPermissions, StaffRole } from "@/types/washes";
 import { daysAgo, logAudit, nid, now, round2 } from "../db";
 import { MockApiError, matchesSearch, ok, paginate, requireText, sortBy } from "../http";
 import { branchName } from "../lookups";
 import { type VendorActor, vroute } from "../router";
 import type { MockDatabase } from "../schema";
 import { defaultPermissions } from "../seed";
-import { clockToMin, dayKey, hasManualDiscount, normalizePhone, onShiftAt, prettyPhone, staffName } from "./engine";
-import { assertBranch, assertOwner, scopeBranches, singleBranch } from "./scope";
+import {
+  assertClosableDay,
+  cleanShiftPatterns,
+  dayKey,
+  hasManualDiscount,
+  isPlausibleDuration,
+  normalizePhone,
+  onShiftAt,
+  parseDay,
+  prettyPhone,
+  staffName,
+} from "./engine";
+import { assertBranch, assertOwner, capPermissions, scopeBranches, singleBranch } from "./scope";
 
 const PERIOD_DAYS = { today: 1, "7d": 7, "30d": 30 } as const;
 const PERMISSION_KEYS: (keyof StaffPermissions)[] = ["confirmBooking", "cancelOrder", "closeShift", "editServices", "refund", "collectPayment", "runService", "manageStaff"];
@@ -27,7 +38,7 @@ function performance(db: MockDatabase, staffId: string, from: Date): StaffPerfor
       const e = o.timeline.find((x) => x.status === "completed");
       return s && e ? (new Date(e.at).getTime() - new Date(s.at).getTime()) / 60000 : null;
     })
-    .filter((d): d is number => d !== null);
+    .filter(isPlausibleDuration);
   const reviews = db.reviews.filter((r) => r.status === "visible" && orders.some((o) => o.id === r.orderId));
   const discountLogs = db.auditLogs.filter((a) => a.action === "order.discount" && a.actorId === staffId && new Date(a.at) >= from);
   const discounted = orders.filter((o) => hasManualDiscount(o));
@@ -131,7 +142,7 @@ export const vendorTeamRoutes = [
       role,
       status: "active" as const,
       maxDiscountPct: Number.isNaN(maxDiscountPct) ? 10 : maxDiscountPct,
-      permissions: parsePermissions(body.permissions, role),
+      permissions: capPermissions(actor, parsePermissions(body.permissions, role)),
       scheduledShifts: [{ start: "09:00", end: "17:00", days: [0, 1, 2, 3, 4, 5, 6] }],
       joinedAt: now().toISOString(),
     };
@@ -184,14 +195,9 @@ export const vendorTeamRoutes = [
     if (!actor.staff.permissions.manageStaff) throw new MockApiError("ليس لديك صلاحية إدارة الورديات", 403);
     const member = db.staff.find((s) => s.id === params.id && s.businessId === actor.business.id);
     if (!member || !actor.branchIds.includes(member.branchId) || member.role === "owner") throw new MockApiError("الموظف غير موجود", 404);
-    const shifts = Array.isArray(body.shifts) ? (body.shifts as ShiftPattern[]) : [];
-    for (const p of shifts) {
-      if (!/^\d{2}:\d{2}$/.test(p.start) || !/^\d{2}:\d{2}$/.test(p.end)) throw new MockApiError("صيغة الوقت غير صحيحة", 422);
-      if (clockToMin(p.end, true) <= clockToMin(p.start)) throw new MockApiError("نهاية الوردية يجب أن تكون بعد بدايتها", 422);
-      if (!Array.isArray(p.days) || !p.days.every((d) => d >= 0 && d <= 6)) throw new MockApiError("أيام غير صالحة", 422);
-    }
+    const patterns = cleanShiftPatterns(body.shifts ?? []);
     const before = member.scheduledShifts;
-    member.scheduledShifts = shifts.map((p) => ({ start: p.start, end: p.end, days: [...new Set(p.days)].sort() }));
+    member.scheduledShifts = patterns;
     audit(db, actor, "staff.schedule", "staff", member.id, member.branchId, before, member.scheduledShifts);
     return ok(member, `تم تحديث جدول ${member.name}`);
   }),
@@ -259,6 +265,7 @@ export const vendorTeamRoutes = [
   vroute("GET", "/vendor/day-closing", ({ db, query, actor }) => {
     const branchId = singleBranch(actor, query.get("branchId"));
     const date = query.get("date") ?? dayKey(now());
+    parseDay(date);
     const dayOrders = db.orders.filter((o) => o.branchId === branchId && dayKey(o.scheduledAt) === date);
     const completed = dayOrders.filter((o) => o.status === "completed");
     const paid = completed.filter((o) => o.paymentStatus === "paid");
@@ -283,6 +290,7 @@ export const vendorTeamRoutes = [
     const branchId = String(body.branchId ?? "");
     assertBranch(actor, branchId);
     const date = String(body.date ?? dayKey(now()));
+    assertClosableDay(date);
     if (db.dayClosings.some((c) => c.branchId === branchId && c.date === date)) throw new MockApiError("تم إغلاق هذا اليوم مسبقًا", 409);
     const dayOrders = db.orders.filter((o) => o.branchId === branchId && dayKey(o.scheduledAt) === date);
     const blocking = dayOrders.filter((o) => o.status === "in_service" || o.status === "waiting" || (o.status === "completed" && o.paymentStatus === "pending"));

@@ -22,6 +22,8 @@ function connect(): Sql {
   if (!url) throw new Error("DATABASE_URL is not set (required when CARZEN_DATA_SOURCE=supabase)");
   return postgres(url, {
     // Supabase's transaction pooler (port 6543) does not support prepared statements.
+    // Use the session pooler (port 5432): with the transaction pooler, a request running
+    // more parallel queries than connections (the admin dashboard) can hang for good.
     prepare: false,
     max: Number(process.env.DATABASE_POOL_MAX) || 5,
     idle_timeout: 20,
