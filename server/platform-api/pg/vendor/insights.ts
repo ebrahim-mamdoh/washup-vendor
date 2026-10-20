@@ -690,7 +690,10 @@ export const vendorInsightRoutes = [
     const notification = await tx(async (t) => {
       const updated = await t`
         update public.vendor_notifications set read = true
-        where id = ${params.id} and business_id = ${actor.business.id} returning id`;
+        where id = ${params.id} and business_id = ${actor.business.id}
+          and (branch_id is null or branch_id = any(${actor.branchIds}))
+          and (staff_id is null or staff_id = ${actor.staff.id})
+        returning id`;
       if (!updated.length) throw new MockApiError("الإشعار غير موجود", 404);
       const [row] = await vendorNotificationsWhere(t, t`vn.id = ${params.id}`);
       return row;

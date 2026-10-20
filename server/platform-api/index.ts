@@ -16,6 +16,7 @@ import { washRoutes } from "./handlers/washes";
 import { MockApiError, fail } from "./http";
 import { handleSupabaseRequest } from "./pg";
 import { type HttpMethod, type RouteDef, type VendorRouteDef, matchPath } from "./router";
+import { isLoginPath, loginThrottle } from "./throttle";
 import { VENDOR_ROUTES } from "./vendor";
 import { resolveVendorActor } from "./vendor/scope";
 
@@ -51,7 +52,21 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
   }
 }
 
+/** JSON bodies of this API are small; anything bigger is refused before parsing. */
+const MAX_BODY_BYTES = 1_000_000;
+
 export async function handleMockRequest(req: Request, segments: string[]): Promise<Response> {
+  // The partner portal only serves /vendor/*: the admin namespace belongs to the Super Admin app
+  // (CARZEN_SERVE_ADMIN_API=1 re-enables it, e.g. for the demo reset endpoint).
+  if (segments[0] !== "vendor" && process.env.CARZEN_SERVE_ADMIN_API !== "1") {
+    return fail(`المسار ${req.method.toUpperCase()} /${segments.join("/")} غير موجود`, 404);
+  }
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return fail("حجم الطلب أكبر من المسموح", 413);
+  if (isLoginPath(segments) && req.method === "POST") {
+    const wait = loginThrottle(req);
+    if (wait) return fail(`محاولات كثيرة لتسجيل الدخول، حاول بعد ${wait} ثانية`, 429);
+  }
+
   // Real data: the same routes served from the Supabase Postgres database.
   if (process.env.CARZEN_DATA_SOURCE === "supabase") return handleSupabaseRequest(req, segments);
 
@@ -95,6 +110,8 @@ export async function handleMockRequest(req: Request, segments: string[]): Promi
     return response;
   } catch (error) {
     if (error instanceof MockApiError) return fail(error.message, error.httpStatus, error.errors);
+    // Invalid dates in the request ("Invalid time value") are the client's error.
+    if (error instanceof RangeError) return fail("قيمة غير صالحة في الطلب", 422);
     console.error("[mock-api]", method, path, error);
     return fail("حدث خطأ غير متوقع في الخادم", 500);
   }

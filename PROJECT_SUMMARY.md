@@ -3,6 +3,9 @@
 > Full context for any engineer or AI session. Read `AGENTS.md` (engineering playbook from aroma) as well.
 > Standalone repo (`washup-vendor`), split on 2026-10-19 from the carZone monorepo (`vendor-portal/` +
 > `packages/*` at commit `547e7ba`): the shared packages now live inside this app (§3).
+> `server/platform-api/` is the same code as in `washup-superadmin` (change both; only `index.ts`'s namespace guard
+> differs: this app answers `/api/v1/vendor/*` only). On Supabase use the **session** pooler (port 5432) in
+> `DATABASE_URL`; `SUPABASE_SECRET_KEY` lets "add staff" create the Supabase Auth login (temporary password shown once).
 
 ---
 

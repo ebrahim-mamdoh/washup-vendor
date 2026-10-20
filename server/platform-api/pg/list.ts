@@ -13,7 +13,8 @@ import type { Q } from "./sql";
 
 /** `?search=` as an ILIKE pattern (`%term%`, wildcards escaped), or null. */
 export function searchPattern(query: URLSearchParams): string | null {
-  const term = query.get("search")?.trim();
+  // Postgres text can't hold NUL bytes.
+  const term = query.get("search")?.replaceAll("\0", "").trim();
   if (!term) return null;
   return `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
@@ -29,8 +30,10 @@ export function orderBy(
   fallback: { key: string; order: "asc" | "desc" },
   tieBreaker?: string,
 ): postgres.Fragment {
-  const key = query.get("sort") ?? fallback.key;
-  const expr = columns[key] ?? columns[fallback.key];
+  const raw = query.get("sort") ?? fallback.key;
+  // Own keys only: "__proto__"/"constructor" must not reach the SQL.
+  const key = Object.hasOwn(columns, raw) ? raw : fallback.key;
+  const expr = columns[key];
   const order = (query.get("order") ?? fallback.order) === "asc" ? "asc" : "desc";
   return q.unsafe(`order by ${expr} ${order} nulls last${tieBreaker ? `, ${tieBreaker}` : ""}`);
 }
