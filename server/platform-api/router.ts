@@ -39,7 +39,15 @@ export function matchPath(pattern: string, path: string): Record<string, string>
   const params: Record<string, string> = {};
   for (let i = 0; i < a.length; i += 1) {
     if (a[i].startsWith(":")) {
-      params[a[i].slice(1)] = decodeURIComponent(b[i]);
+      // A malformed escape ("%", "CZ-%") or a NUL can't be an id: no match (404) instead of a crash.
+      let value: string;
+      try {
+        value = decodeURIComponent(b[i]);
+      } catch {
+        return null;
+      }
+      if (value.includes("\0")) return null;
+      params[a[i].slice(1)] = value;
     } else if (a[i] !== b[i]) {
       return null;
     }

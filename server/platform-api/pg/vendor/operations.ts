@@ -2,7 +2,6 @@ import "server-only";
 
 import type { Order } from "@/types/orders";
 import type {
-  CreateOrderPayload,
   LiveBoard,
   OrderActionPayload,
   ScheduleDay,
@@ -14,7 +13,7 @@ import type postgres from "postgres";
 import { isSameDay, now } from "../../db";
 import { MockApiError, ok, requireText } from "../../http";
 import { serviceName } from "../../lookups";
-import { clockToMin, dayKey, hoursFor, nextActionFor } from "../../vendor/engine";
+import { cleanOrderPayload, clockToMin, dayKey, hoursFor, nextActionFor, parseDay } from "../../vendor/engine";
 import {
   PHONE,
   auditWhere,
@@ -45,7 +44,7 @@ import {
   overlapping,
   performAction,
   priceServices,
-  recognize,
+  recognizeForWash,
 } from "./engine";
 import { assertBranch, scopeBranches, singleBranch } from "./scope";
 
@@ -96,7 +95,7 @@ function dateWhere(q: Q, date: string | null): Frag {
 }
 
 /** `?date=` of the schedule/availability screens (noon avoids DST edges), today by default. */
-const dayParam = (raw: string | null) => (raw ? new Date(`${raw}T12:00:00`) : now());
+const dayParam = (raw: string | null) => (raw ? parseDay(raw) : now());
 
 export const vendorOperationRoutes = [
   vroute("GET", "/vendor/orders", async ({ query, actor }) => {
@@ -194,11 +193,11 @@ export const vendorOperationRoutes = [
   }),
 
   vroute("POST", "/vendor/orders", async ({ body, actor }) => {
-    const payload = body as unknown as CreateOrderPayload;
+    const payload = cleanOrderPayload(body);
     if (payload.source !== "phone" && payload.source !== "walk_in") throw new MockApiError("نوع الطلب غير صالح", 422);
-    assertBranch(actor, String(payload.branchId ?? ""));
+    assertBranch(actor, payload.branchId);
     const { item, wait } = await tx(async (t) => {
-      const id = await createOrder(t, actor, { ...payload, serviceIds: Array.isArray(payload.serviceIds) ? payload.serviceIds.map(String) : [] });
+      const id = await createOrder(t, actor, payload);
       const order = await orderById(t, id);
       const [busy, [{ capacity }]] = await Promise.all([
         busyBays(t, order.branchId),
@@ -244,7 +243,9 @@ export const vendorOperationRoutes = [
     return ok(await priceServices(db(), branchId, ids));
   }),
 
-  vroute("GET", "/vendor/recognize", async ({ query, actor }) => ok(await recognize(db(), actor.business.id, query.get("plate"), query.get("phone")))),
+  vroute("GET", "/vendor/recognize", async ({ query, actor }) =>
+    ok(await recognizeForWash(db(), actor.business.id, query.get("plate"), query.get("phone"))),
+  ),
 
   vroute("GET", "/vendor/availability", async ({ query, actor }) => {
     const sql = db();

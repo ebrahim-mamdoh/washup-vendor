@@ -1,16 +1,16 @@
 import "server-only";
 
 import type { Offer } from "@/types/offers";
-import type { VendorNotificationType } from "@/types/vendor/catalog";
 import type { VendorBranch, VendorOffer, VendorService, VendorSettings } from "@/types/vendor/catalog";
-import type { BranchSettings, ServiceType, WorkingDay } from "@/types/washes";
+import type { BranchSettings, ServiceType } from "@/types/washes";
 import { daysAgo, isSameDay, logAudit, nid, now, pushAdminNotification } from "../db";
 import { MockApiError, matchesSearch, ok, requireText } from "../http";
 import { branchName } from "../lookups";
 import { type VendorActor, vroute } from "../router";
 import type { MockDatabase } from "../schema";
 import { defaultPermissions } from "../seed";
-import { DEFAULT_NOTIFICATION_PREFS, vendorSettingsFor } from "./notify";
+import { cleanWorkingHours } from "./engine";
+import { DEFAULT_NOTIFICATION_PREFS, cleanNotificationPrefs, slotInterval, vendorSettingsFor } from "./notify";
 import { assertBranch, assertOwner, findInScope, scopeBranches } from "./scope";
 
 const CATEGORIES = ["exterior", "interior", "full", "deep"];
@@ -199,17 +199,19 @@ export const vendorCatalogRoutes = [
     const address = (body.address ?? {}) as { ar?: string; en?: string };
     const capacity = Number(body.capacity);
     if (Number.isNaN(capacity) || capacity < 1 || capacity > 30) throw new MockApiError("السعة بين 1 و 30 مكان", 422, { capacity: ["قيمة غير صالحة"] });
-    const hours = Array.isArray(body.workingHours) ? (body.workingHours as WorkingDay[]) : target.workingHours;
-    if (hours.length !== 7) throw new MockApiError("ساعات العمل يجب أن تغطي 7 أيام", 422);
+    const workingHours = cleanWorkingHours(body.workingHours === undefined ? target.workingHours : body.workingHours);
     const before = { name: target.name.ar, capacity: target.capacity, active: target.active };
     const deactivating = target.active && body.active === false;
 
-    target.name = { ar: requireText(name.ar, "name.ar", "اسم الفرع", 2), en: String(name.en ?? target.name.en).trim() || target.name.en };
-    target.address = { ar: requireText(address.ar, "address.ar", "العنوان", 3), en: String(address.en ?? target.address.en).trim() || target.address.en };
+    // Validate everything before touching the branch: a rejected request leaves no partial change.
+    const nextName = { ar: requireText(name.ar, "name.ar", "اسم الفرع", 2), en: String(name.en ?? target.name.en).trim() || target.name.en };
+    const nextAddress = { ar: requireText(address.ar, "address.ar", "العنوان", 3), en: String(address.en ?? target.address.en).trim() || target.address.en };
+    target.name = nextName;
+    target.address = nextAddress;
     target.phone = String(body.phone ?? target.phone).trim();
-    target.amenities = Array.isArray(body.amenities) ? body.amenities.map(String) : target.amenities;
+    target.amenities = Array.isArray(body.amenities) ? [...new Set(body.amenities.map(String))] : target.amenities;
     target.capacity = Math.round(capacity);
-    target.workingHours = hours.map((d) => ({ open: String(d.open), close: String(d.close), closed: Boolean(d.closed) }));
+    target.workingHours = workingHours;
     target.active = body.active !== false;
 
     audit(db, actor, "branch.update", "branches", target.id, target.id, before, { name: target.name.ar, capacity: target.capacity, active: target.active }, reason);
@@ -234,7 +236,7 @@ export const vendorCatalogRoutes = [
     };
     const next: BranchSettings = {
       autoConfirm: Boolean(s.autoConfirm),
-      slotIntervalMin: [15, 20, 30, 45, 60].includes(Number(s.slotIntervalMin)) ? Number(s.slotIntervalMin) : 30,
+      slotIntervalMin: slotInterval(s.slotIntervalMin),
       leadTimeMin: num(s.leadTimeMin, 0, 240, "مهلة الحجز"),
       maxAdvanceDays: num(s.maxAdvanceDays, 1, 30, "أقصى أيام مسبقة"),
       freeCancelMin: num(s.freeCancelMin, 0, 1440, "نافذة الإلغاء المجاني"),
@@ -291,7 +293,7 @@ export const vendorCatalogRoutes = [
       changes.push("managerCanEditServices");
     }
     if (body.notificationPrefs && typeof body.notificationPrefs === "object") {
-      s.notificationPrefs = { ...DEFAULT_NOTIFICATION_PREFS, ...(body.notificationPrefs as Record<VendorNotificationType, boolean>) };
+      s.notificationPrefs = cleanNotificationPrefs(body.notificationPrefs, s.notificationPrefs);
       changes.push("notificationPrefs");
     }
     if (!changes.length) throw new MockApiError("لا توجد تغييرات للحفظ", 422);

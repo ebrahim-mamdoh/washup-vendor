@@ -76,9 +76,10 @@ export function sortBy<T>(
   accessors: Record<string, (item: T) => Sortable>,
   fallback: { key: string; order: "asc" | "desc" },
 ): T[] {
-  const key = query.get("sort") ?? fallback.key;
+  const raw = query.get("sort") ?? fallback.key;
+  const key = Object.hasOwn(accessors, raw) ? raw : fallback.key;
   const order = (query.get("order") as "asc" | "desc" | null) ?? fallback.order;
-  const accessor = accessors[key] ?? accessors[fallback.key];
+  const accessor = accessors[key];
   if (!accessor) return list;
   const dir = order === "asc" ? 1 : -1;
   return [...list].sort((a, b) => {

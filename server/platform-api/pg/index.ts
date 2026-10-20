@@ -69,6 +69,11 @@ export async function handleSupabaseRequest(req: Request, segments: string[]): P
       console.warn("[api:supabase]", method, path, error.code, error.constraint_name, error.message);
       return fail("البيانات المرسلة تخالف قواعد البيانات المسموح بها", 422);
     }
+    // Malformed values Postgres can't store or cast (NUL bytes, bad dates/numbers) are the client's error.
+    if ((error instanceof postgres.PostgresError && error.code.startsWith("22")) || error instanceof RangeError) {
+      console.warn("[api:supabase]", method, path, error instanceof postgres.PostgresError ? error.code : "", error.message);
+      return fail("قيمة غير صالحة في الطلب", 422);
+    }
     console.error("[api:supabase]", method, path, error);
     return fail("حدث خطأ غير متوقع في الخادم", 500);
   }

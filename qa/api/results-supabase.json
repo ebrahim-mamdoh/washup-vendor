@@ -1,0 +1,6160 @@
+{
+  "mode": "supabase",
+  "base": "http://localhost:3301",
+  "run": "F3MSTN",
+  "startedAt": "2026-10-19T10:15:57.804Z",
+  "finishedAt": "2026-10-19T10:16:13.235Z",
+  "totals": {
+    "pass": 117,
+    "fail": 26,
+    "skip": 3
+  },
+  "byArea": {
+    "0-Smoke": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0
+    },
+    "1-Auth": {
+      "pass": 14,
+      "fail": 0,
+      "skip": 0
+    },
+    "2-Authz": {
+      "pass": 18,
+      "fail": 3,
+      "skip": 1
+    },
+    "3-Orders": {
+      "pass": 31,
+      "fail": 2,
+      "skip": 1
+    },
+    "4-Pricing": {
+      "pass": 6,
+      "fail": 1,
+      "skip": 0
+    },
+    "5-Catalog": {
+      "pass": 12,
+      "fail": 3,
+      "skip": 0
+    },
+    "5-Team": {
+      "pass": 8,
+      "fail": 2,
+      "skip": 1
+    },
+    "6-Suspend": {
+      "pass": 6,
+      "fail": 1,
+      "skip": 0
+    },
+    "7-DayClose": {
+      "pass": 7,
+      "fail": 1,
+      "skip": 0
+    },
+    "8-Robust": {
+      "pass": 8,
+      "fail": 5,
+      "skip": 0
+    },
+    "9-Security": {
+      "pass": 4,
+      "fail": 8,
+      "skip": 0
+    }
+  },
+  "results": [
+    {
+      "area": "0-Smoke",
+      "name": "all GET routes → 200 envelope (owner)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard?period=7d",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard?period=30d",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/live",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?view=bookings&tab=upcoming",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/schedule",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/schedule?date=2026-10-20",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/availability",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/offers",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/day-closing",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=orders",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=revenue",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=services",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=source",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=employees",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/finance",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/finance?period=today",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/notifications",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=CZ",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/recognize?plate=ABC123",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 779
+    },
+    {
+      "area": "0-Smoke",
+      "name": "all GET routes → 200 envelope (adel)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard?period=7d",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard?period=30d",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/live",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?view=bookings&tab=upcoming",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/schedule",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/schedule?date=2026-10-20",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/availability",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/offers",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/day-closing",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=orders",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=revenue",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=services",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=source",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=employees",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/finance",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/finance?period=today",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/notifications",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=CZ",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/recognize?plate=ABC123",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 697
+    },
+    {
+      "area": "0-Smoke",
+      "name": "responses carry X-Demo-Now",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 17
+    },
+    {
+      "area": "1-Auth",
+      "name": "owner login → 200, token + account (both branches)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        }
+      ],
+      "ms": 33
+    },
+    {
+      "area": "1-Auth",
+      "name": "manager (Mohamed Adel) login → only br_nasr",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        }
+      ],
+      "ms": 32
+    },
+    {
+      "area": "1-Auth",
+      "name": "manager (Tamer) login → only br_helio",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        }
+      ],
+      "ms": 35
+    },
+    {
+      "area": "1-Auth",
+      "name": "login accepts formatted phone (+20 120 000 0000)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        }
+      ],
+      "ms": 17
+    },
+    {
+      "area": "1-Auth",
+      "name": "wrong password → 401",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        }
+      ],
+      "ms": 25
+    },
+    {
+      "area": "1-Auth",
+      "name": "unknown phone → 401 (same message as wrong password)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        }
+      ],
+      "ms": 45
+    },
+    {
+      "area": "1-Auth",
+      "name": "malformed phone / empty body → 422",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 422,
+          "message": "رقم الموبايل وكلمة المرور مطلوبان"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 422,
+          "message": "رقم الموبايل وكلمة المرور مطلوبان"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 422,
+          "message": "رقم الموبايل وكلمة المرور مطلوبان"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 422,
+          "message": "رقم الموبايل وكلمة المرور مطلوبان"
+        }
+      ],
+      "ms": 56
+    },
+    {
+      "area": "1-Auth",
+      "name": "employee (Ahmed Samir) rejected → 403",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 403,
+          "message": "بوابة الشركاء مخصصة للمالك ومديري الفروع. الموظفون يستخدمون تطبيق الموظف."
+        }
+      ],
+      "ms": 32
+    },
+    {
+      "area": "1-Auth",
+      "name": "no token → 401 on protected routes",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        }
+      ],
+      "ms": 56
+    },
+    {
+      "area": "1-Auth",
+      "name": "invalid / garbage / non-Bearer tokens → 401",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        }
+      ],
+      "ms": 167
+    },
+    {
+      "area": "1-Auth",
+      "name": "admin token is not accepted on /vendor/*, vendor token not on /admin/*",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/admin/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/admin/washes",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        }
+      ],
+      "ms": 44
+    },
+    {
+      "area": "1-Auth",
+      "name": "/vendor/auth/me shape",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 37
+    },
+    {
+      "area": "1-Auth",
+      "name": "logout invalidates the token (other sessions untouched)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/logout",
+          "status": 200,
+          "message": "تم تسجيل الخروج"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 115
+    },
+    {
+      "area": "1-Auth",
+      "name": "logout without token → 401",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/logout",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        }
+      ],
+      "ms": 12
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager reads other branch's order → 404",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_conf_2",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/CZ-08003",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_235b5344398a4b16",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        }
+      ],
+      "ms": 57
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager acts on other branch's order → 404",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_conf_2/actions",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_235b5344398a4b16/actions",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        }
+      ],
+      "ms": 36
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager branchId=<other branch> on list/report endpoints → 403",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/live?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/schedule?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/finance?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/day-closing?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/offers?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/availability?branchId=br_helio&serviceIds=svc_br_helio_ext",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_helio&serviceIds=svc_br_helio_ext",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        }
+      ],
+      "ms": 250
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager branchId=all only returns his branch",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?branchId=all&tab=all&per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?branchId=all&per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?branchId=all",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/finance?branchId=all",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 116
+    },
+    {
+      "area": "2-Authz",
+      "name": "branchId injection value → 403 (no scope bypass)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?branchId='%20OR%20'1'%3D'1",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?branchId=br_nasr%2Cbr_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?branchId=%25",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?branchId=*",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?branchId=br_helio%2500",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        }
+      ],
+      "ms": 52
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager cannot edit other branch staff (404) or any staff role/permissions (403)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_walid",
+          "status": 404,
+          "message": "الموظف غير موجود"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_samir",
+          "status": 403,
+          "message": "تعديل الدور وحد الخصم والصلاحيات متاح لمالك المغسلة فقط"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_walid/status",
+          "status": 404,
+          "message": "الموظف غير موجود"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_walid/schedule",
+          "status": 404,
+          "message": "الموظف غير موجود"
+        }
+      ],
+      "ms": 62
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager cannot suspend himself (409) or another manager (404)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_adel/status",
+          "status": 409,
+          "message": "لا يمكنك إيقاف حسابك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_tamer/status",
+          "status": 404,
+          "message": "الموظف غير موجود"
+        }
+      ],
+      "ms": 35
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager cannot add a manager (owner-only) → 403",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 403,
+          "message": "إضافة مدير فرع متاح لمالك المغسلة فقط"
+        }
+      ],
+      "ms": 14
+    },
+    {
+      "area": "2-Authz",
+      "name": "owner-only routes rejected for managers → 403",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 403,
+          "message": "تعديل إعدادات المغسلة متاح لمالك المغسلة فقط"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_nasr",
+          "status": 403,
+          "message": "تعديل بيانات الفرع متاح لمالك المغسلة فقط"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_nasr/settings",
+          "status": 403,
+          "message": "تعديل قواعد الحجز متاح لمالك المغسلة فقط"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 403,
+          "message": "إدارة العروض متاح لمالك المغسلة فقط"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/offers/of_deep",
+          "status": 403,
+          "message": "إدارة العروض متاح لمالك المغسلة فقط"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers/of_deep/status",
+          "status": 403,
+          "message": "إدارة العروض متاح لمالك المغسلة فقط"
+        }
+      ],
+      "ms": 99
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager services edit blocked while managerCanEditServices=false → 403",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/services",
+          "status": 403,
+          "message": "تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_nasr_air",
+          "status": 403,
+          "message": "تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 53
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager customer detail never exposes other-branch orders/reviews",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/customers?branchId=br_helio&per_page=100&page=1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?per_page=100&page=1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/cu_018",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 66
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager shift of other branch → 404 (read + review)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/shifts?branchId=br_helio&per_page=50",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/sh_walid_today",
+          "status": 404,
+          "message": "الوردية غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/shifts/sh_walid_today/review",
+          "status": 404,
+          "message": "الوردية غير موجودة"
+        }
+      ],
+      "ms": 41
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager reply/report on other branch review → 404",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?branchId=br_helio&per_page=50",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/reviews/rv_auto_39/reply",
+          "status": 404,
+          "message": "التقييم غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/reviews/rv_auto_39/report",
+          "status": 404,
+          "message": "التقييم غير موجود"
+        }
+      ],
+      "ms": 48
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager blocks/unblocks other branch slots → 403/404",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/schedule/blocks",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/schedule/blocks",
+          "status": 200,
+          "message": "تم حجب الفترة واختفت من تطبيق العميل"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/blk_9fbb8713285b491e",
+          "status": 404,
+          "message": "الفترة المحجوبة غير موجودة"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/blk_9fbb8713285b491e",
+          "status": 200,
+          "message": "تم إلغاء الحجب وعادت الفترة متاحة للحجز"
+        }
+      ],
+      "ms": 52
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager marks other branch notification as read → expected 404",
+      "status": "fail",
+      "detail": "Adel (Nasr City) could mark Heliopolis notification vn_6: POST /vendor/notifications/vn_6/read -> 200 «OK»",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/notifications?per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/vn_6/read",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 48
+    },
+    {
+      "area": "2-Authz",
+      "name": "manager bulk-confirm skips other branch bookings",
+      "status": "skip",
+      "detail": "no pending Nasr City booking",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?view=bookings&tab=today&branchId=br_nasr&per_page=100",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 20
+    },
+    {
+      "area": "2-Authz",
+      "name": "other business order (biz_pyramid ord_py_1) → 404 for owner",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_py_1",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_py_1/actions",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_py_1/actions",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/admin/orders/ord_py_1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/CZ-09919",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/bulk-confirm",
+          "status": 409,
+          "message": "لا توجد حجوزات بانتظار التأكيد ضمن الاختيار"
+        }
+      ],
+      "ms": 72
+    },
+    {
+      "area": "2-Authz",
+      "name": "other business service/branch/offer/staff ids → 404",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_nile_maadi_ext",
+          "status": 404,
+          "message": "الخدمة غير موجود"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_nile_maadi",
+          "status": 404,
+          "message": "الفرع غير موجود"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_nile_maadi/settings",
+          "status": 404,
+          "message": "الفرع غير موجود"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/offers/of_nile",
+          "status": 404,
+          "message": "العرض غير موجود أو غير قابل للتعديل"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers/of_nile/status",
+          "status": 404,
+          "message": "العرض غير موجود"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_owner_biz_nile",
+          "status": 404,
+          "message": "الموظف غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_emp_br_nile_maadi/status",
+          "status": 404,
+          "message": "الموظف غير موجود"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_emp_br_nile_maadi/schedule",
+          "status": 404,
+          "message": "الموظف غير موجود"
+        }
+      ],
+      "ms": 149
+    },
+    {
+      "area": "2-Authz",
+      "name": "other business branch in branchId params / create → 403, foreign service → 422",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/schedule?branchId=br_nile_maadi",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?branchId=br_nile_maadi",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/services",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_nasr&serviceIds=svc_br_nile_maadi_ext",
+          "status": 422,
+          "message": "خدمة غير موجودة في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/schedule/blocks",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        }
+      ],
+      "ms": 104
+    },
+    {
+      "area": "2-Authz",
+      "name": "other business customer detail → 404",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/customers?per_page=100&page=1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/admin/customers?per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/admin/customers/cu_032",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/cu_032",
+          "status": 404,
+          "message": "العميل غير موجود ضمن عملاء مغسلتك"
+        }
+      ],
+      "ms": 96
+    },
+    {
+      "area": "2-Authz",
+      "name": "plate/phone recognition does not expose other washes' customers",
+      "status": "fail",
+      "detail": "by phone → customer returned; recognize?plate=JBL131 returned a customer who never visited this wash (orders at: none): name=Yara Mostafa phone=+20 110 000 4247, visits here=0",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/recognize?plate=JBL131",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/recognize?phone=%2B20%20110%20000%204247",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 33
+    },
+    {
+      "area": "2-Authz",
+      "name": "recognition does not expose admin moderation data (status/statusReason)",
+      "status": "fail",
+      "detail": "recognize?plate=SCW139 returns the platform's internal suspension reason «محاولات حجز وهمية متكررة» (status=suspended)",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/admin/customers?per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/admin/customers/cu_040",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/recognize?plate=SCW139",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 46
+    },
+    {
+      "area": "3-Orders",
+      "name": "create walk-in → 200 waiting, CZ-2xxxx, server price",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20070"
+        }
+      ],
+      "ms": 33
+    },
+    {
+      "area": "3-Orders",
+      "name": "details: allowedActions for waiting + stored customer name/note verbatim",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_86186815c2a34f91",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 25
+    },
+    {
+      "area": "3-Orders",
+      "name": "invalid transitions on waiting → 409",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        }
+      ],
+      "ms": 133
+    },
+    {
+      "area": "3-Orders",
+      "name": "note validation (422) and XSS payload stored as text",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "اكتب الملاحظة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "اكتب الملاحظة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "اكتب الملاحظة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "تمت إضافة الملاحظة"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_86186815c2a34f91",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 102
+    },
+    {
+      "area": "3-Orders",
+      "name": "assign: other-branch / owner / unknown staff → 422, valid → 200",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "الموظف غير متاح في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "الموظف غير متاح في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "الموظف غير متاح في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "الموظف غير متاح في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "الموظف غير متاح في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "تم تعيين Ahmed Samir"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_86186815c2a34f91",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 152
+    },
+    {
+      "area": "3-Orders",
+      "name": "add_service: primary/foreign/unknown → 422, duplicate → 409, addon → recomputed total",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "الإضافة غير متاحة في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "الإضافة غير متاحة في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "الإضافة غير متاحة في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "تمت إضافة تنظيف الإطارات — الإجمالي 210 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "الإضافة موجودة بالفعل على الطلب"
+        }
+      ],
+      "ms": 115
+    },
+    {
+      "area": "3-Orders",
+      "name": "discount validation: reason required (errors.reason), value must be > 0",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "سبب الخصم مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "قيمة الخصم غير صالحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "قيمة الخصم غير صالحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "قيمة الخصم غير صالحة"
+        }
+      ],
+      "ms": 61
+    },
+    {
+      "area": "3-Orders",
+      "name": "discount 10% (owner) → total = subtotal × 0.9",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "تم تطبيق الخصم — الإجمالي الآن 189 ج.م"
+        }
+      ],
+      "ms": 40
+    },
+    {
+      "area": "3-Orders",
+      "name": "start → in_service",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "بدأت الخدمة — Ahmed Samir"
+        }
+      ],
+      "ms": 28
+    },
+    {
+      "area": "3-Orders",
+      "name": "add_service during service keeps the % discount (recomputed)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "تمت إضافة تلميع بالشمع — الإجمالي 243 ج.م"
+        }
+      ],
+      "ms": 25
+    },
+    {
+      "area": "3-Orders",
+      "name": "complete → completed, collect_payment allowed, refund not yet",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "اكتملت الخدمة — بانتظار الدفع 243 ج.م"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_86186815c2a34f91",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 44
+    },
+    {
+      "area": "3-Orders",
+      "name": "collect_payment validation: method, insufficient cash, NaN",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "اختر طريقة الدفع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "اختر طريقة الدفع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "اختر طريقة الدفع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "المبلغ المستلم أقل من الإجمالي (243 ج.م)"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "المبلغ المستلم أقل من الإجمالي (243 ج.م)"
+        }
+      ],
+      "ms": 77
+    },
+    {
+      "area": "3-Orders",
+      "name": "collect cash with change → paid; payment amount = server total",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "تم التحصيل — الباقي للعميل 57 ج.م"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_86186815c2a34f91",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 38
+    },
+    {
+      "area": "3-Orders",
+      "name": "after payment: collect again / add_service / discount / cancel / start → 409",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        }
+      ],
+      "ms": 79
+    },
+    {
+      "area": "3-Orders",
+      "name": "refund: reason required, then refunded; second refund → 409",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 422,
+          "message": "سبب الاسترداد مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 200,
+          "message": "تم استرداد 243 ج.م للعميل"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_86186815c2a34f91",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_86186815c2a34f91/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        }
+      ],
+      "ms": 62
+    },
+    {
+      "area": "3-Orders",
+      "name": "manager card flow: walk-in (offer) → start with staffId → complete → card",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20071"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_e3c6aac3fed140c2/actions",
+          "status": 200,
+          "message": "بدأت الخدمة — Ahmed Samir"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_e3c6aac3fed140c2/actions",
+          "status": 200,
+          "message": "اكتملت الخدمة — بانتظار الدفع 85 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_e3c6aac3fed140c2/actions",
+          "status": 200,
+          "message": "تم تحصيل المبلغ بنجاح"
+        }
+      ],
+      "ms": 117
+    },
+    {
+      "area": "3-Orders",
+      "name": "start without any staff → 422 errors.staffId",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20072"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 422,
+          "message": "اختر الموظف المسؤول عن الخدمة"
+        }
+      ],
+      "ms": 40
+    },
+    {
+      "area": "3-Orders",
+      "name": "cancel: reason required (errors.reason), then cancelled; later actions → 409, note still allowed",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 422,
+          "message": "سبب الإلغاء مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 422,
+          "message": "سبب الإلغاء مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-20072 وإبلاغ العميل"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_7a85c476e0df48c8/actions",
+          "status": 200,
+          "message": "تمت إضافة الملاحظة"
+        }
+      ],
+      "ms": 168
+    },
+    {
+      "area": "3-Orders",
+      "name": "availability for tomorrow returns bookable slots",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/availability?branchId=br_nasr&date=2026-10-20&serviceIds=svc_br_nasr_full",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 10
+    },
+    {
+      "area": "3-Orders",
+      "name": "phone booking validation: scheduledAt / customerPhone required",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "اختر موعد الحجز"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "رقم موبايل العميل مطلوب للحجز الهاتفي"
+        }
+      ],
+      "ms": 34
+    },
+    {
+      "area": "3-Orders",
+      "name": "phone booking in the past / misaligned slot → 409",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 409,
+          "message": "هذا الموعد لم يعد متاحًا — اختر موعدًا آخر"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 409,
+          "message": "هذا الموعد لم يعد متاحًا — اختر موعدًا آخر"
+        }
+      ],
+      "ms": 26
+    },
+    {
+      "area": "3-Orders",
+      "name": "phone booking with unparseable date → 409/422 (not 500)",
+      "status": "pass",
+      "detail": "",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 409,
+          "message": "هذا الموعد لم يعد متاحًا — اختر موعدًا آخر"
+        }
+      ],
+      "ms": 27
+    },
+    {
+      "area": "3-Orders",
+      "name": "phone booking beyond maxAdvanceDays (60 days) → rejected",
+      "status": "fail",
+      "detail": "booking 60 days ahead accepted (branch maxAdvanceDays=7): POST /vendor/orders -> 200 «تم إنشاء الطلب CZ-30028»",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-30028"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_07c014f15ce441ca/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-30028 وإبلاغ العميل"
+        }
+      ],
+      "ms": 73
+    },
+    {
+      "area": "3-Orders",
+      "name": "phone booking → confirmed CZ-3xxxx; capacity decremented; no check-in/no-show before time",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/availability?branchId=br_nasr&date=2026-10-20&serviceIds=svc_br_nasr_full",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-30029"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/availability?branchId=br_nasr&date=2026-10-20&serviceIds=svc_br_nasr_full",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_70d7792efc484db0",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_70d7792efc484db0/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_70d7792efc484db0/actions",
+          "status": 409,
+          "message": "هذا الإجراء غير متاح لحالة الطلب الحالية أو لصلاحياتك"
+        }
+      ],
+      "ms": 126
+    },
+    {
+      "area": "3-Orders",
+      "name": "recognize by phone/plate returns the new customer",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/recognize?phone=01537047460",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/recognize?plate=A",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 33
+    },
+    {
+      "area": "3-Orders",
+      "name": "cancel phone booking → slot released",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_70d7792efc484db0/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-30029 وإبلاغ العميل"
+        }
+      ],
+      "ms": 25
+    },
+    {
+      "area": "3-Orders",
+      "name": "no_show allowed only after grace window (read-only check on seeded bookings)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?view=bookings&tab=today&per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_conf_1",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 61
+    },
+    {
+      "area": "3-Orders",
+      "name": "blocked slot: block, booking into it → 409, unblock (validation 422s)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/availability?branchId=br_nasr&date=2026-10-20&serviceIds=svc_br_nasr_full",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/schedule/blocks",
+          "status": 422,
+          "message": "سبب الحجب مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/schedule/blocks",
+          "status": 422,
+          "message": "نهاية الفترة يجب أن تكون بعد بدايتها"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/schedule/blocks",
+          "status": 422,
+          "message": "سبب الحجب مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/schedule/blocks",
+          "status": 200,
+          "message": "تم حجب الفترة واختفت من تطبيق العميل"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/schedule?branchId=br_nasr&date=2026-10-20",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/availability?branchId=br_nasr&date=2026-10-20&serviceIds=svc_br_nasr_full",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 409,
+          "message": "هذا الموعد لم يعد متاحًا — اختر موعدًا آخر"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/blk_f44c437e68c641f5",
+          "status": 200,
+          "message": "تم إلغاء الحجب وعادت الفترة متاحة للحجز"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/blk_f44c437e68c641f5",
+          "status": 404,
+          "message": "الفترة المحجوبة غير موجودة"
+        }
+      ],
+      "ms": 163
+    },
+    {
+      "area": "3-Orders",
+      "name": "bulk-confirm validation: empty / non-array → 422, nothing pending → 409",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/bulk-confirm",
+          "status": 422,
+          "message": "اختر حجزًا واحدًا على الأقل"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/bulk-confirm",
+          "status": 422,
+          "message": "اختر حجزًا واحدًا على الأقل"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/bulk-confirm",
+          "status": 422,
+          "message": "اختر حجزًا واحدًا على الأقل"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/bulk-confirm",
+          "status": 409,
+          "message": "لا توجد حجوزات بانتظار التأكيد ضمن الاختيار"
+        }
+      ],
+      "ms": 62
+    },
+    {
+      "area": "3-Orders",
+      "name": "bulk-confirm a pending app booking (confirms exactly the pending ones)",
+      "status": "skip",
+      "detail": "no pending booking left (already confirmed by a previous run)",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?view=bookings&tab=today&per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?view=bookings&tab=upcoming&per_page=100",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 42
+    },
+    {
+      "area": "3-Orders",
+      "name": "create validation: source / branch / plate / services",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "نوع الطلب غير صالح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "نوع الطلب غير صالح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "رقم اللوحة مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "رقم اللوحة مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "اختر خدمة واحدة على الأقل"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "اختر خدمة أساسية واحدة (والإضافات اختيارية)"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "اختر خدمة أساسية واحدة (والإضافات اختيارية)"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "خدمة غير موجودة في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "اختر خدمة واحدة على الأقل"
+        }
+      ],
+      "ms": 224
+    },
+    {
+      "area": "3-Orders",
+      "name": "create with wrongly-typed fields → 4xx, never 500",
+      "status": "fail",
+      "detail": "server errors: plate:number → 500; customerPhone:number → 500; notes:object → 500; customerName:number → 500; vehicleMake:array → 500",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "خدمة غير موجودة في هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        }
+      ],
+      "ms": 164
+    },
+    {
+      "area": "3-Orders",
+      "name": "length limits: 600-char note / 100-char customer name → 422",
+      "status": "pass",
+      "detail": "",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "البيانات المرسلة تخالف قواعد البيانات المسموح بها"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "البيانات المرسلة تخالف قواعد البيانات المسموح بها"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20075"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_639b381827294a3a/actions",
+          "status": 422,
+          "message": "البيانات المرسلة تخالف قواعد البيانات المسموح بها"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_639b381827294a3a/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-20075 وإبلاغ العميل"
+        }
+      ],
+      "ms": 122
+    },
+    {
+      "area": "3-Orders",
+      "name": "price-preview validation",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_nasr&serviceIds=svc_br_nasr_full,svc_br_nasr_tire",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_nasr",
+          "status": 422,
+          "message": "اختر خدمة واحدة على الأقل"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_nasr&serviceIds=svc_br_nasr_ext,svc_br_nasr_full",
+          "status": 422,
+          "message": "اختر خدمة أساسية واحدة (والإضافات اختيارية)"
+        }
+      ],
+      "ms": 27
+    },
+    {
+      "area": "4-Pricing",
+      "name": "client-sent prices/totals/status/ownership fields are ignored on create",
+      "status": "pass",
+      "detail": "",
+      "severity": "Critical",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20076"
+        }
+      ],
+      "ms": 23
+    },
+    {
+      "area": "4-Pricing",
+      "name": "client-sent price on add_service is ignored",
+      "status": "pass",
+      "detail": "",
+      "severity": "Critical",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_3d18ed764d914feb/actions",
+          "status": 200,
+          "message": "تمت إضافة تنظيف الإطارات — الإجمالي 210 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_3d18ed764d914feb/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-20076 وإبلاغ العميل"
+        }
+      ],
+      "ms": 58
+    },
+    {
+      "area": "4-Pricing",
+      "name": "created order total equals price-preview (offer on subtotal incl. add-ons)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_nasr&serviceIds=svc_br_nasr_ext,svc_br_nasr_tire",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20077"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_d0c3eab4a4cc4588/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-20077 وإبلاغ العميل"
+        }
+      ],
+      "ms": 68
+    },
+    {
+      "area": "4-Pricing",
+      "name": "active wash offer (of_deep 15%) applied automatically",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/offers",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_nasr&serviceIds=svc_br_nasr_deep",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20078"
+        }
+      ],
+      "ms": 72
+    },
+    {
+      "area": "4-Pricing",
+      "name": "manager discount cap (maxDiscountPct=20): 25% / fixed 22% → 403; 20% ok; new manual discount replaces old",
+      "status": "pass",
+      "detail": "",
+      "severity": "High",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20079"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_a0ea12706f7142d8/actions",
+          "status": 403,
+          "message": "الحد الأقصى لخصمك 20٪ — هذا الخصم 25٪"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_a0ea12706f7142d8/actions",
+          "status": 403,
+          "message": "الحد الأقصى لخصمك 20٪ — هذا الخصم 22٪"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_a0ea12706f7142d8/actions",
+          "status": 200,
+          "message": "تم تطبيق الخصم — الإجمالي الآن 144 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_a0ea12706f7142d8/actions",
+          "status": 200,
+          "message": "تم تطبيق الخصم — الإجمالي الآن 162 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_a0ea12706f7142d8/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-20079 وإبلاغ العميل"
+        }
+      ],
+      "ms": 134
+    },
+    {
+      "area": "4-Pricing",
+      "name": "repeated manual discounts on an offer order cannot exceed offer + cap",
+      "status": "fail",
+      "detail": "after 3× 20% manager discounts the total is 75 EGP (subtotal 300, offer 15%, cap 20% ⇒ floor 195); discounts accumulate past maxDiscountPct",
+      "severity": "High",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_81b07b469ac0499d/actions",
+          "status": 200,
+          "message": "تم تطبيق الخصم — الإجمالي الآن 195 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_81b07b469ac0499d/actions",
+          "status": 200,
+          "message": "تم تطبيق الخصم — الإجمالي الآن 135 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_81b07b469ac0499d/actions",
+          "status": 200,
+          "message": "تم تطبيق الخصم — الإجمالي الآن 75 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_81b07b469ac0499d/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-20078 وإبلاغ العميل"
+        }
+      ],
+      "ms": 97
+    },
+    {
+      "area": "4-Pricing",
+      "name": "owner discount above 100% → 403",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20080"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_5f3fa995e4a44175/actions",
+          "status": 403,
+          "message": "الحد الأقصى لخصمك 100٪ — هذا الخصم 101٪"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_5f3fa995e4a44175/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-20080 وإبلاغ العميل"
+        }
+      ],
+      "ms": 65
+    },
+    {
+      "area": "5-Catalog",
+      "name": "service PATCH boundaries (price 10–5000, duration 2–240) with restore",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/services?branchId=all",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 422,
+          "message": "السعر يجب أن يكون بين 10 و 5000 ج.م"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 422,
+          "message": "السعر يجب أن يكون بين 10 و 5000 ج.م"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 422,
+          "message": "السعر يجب أن يكون بين 10 و 5000 ج.م"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 422,
+          "message": "المدة بين 2 و 240 دقيقة"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 422,
+          "message": "المدة بين 2 و 240 دقيقة"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 422,
+          "message": "اسم الخدمة بالعربية مطلوب"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 422,
+          "message": "اسم الخدمة بالإنجليزية مطلوب"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 200,
+          "message": "تم تحديث السعر (20 ← 10 ج.م) — يُطبق على الطلبات الجديدة فقط"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 200,
+          "message": "تم تحديث السعر (10 ← 5000 ج.م) — يُطبق على الطلبات الجديدة فقط"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 200,
+          "message": "تم تحديث السعر (5000 ← 20 ج.م) — يُطبق على الطلبات الجديدة فقط"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?branchId=all",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 178
+    },
+    {
+      "area": "5-Catalog",
+      "name": "service POST validation (422/403)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/services",
+          "status": 422,
+          "message": "السعر يجب أن يكون بين 10 و 5000 ج.م"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/services",
+          "status": 422,
+          "message": "المدة بين 2 و 240 دقيقة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/services",
+          "status": 422,
+          "message": "اسم الخدمة بالعربية مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/services",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        }
+      ],
+      "ms": 64
+    },
+    {
+      "area": "5-Catalog",
+      "name": "service POST creates (inactive QA add-on, name stored as text)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/services",
+          "status": 200,
+          "message": "تمت إضافة «خدمة QA <b>F3MSTN</b>» — تظهر للعملاء فورًا"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?branchId=all",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 36
+    },
+    {
+      "area": "5-Catalog",
+      "name": "managerCanEditServices toggle lets the manager edit his branch only, then restored",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?branchId=all",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?branchId=all",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "تم حفظ الإعدادات"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_nasr_air",
+          "status": 200,
+          "message": "تم حفظ الخدمة"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_helio_air",
+          "status": 404,
+          "message": "الخدمة غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/services",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "تم حفظ الإعدادات"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/services/svc_br_nasr_air",
+          "status": 403,
+          "message": "تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)"
+        }
+      ],
+      "ms": 135
+    },
+    {
+      "area": "5-Catalog",
+      "name": "offer validation: percent ≤ 50, value > 0, dates, branches, title",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 422,
+          "message": "الحد الأقصى للخصم ٥٠٪"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 422,
+          "message": "قيمة الخصم غير صالحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 422,
+          "message": "تاريخ النهاية يجب أن يكون بعد البداية"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 422,
+          "message": "تاريخ النهاية يجب أن يكون بعد البداية"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 422,
+          "message": "اختر فرعًا واحدًا على الأقل"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 422,
+          "message": "اختر فرعًا واحدًا على الأقل"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 422,
+          "message": "عنوان العرض مطلوب"
+        }
+      ],
+      "ms": 101
+    },
+    {
+      "area": "5-Catalog",
+      "name": "owner offer lifecycle: publish → priced in → 50% boundary → disable → no longer priced",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_helio&serviceIds=svc_br_helio_int",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers",
+          "status": 200,
+          "message": "تم نشر العرض — يطبقه التسعير تلقائيًا"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_helio&serviceIds=svc_br_helio_int",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/offers/of_6e4c357d71bd4c82",
+          "status": 200,
+          "message": "تم تحديث العرض"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_helio&serviceIds=svc_br_helio_int",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/offers/of_6e4c357d71bd4c82",
+          "status": 422,
+          "message": "الحد الأقصى للخصم ٥٠٪"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/offers/of_platform",
+          "status": 404,
+          "message": "العرض غير موجود أو غير قابل للتعديل"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/offers/of_6e4c357d71bd4c82/status",
+          "status": 200,
+          "message": "تم إيقاف العرض"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/price-preview?branchId=br_helio&serviceIds=svc_br_helio_int",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 142
+    },
+    {
+      "area": "5-Catalog",
+      "name": "branch PATCH validation + identical save (restored)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 422,
+          "message": "سبب التعديل مطلوب"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 422,
+          "message": "السعة بين 1 و 30 مكان"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 422,
+          "message": "السعة بين 1 و 30 مكان"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 422,
+          "message": "ساعات العمل يجب أن تغطي 7 أيام"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 422,
+          "message": "اسم الفرع مطلوب"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 200,
+          "message": "تم حفظ بيانات الفرع"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 200,
+          "message": "تم حفظ بيانات الفرع"
+        }
+      ],
+      "ms": 123
+    },
+    {
+      "area": "5-Catalog",
+      "name": "branch working hours: invalid time (25:99) / close before open → 422",
+      "status": "fail",
+      "detail": "[null×7] → 500",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 422,
+          "message": "صيغة الوقت غير صحيحة"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 422,
+          "message": "البيانات المرسلة تخالف قواعد البيانات المسموح بها"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 200,
+          "message": "تم حفظ بيانات الفرع"
+        }
+      ],
+      "ms": 86
+    },
+    {
+      "area": "5-Catalog",
+      "name": "a failed branch PATCH leaves no partial changes",
+      "status": "pass",
+      "detail": "",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 200,
+          "message": "تم حفظ بيانات الفرع"
+        }
+      ],
+      "ms": 80
+    },
+    {
+      "area": "5-Catalog",
+      "name": "branch phone format validated",
+      "status": "pass",
+      "detail": "",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 422,
+          "message": "البيانات المرسلة تخالف قواعد البيانات المسموح بها"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/branches/br_helio",
+          "status": 200,
+          "message": "تم حفظ بيانات الفرع"
+        }
+      ],
+      "ms": 50
+    },
+    {
+      "area": "5-Catalog",
+      "name": "booking rules PUT validation (+ invalid slotInterval silently coerced?) restored",
+      "status": "fail",
+      "detail": "slotIntervalMin=7 accepted (200) and stored as 30",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/branches",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 422,
+          "message": "سبب التعديل مطلوب"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 422,
+          "message": "مهلة الحجز بين 0 و 240"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 422,
+          "message": "مهلة عدم الحضور بين 5 و 120"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 422,
+          "message": "أقصى أيام مسبقة بين 1 و 30"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 422,
+          "message": "توقيت التذكير بين 5 و 1440"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 422,
+          "message": "نافذة الإلغاء المجاني بين 0 و 1440"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 200,
+          "message": "تم حفظ قواعد الحجز — تنعكس في تطبيق العميل فورًا"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 200,
+          "message": "تم حفظ قواعد الحجز — تنعكس في تطبيق العميل فورًا"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/branches/br_helio/settings",
+          "status": 200,
+          "message": "تم حفظ قواعد الحجز — تنعكس في تطبيق العميل فورًا"
+        }
+      ],
+      "ms": 168
+    },
+    {
+      "area": "5-Catalog",
+      "name": "settings GET shape + PUT validation",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 422,
+          "message": "سبب التعديل مطلوب"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 422,
+          "message": "لا توجد تغييرات للحفظ"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 422,
+          "message": "صيغة البريد غير صحيحة"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 422,
+          "message": "اسم المغسلة مطلوب"
+        }
+      ],
+      "ms": 91
+    },
+    {
+      "area": "5-Catalog",
+      "name": "settings: XSS business name stored verbatim, restored",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "تم حفظ الإعدادات"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "تم حفظ الإعدادات"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 87
+    },
+    {
+      "area": "5-Catalog",
+      "name": "settings: contact phone format validated",
+      "status": "pass",
+      "detail": "",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 422,
+          "message": "البيانات المرسلة تخالف قواعد البيانات المسموح بها"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "تم حفظ الإعدادات"
+        }
+      ],
+      "ms": 44
+    },
+    {
+      "area": "5-Catalog",
+      "name": "settings: unknown notificationPrefs keys are not persisted",
+      "status": "fail",
+      "detail": "unknown key qa_unknown_key persisted; non-boolean values persisted: {\"new_booking\":\"yes\"}",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "تم حفظ الإعدادات"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/settings",
+          "status": 200,
+          "message": "تم حفظ الإعدادات"
+        }
+      ],
+      "ms": 62
+    },
+    {
+      "area": "5-Team",
+      "name": "staff POST validation (422/409/403)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 422,
+          "message": "رقم موبايل غير صحيح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 409,
+          "message": "هذا الرقم مسجل لحساب آخر"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 422,
+          "message": "الاسم مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        }
+      ],
+      "ms": 73
+    },
+    {
+      "area": "5-Team",
+      "name": "owner adds employee: discount capped at 50, name stored verbatim; PATCH bounds; suspend",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 200,
+          "message": "تمت إضافة QA Emp <script>x</script> F3MSTN"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_302d66df00b844c4",
+          "status": 422,
+          "message": "سبب التعديل مطلوب"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_302d66df00b844c4",
+          "status": 422,
+          "message": "حد الخصم بين 0 و 50٪"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_302d66df00b844c4",
+          "status": 422,
+          "message": "حد الخصم بين 0 و 50٪"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_302d66df00b844c4",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_302d66df00b844c4",
+          "status": 200,
+          "message": "تم تحديث بيانات QA Emp <script>x</script> F3MSTN"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/staff/st_owner_biz_carzen",
+          "status": 403,
+          "message": "لا يمكن تعديل حساب المالك من هنا"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_302d66df00b844c4/status",
+          "status": 200,
+          "message": "تم إيقاف QA Emp <script>x</script> F3MSTN — لن يستطيع تسجيل الدخول"
+        }
+      ],
+      "ms": 135
+    },
+    {
+      "area": "5-Team",
+      "name": "negative maxDiscountPct on create is rejected or clamped to ≥ 0",
+      "status": "pass",
+      "detail": "",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 422,
+          "message": "البيانات المرسلة تخالف قواعد البيانات المسموح بها"
+        }
+      ],
+      "ms": 14
+    },
+    {
+      "area": "5-Team",
+      "name": "manager can only grant permissions he holds when adding an employee",
+      "status": "fail",
+      "detail": "manager (editServices=false) granted editServices=true to new employee st_8a8d95d7cb3d467b",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 200,
+          "message": "تمت إضافة QA Mgr-made F3MSTN"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_8a8d95d7cb3d467b/status",
+          "status": 200,
+          "message": "تم إيقاف QA Mgr-made F3MSTN — لن يستطيع تسجيل الدخول"
+        }
+      ],
+      "ms": 38
+    },
+    {
+      "area": "5-Team",
+      "name": "staff schedule validation",
+      "status": "fail",
+      "detail": "[null] → 500",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_302d66df00b844c4/schedule",
+          "status": 422,
+          "message": "صيغة الوقت غير صحيحة"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_302d66df00b844c4/schedule",
+          "status": 422,
+          "message": "نهاية الوردية يجب أن تكون بعد بدايتها"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_302d66df00b844c4/schedule",
+          "status": 422,
+          "message": "أيام غير صالحة"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_302d66df00b844c4/schedule",
+          "status": 422,
+          "message": "أيام غير صالحة"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_302d66df00b844c4/schedule",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_302d66df00b844c4/schedule",
+          "status": 422,
+          "message": "أيام غير صالحة"
+        },
+        {
+          "method": "PUT",
+          "path": "/vendor/staff/st_302d66df00b844c4/schedule",
+          "status": 200,
+          "message": "تم تحديث جدول QA Emp <script>x</script> F3MSTN"
+        }
+      ],
+      "ms": 119
+    },
+    {
+      "area": "5-Team",
+      "name": "new manager can log in; suspension kills the session",
+      "status": "skip",
+      "detail": "new staff cannot log in on this data source (POST /vendor/auth/login -> 401 «رقم الموبايل أو كلمة المرور غير صحيحة») — expected with real Supabase Auth",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/staff",
+          "status": 200,
+          "message": "تمت إضافة QA Manager F3MSTN"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_6b9eec6a1d1f4aaf/status",
+          "status": 200,
+          "message": "تم إيقاف QA Manager F3MSTN — لن يستطيع تسجيل الدخول"
+        }
+      ],
+      "ms": 67
+    },
+    {
+      "area": "5-Team",
+      "name": "staff status: reason required; owner account not suspendable",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_302d66df00b844c4/status",
+          "status": 422,
+          "message": "السبب مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/staff/st_owner_biz_carzen/status",
+          "status": 404,
+          "message": "الموظف غير موجود"
+        }
+      ],
+      "ms": 14
+    },
+    {
+      "area": "5-Team",
+      "name": "shift review: open shift → 409, note required, re-review keeps status",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/shifts?per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/shifts/sh_samir_today/review",
+          "status": 409,
+          "message": "الوردية ما زالت مفتوحة — لا يمكن مراجعتها قبل الإغلاق"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/shifts/sh_samir_2/review",
+          "status": 422,
+          "message": "ملاحظة المراجعة مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/shifts/sh_samir_2/review",
+          "status": 200,
+          "message": "تمت مراجعة الوردية"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/sh_samir_2",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 82
+    },
+    {
+      "area": "5-Team",
+      "name": "reviews: reply validation, one reply only, XSS stored as text",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?replied=no&per_page=50",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/reviews/rv_host_1/reply",
+          "status": 422,
+          "message": "نص الرد مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/reviews/rv_host_1/reply",
+          "status": 422,
+          "message": "الرد طويل جدًا (400 حرف كحد أقصى)"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/reviews/rv_host_1/reply",
+          "status": 200,
+          "message": "تم نشر الرد — يظهر للعملاء في التطبيق"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/reviews/rv_host_1/reply",
+          "status": 409,
+          "message": "تم الرد على هذا التقييم مسبقًا (رد واحد لكل تقييم)"
+        }
+      ],
+      "ms": 63
+    },
+    {
+      "area": "5-Team",
+      "name": "reviews: report validation / already reported → 409",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?per_page=100",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/reviews/rv_auto_39/report",
+          "status": 422,
+          "message": "سبب الإبلاغ مطلوب"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/reviews/rv_nope/reply",
+          "status": 404,
+          "message": "التقييم غير موجود"
+        }
+      ],
+      "ms": 47
+    },
+    {
+      "area": "5-Team",
+      "name": "notifications: unknown id → 404, read-all ok",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/vn_nope/read",
+          "status": 404,
+          "message": "الإشعار غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/read-all",
+          "status": 200,
+          "message": "تم تعليم كل الإشعارات كمقروءة"
+        }
+      ],
+      "ms": 34
+    },
+    {
+      "area": "6-Suspend",
+      "name": "vendor app also serves the admin namespace (/api/v1/admin/*)",
+      "status": "fail",
+      "detail": "admin login reachable on the partner portal: POST /admin/auth/login -> 200 «تم تسجيل الدخول بنجاح»",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/admin/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        }
+      ],
+      "ms": 30
+    },
+    {
+      "area": "6-Suspend",
+      "name": "admin suspends biz_carzen (setup)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/admin/washes/biz_carzen/suspend",
+          "status": 401,
+          "message": "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى"
+        },
+        {
+          "method": "POST",
+          "path": "/admin/washes/biz_carzen/suspend",
+          "status": 200,
+          "message": "تم تعليق كارزن ووش"
+        }
+      ],
+      "ms": 42
+    },
+    {
+      "area": "6-Suspend",
+      "name": "vendor reads keep working while suspended; me.businessStatus=suspended",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/live?branchId=br_nasr",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/finance",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/notifications",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 161
+    },
+    {
+      "area": "6-Suspend",
+      "name": "login still allowed while suspended",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        }
+      ],
+      "ms": 37
+    },
+    {
+      "area": "6-Suspend",
+      "name": "new walk-in / phone orders → 423 with message",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 423,
+          "message": "المغسلة معلّقة من إدارة كارزن — لا يمكن استقبال حجوزات جديدة حاليًا"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 423,
+          "message": "المغسلة معلّقة من إدارة كارزن — لا يمكن استقبال حجوزات جديدة حاليًا"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 423,
+          "message": "المغسلة معلّقة من إدارة كارزن — لا يمكن استقبال حجوزات جديدة حاليًا"
+        }
+      ],
+      "ms": 50
+    },
+    {
+      "area": "6-Suspend",
+      "name": "existing orders can still be annotated while suspended",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_5f3fa995e4a44175/actions",
+          "status": 200,
+          "message": "تمت إضافة الملاحظة"
+        }
+      ],
+      "ms": 72
+    },
+    {
+      "area": "6-Suspend",
+      "name": "admin reactivates biz_carzen (restore)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/admin/washes/biz_carzen/reactivate",
+          "status": 200,
+          "message": "تمت إعادة تفعيل كارزن ووش"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 31
+    },
+    {
+      "area": "7-DayClose",
+      "name": "GET summary shape (today)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/day-closing?branchId=br_nasr",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 22
+    },
+    {
+      "area": "7-DayClose",
+      "name": "closing today is blocked while orders are open/unpaid → 409 (no real closing)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 200,
+          "message": "تم إنشاء الطلب CZ-20081"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/day-closing?branchId=br_nasr",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 409,
+          "message": "لا يمكن الإغلاق: 9 طلب ما زال قيد التنفيذ أو بدون دفع (CZ-09902، CZ-20081، CZ-09915، CZ-09916)"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_8d2d6fbe0de34790/actions",
+          "status": 200,
+          "message": "تم إلغاء الطلب CZ-20081 وإبلاغ العميل"
+        }
+      ],
+      "ms": 157
+    },
+    {
+      "area": "7-DayClose",
+      "name": "manager cannot read/close another branch → 403",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/day-closing?branchId=br_helio",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        }
+      ],
+      "ms": 33
+    },
+    {
+      "area": "7-DayClose",
+      "name": "difference without reason → 422 (past date)",
+      "status": "pass",
+      "detail": "2001-01-01 already closed by a previous run",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 409,
+          "message": "تم إغلاق هذا اليوم مسبقًا"
+        }
+      ],
+      "ms": 17
+    },
+    {
+      "area": "7-DayClose",
+      "name": "close a past date (2001-01-01) → 200 first time, 409 afterwards",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 409,
+          "message": "تم إغلاق هذا اليوم مسبقًا"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 409,
+          "message": "تم إغلاق هذا اليوم مسبقًا"
+        }
+      ],
+      "ms": 51
+    },
+    {
+      "area": "7-DayClose",
+      "name": "invalid date (2000-13-45) → 422",
+      "status": "pass",
+      "detail": "",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 422,
+          "message": "تاريخ غير صالح"
+        }
+      ],
+      "ms": 14
+    },
+    {
+      "area": "7-DayClose",
+      "name": "future date (2099-12-31) cannot be closed",
+      "status": "fail",
+      "detail": "future day accepted: POST /vendor/day-closing -> 409 «تم إغلاق هذا اليوم مسبقًا»",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 409,
+          "message": "تم إغلاق هذا اليوم مسبقًا"
+        }
+      ],
+      "ms": 26
+    },
+    {
+      "area": "7-DayClose",
+      "name": "employee-level permission: closeShift required (owner/manager have it)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 20
+    },
+    {
+      "area": "8-Robust",
+      "name": "search injection strings on /vendor/orders → 200, 0 rows, no data leak",
+      "status": "pass",
+      "detail": "",
+      "severity": "High",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search='%3B%20drop%20table%20orders%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search='%20OR%20'1'%3D'1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%22%20OR%201%3D1%20--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%25",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=_",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%5C",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%25%25",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=')%20OR%20('a'%3D'a",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=1%3B%20SELECT%20pg_sleep(5)--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%24%7B7*7%7D",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%7B%7B7*7%7D%7D",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&per_page=1",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 589
+    },
+    {
+      "area": "8-Robust",
+      "name": "unicode / NUL / very long search strings never 500",
+      "status": "fail",
+      "detail": "/vendor/orders \"\\u0000\" → 500; /vendor/customers \"\\u0000\" → 500; /vendor/orders \"a\\u0000b\" → 500; /vendor/customers \"a\\u0000b\" → 500; /vendor/search \"a\\u0000b\" → 500",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%D9%85%D8%AD%D9%85%D8%AF",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=%D9%85%D8%AD%D9%85%D8%AF",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=%D9%85%D8%AD%D9%85%D8%AF",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%D9%83%D8%A7%D8%B1%D8%B2%D9%86",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=%D9%83%D8%A7%D8%B1%D8%B2%D9%86",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=%D9%83%D8%A7%D8%B1%D8%B2%D9%86",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%F0%9F%98%80%F0%9F%9A%97",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=%F0%9F%98%80%F0%9F%9A%97",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=%F0%9F%98%80%F0%9F%9A%97",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%00",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=%00",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=%00",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=a%00b",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=a%00b",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=a%00b",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%EF%BF%BF",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=%EF%BF%BF",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=%EF%BF%BF",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%2500",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=%2500",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=%2500",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&search=%CE%A9%E2%89%88%C3%A7%E2%88%9A",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=%CE%A9%E2%89%88%C3%A7%E2%88%9A",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q=%CE%A9%E2%89%88%C3%A7%E2%88%9A",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 1361
+    },
+    {
+      "area": "8-Robust",
+      "name": "search injection on every list endpoint → no 500, no extra rows",
+      "status": "pass",
+      "detail": "",
+      "severity": "High",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search='%3B%20drop%20table%20orders%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search='%20OR%20'1'%3D'1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=%25",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?search=_",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?search='%3B%20drop%20table%20orders%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?search='%20OR%20'1'%3D'1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?search=%25",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?search=_",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?search='%3B%20drop%20table%20orders%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?search='%20OR%20'1'%3D'1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?search=%25",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?search=_",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit?search='%3B%20drop%20table%20orders%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit?search='%20OR%20'1'%3D'1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit?search=%25",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit?search=_",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?search='%3B%20drop%20table%20orders%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?search='%20OR%20'1'%3D'1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?search=%25",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/services?search=_",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/offers?search='%3B%20drop%20table%20orders%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/offers?search='%20OR%20'1'%3D'1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/offers?search=%25",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/offers?search=_",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/search?q='%20OR%20'1'%3D'1",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 329
+    },
+    {
+      "area": "8-Robust",
+      "name": "injection in path ids → 404, never 500",
+      "status": "fail",
+      "detail": "GET /vendor/orders/\"%\" → 500; GET /vendor/customers/\"%\" → 500; GET /vendor/shifts/\"%\" → 500; POST /vendor/orders/\"%\" → 500; DELETE /vendor/schedule/\"%\" → 500; POST /vendor/notifications/\"%\" → 500; GET /vendor/orders/\"ord_\\u0000\" → 500; GET /vendor/customers/\"ord_\\u0000\" → 500; GET /vendor/shifts/\"ord_\\u0000\" → 500; POST /vendor/orders/\"ord_\\u0000\" → 500; DELETE /vendor/schedule/\"ord_\\u0000\" → 500; POST /vendor/notifications/\"ord_\\u0000\" → 500; GET /vendor/orders/\"CZ-%\" → 500; GET /vendor/customers/\"CZ-%\" → 500; GET /vendor/shifts/\"CZ-%\" → 500; POST /vendor/orders/\"CZ-%\" → 500; DELETE /vendor/schedule/\"CZ-%\" → 500; POST /vendor/notifications/\"CZ-%\" → 500",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders/'%20OR%20'1'%3D'1",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/'%20OR%20'1'%3D'1",
+          "status": 404,
+          "message": "العميل غير موجود ضمن عملاء مغسلتك"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/'%20OR%20'1'%3D'1",
+          "status": 404,
+          "message": "الوردية غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/'%20OR%20'1'%3D'1/actions",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/'%20OR%20'1'%3D'1",
+          "status": 404,
+          "message": "الفترة المحجوبة غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/'%20OR%20'1'%3D'1/read",
+          "status": 404,
+          "message": "الإشعار غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/1%3B%20drop%20table%20orders",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/1%3B%20drop%20table%20orders",
+          "status": 404,
+          "message": "العميل غير موجود ضمن عملاء مغسلتك"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/1%3B%20drop%20table%20orders",
+          "status": 404,
+          "message": "الوردية غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/1%3B%20drop%20table%20orders/actions",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/1%3B%20drop%20table%20orders",
+          "status": 404,
+          "message": "الفترة المحجوبة غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/1%3B%20drop%20table%20orders/read",
+          "status": 404,
+          "message": "الإشعار غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/..%2F..%2Fadmin%2Fwashes",
+          "status": 404,
+          "message": "المسار GET /vendor/orders/../../admin/washes غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/..%2F..%2Fadmin%2Fwashes",
+          "status": 404,
+          "message": "المسار GET /vendor/customers/../../admin/washes غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/..%2F..%2Fadmin%2Fwashes",
+          "status": 404,
+          "message": "المسار GET /vendor/shifts/../../admin/washes غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/..%2F..%2Fadmin%2Fwashes/actions",
+          "status": 404,
+          "message": "المسار POST /vendor/orders/../../admin/washes/actions غير موجود"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/..%2F..%2Fadmin%2Fwashes",
+          "status": 404,
+          "message": "المسار DELETE /vendor/schedule/blocks/../../admin/washes غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/..%2F..%2Fadmin%2Fwashes/read",
+          "status": 404,
+          "message": "المسار POST /vendor/notifications/../../admin/washes/read غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/%25",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/%25",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/%25",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/%25/actions",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/%25",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/%25/read",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/*",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/*",
+          "status": 404,
+          "message": "العميل غير موجود ضمن عملاء مغسلتك"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/*",
+          "status": 404,
+          "message": "الوردية غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/*/actions",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/*",
+          "status": 404,
+          "message": "الفترة المحجوبة غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/*/read",
+          "status": 404,
+          "message": "الإشعار غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 404,
+          "message": "العميل غير موجود ضمن عملاء مغسلتك"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 404,
+          "message": "الوردية غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 404,
+          "message": "الفترة المحجوبة غير موجودة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...",
+          "status": 404,
+          "message": "الإشعار غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/ord_%00",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/ord_%00",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/ord_%00",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/ord_%00/actions",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/ord_%00",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/ord_%00/read",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/CZ-%25",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers/CZ-%25",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/shifts/CZ-%25",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/CZ-%25/actions",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/schedule/blocks/CZ-%25",
+          "status": 500,
+          "message": null
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/notifications/CZ-%25/read",
+          "status": 500,
+          "message": null
+        }
+      ],
+      "ms": 609
+    },
+    {
+      "area": "8-Robust",
+      "name": "sort/order params: injection & unknown keys ignored (200)",
+      "status": "fail",
+      "detail": "/vendor/orders?tab=all&sort=__proto__ → 500; /vendor/customers?sort=__proto__ → 500; /vendor/staff?sort=__proto__ → 500; /vendor/reviews?sort=__proto__ → 500; /vendor/orders?tab=all&sort=constructor → 500; /vendor/customers?sort=constructor → 500; /vendor/reviews?sort=constructor → 500",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&sort=total%3Bdrop%20table%20orders&order=asc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?sort=total%3Bdrop%20table%20orders&order=asc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?sort=total%3Bdrop%20table%20orders&order=asc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?sort=total%3Bdrop%20table%20orders&order=asc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&sort=unknown_col&order=desc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?sort=unknown_col&order=desc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?sort=unknown_col&order=desc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?sort=unknown_col&order=desc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&sort=scheduledAt&order=asc%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?sort=scheduledAt&order=asc%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?sort=scheduledAt&order=asc%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?sort=scheduledAt&order=asc%3B--",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&sort=(select%201)&order=desc%20nulls%20first",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?sort=(select%201)&order=desc%20nulls%20first",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?sort=(select%201)&order=desc%20nulls%20first",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?sort=(select%201)&order=desc%20nulls%20first",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&sort=__proto__&order=asc",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?sort=__proto__&order=asc",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?sort=__proto__&order=asc",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?sort=__proto__&order=asc",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&sort=constructor&order=desc",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/customers?sort=constructor&order=desc",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?sort=constructor&order=desc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reviews?sort=constructor&order=desc",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        }
+      ],
+      "ms": 620
+    },
+    {
+      "area": "8-Robust",
+      "name": "pagination clamps (huge per_page, negative/huge/NaN page)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&per_page=1000000",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&per_page=-5",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&page=-1",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&page=99999999",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&page=abc&per_page=abc",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&per_page=0",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 197
+    },
+    {
+      "area": "8-Robust",
+      "name": "invalid date query params never 500",
+      "status": "fail",
+      "detail": "/vendor/schedule?branchId=br_nasr&date=garbage → 500; /vendor/availability?branchId=br_nasr&date=garbage → 500; /vendor/reports?from=garbage → 500; /vendor/reports?to=garbage → 500; /vendor/audit?from=garbage → 500; /vendor/audit?to=2026-99-99 → 500",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/schedule?branchId=br_nasr&date=garbage",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/availability?branchId=br_nasr&date=garbage",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?from=garbage",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?to=garbage",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit?from=garbage",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/audit?to=2026-99-99",
+          "status": 500,
+          "message": "حدث خطأ غير متوقع في الخادم"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders?tab=all&date=garbage",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/day-closing?branchId=br_nasr&date=garbage",
+          "status": 422,
+          "message": "تاريخ غير صالح"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/schedule?branchId=br_nasr&date=2026-02-31",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/dashboard?period=garbage",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/finance?period=garbage",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/staff?period=garbage",
+          "status": 200,
+          "message": "OK"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=garbage",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 328
+    },
+    {
+      "area": "8-Robust",
+      "name": "report range validation (to<from, > 92 days) → 422",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/reports?from=2026-10-10&to=2026-10-01",
+          "status": 422,
+          "message": "تاريخ النهاية يجب أن يكون بعد البداية"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?from=2026-01-01&to=2026-12-31",
+          "status": 422,
+          "message": "أقصى مدى للتقرير 3 شهور"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/reports?type=revenue&from=2026-10-01&to=2026-10-15",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 60
+    },
+    {
+      "area": "8-Robust",
+      "name": "invalid JSON / non-object bodies → 4xx (not 500)",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "نوع الطلب غير صالح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "نوع الطلب غير صالح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "نوع الطلب غير صالح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "نوع الطلب غير صالح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 422,
+          "message": "رقم الموبايل وكلمة المرور مطلوبان"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/day-closing",
+          "status": 403,
+          "message": "ليس لديك صلاحية على هذا الفرع"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders/bulk-confirm",
+          "status": 422,
+          "message": "اختر حجزًا واحدًا على الأقل"
+        }
+      ],
+      "ms": 130
+    },
+    {
+      "area": "8-Robust",
+      "name": "wrong HTTP methods → 404/405 JSON (not 500)",
+      "status": "pass",
+      "detail": "PUT /vendor/orders=404, DELETE /vendor/auth/me=404, GET /vendor/auth/login=404, PATCH /vendor/orders/x/actions=404, DELETE /vendor/settings=404, GET /vendor/orders/bulk-confirm/x=404, OPTIONS=204, HEAD=404",
+      "severity": null,
+      "obs": [
+        {
+          "method": "PUT",
+          "path": "/vendor/orders",
+          "status": 404,
+          "message": "المسار PUT /vendor/orders غير موجود"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/auth/me",
+          "status": 404,
+          "message": "المسار DELETE /vendor/auth/me غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/auth/login",
+          "status": 404,
+          "message": "المسار GET /vendor/auth/login غير موجود"
+        },
+        {
+          "method": "PATCH",
+          "path": "/vendor/orders/x/actions",
+          "status": 404,
+          "message": "المسار PATCH /vendor/orders/x/actions غير موجود"
+        },
+        {
+          "method": "DELETE",
+          "path": "/vendor/settings",
+          "status": 404,
+          "message": "المسار DELETE /vendor/settings غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/orders/bulk-confirm/x",
+          "status": 404,
+          "message": "المسار GET /vendor/orders/bulk-confirm/x غير موجود"
+        },
+        {
+          "method": "OPTIONS",
+          "path": "/vendor/orders",
+          "status": 204,
+          "message": null
+        },
+        {
+          "method": "HEAD",
+          "path": "/vendor/orders",
+          "status": 404,
+          "message": null
+        }
+      ],
+      "ms": 95
+    },
+    {
+      "area": "8-Robust",
+      "name": "unknown route / encoded traversal → 404 envelope",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/does-not-exist",
+          "status": 404,
+          "message": "المسار GET /vendor/does-not-exist غير موجود"
+        },
+        {
+          "method": "GET",
+          "path": "/vendor/..%2f..%2fadmin%2fwashes",
+          "status": 404,
+          "message": "المسار GET /vendor/../../admin/washes غير موجود"
+        }
+      ],
+      "ms": 12
+    },
+    {
+      "area": "8-Robust",
+      "name": "very large request bodies are rejected (expect 413) and never 500",
+      "status": "fail",
+      "detail": "8 MB body accepted and parsed (→ 401 in 89ms); no request size limit",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        }
+      ],
+      "ms": 107
+    },
+    {
+      "area": "8-Robust",
+      "name": "API responses are JSON (application/json) so stored HTML is inert",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 39
+    },
+    {
+      "area": "9-Security",
+      "name": "X-Content-Type-Options: nosniff",
+      "status": "fail",
+      "detail": "API: got null; /dashboard: got null; /login: got null",
+      "severity": "Low",
+      "obs": [],
+      "ms": 1
+    },
+    {
+      "area": "9-Security",
+      "name": "clickjacking protection (X-Frame-Options or CSP frame-ancestors)",
+      "status": "fail",
+      "detail": "API: none; /dashboard: none; /login: none",
+      "severity": "Medium",
+      "obs": [],
+      "ms": 0
+    },
+    {
+      "area": "9-Security",
+      "name": "Content-Security-Policy present",
+      "status": "fail",
+      "detail": "API: none; /dashboard: none; /login: none",
+      "severity": "Medium",
+      "obs": [],
+      "ms": 0
+    },
+    {
+      "area": "9-Security",
+      "name": "Referrer-Policy present",
+      "status": "fail",
+      "detail": "API: none; /dashboard: none; /login: none",
+      "severity": "Low",
+      "obs": [],
+      "ms": 0
+    },
+    {
+      "area": "9-Security",
+      "name": "Strict-Transport-Security present (relevant once served over HTTPS)",
+      "status": "fail",
+      "detail": "API: none; /dashboard: none; /login: none",
+      "severity": "Low",
+      "obs": [],
+      "ms": 0
+    },
+    {
+      "area": "9-Security",
+      "name": "Cache-Control: no-store on API and portal pages",
+      "status": "pass",
+      "detail": "",
+      "severity": "Low",
+      "obs": [],
+      "ms": 0
+    },
+    {
+      "area": "9-Security",
+      "name": "X-Powered-By not disclosed",
+      "status": "fail",
+      "detail": "/dashboard: x-powered-by: Next.js; /login: x-powered-by: Next.js",
+      "severity": "Low",
+      "obs": [],
+      "ms": 0
+    },
+    {
+      "area": "9-Security",
+      "name": "CORS: foreign Origin not reflected / no wildcard",
+      "status": "pass",
+      "detail": "",
+      "severity": null,
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/auth/me",
+          "status": 200,
+          "message": "OK"
+        }
+      ],
+      "ms": 22
+    },
+    {
+      "area": "9-Security",
+      "name": "error responses do not leak stack traces / file paths",
+      "status": "pass",
+      "detail": "",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "GET",
+          "path": "/vendor/orders/nope",
+          "status": 404,
+          "message": "الطلب غير موجود"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "نوع الطلب غير صالح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/orders",
+          "status": 422,
+          "message": "نوع الطلب غير صالح"
+        }
+      ],
+      "ms": 48
+    },
+    {
+      "area": "9-Security",
+      "name": "session tokens are long and unpredictable (≥128-bit random)",
+      "status": "pass",
+      "detail": "",
+      "severity": "Medium",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/logout",
+          "status": 200,
+          "message": "تم تسجيل الخروج"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/logout",
+          "status": 200,
+          "message": "تم تسجيل الخروج"
+        }
+      ],
+      "ms": 125
+    },
+    {
+      "area": "9-Security",
+      "name": "sessions expire (token TTL advertised or enforced)",
+      "status": "fail",
+      "detail": "login response has no expires_in/expires_at: keys=access_token,token_type,account",
+      "severity": "Low",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/logout",
+          "status": 200,
+          "message": "تم تسجيل الخروج"
+        }
+      ],
+      "ms": 65
+    },
+    {
+      "area": "9-Security",
+      "name": "login brute force (30 rapid wrong passwords) is rate-limited",
+      "status": "fail",
+      "detail": "no throttling: {\"401\":30}; correct password afterwards → 200",
+      "severity": "High",
+      "obs": [
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 401,
+          "message": "رقم الموبايل أو كلمة المرور غير صحيحة"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/login",
+          "status": 200,
+          "message": "تم تسجيل الدخول بنجاح"
+        },
+        {
+          "method": "POST",
+          "path": "/vendor/auth/logout",
+          "status": 200,
+          "message": "تم تسجيل الخروج"
+        }
+      ],
+      "ms": 183
+    }
+  ],
+  "serverErrors": [
+    {
+      "test": "3-Orders / create with wrongly-typed fields → 4xx, never 500",
+      "method": "POST",
+      "path": "/vendor/orders",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "3-Orders / create with wrongly-typed fields → 4xx, never 500",
+      "method": "POST",
+      "path": "/vendor/orders",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "3-Orders / create with wrongly-typed fields → 4xx, never 500",
+      "method": "POST",
+      "path": "/vendor/orders",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "3-Orders / create with wrongly-typed fields → 4xx, never 500",
+      "method": "POST",
+      "path": "/vendor/orders",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "3-Orders / create with wrongly-typed fields → 4xx, never 500",
+      "method": "POST",
+      "path": "/vendor/orders",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "5-Catalog / branch working hours: invalid time (25:99) / close before open → 422",
+      "method": "PATCH",
+      "path": "/vendor/branches/br_helio",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "5-Catalog / a failed branch PATCH leaves no partial changes",
+      "method": "PATCH",
+      "path": "/vendor/branches/br_helio",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "5-Team / staff schedule validation",
+      "method": "PUT",
+      "path": "/vendor/staff/st_302d66df00b844c4/schedule",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / unicode / NUL / very long search strings never 500",
+      "method": "GET",
+      "path": "/vendor/orders?tab=all&search=%00",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / unicode / NUL / very long search strings never 500",
+      "method": "GET",
+      "path": "/vendor/customers?search=%00",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / unicode / NUL / very long search strings never 500",
+      "method": "GET",
+      "path": "/vendor/orders?tab=all&search=a%00b",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / unicode / NUL / very long search strings never 500",
+      "method": "GET",
+      "path": "/vendor/customers?search=a%00b",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / unicode / NUL / very long search strings never 500",
+      "method": "GET",
+      "path": "/vendor/search?q=a%00b",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/orders/%25",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/customers/%25",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/shifts/%25",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "POST",
+      "path": "/vendor/orders/%25/actions",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "DELETE",
+      "path": "/vendor/schedule/blocks/%25",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "POST",
+      "path": "/vendor/notifications/%25/read",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/orders/ord_%00",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/customers/ord_%00",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/shifts/ord_%00",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "POST",
+      "path": "/vendor/orders/ord_%00/actions",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "DELETE",
+      "path": "/vendor/schedule/blocks/ord_%00",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "POST",
+      "path": "/vendor/notifications/ord_%00/read",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/orders/CZ-%25",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/customers/CZ-%25",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "GET",
+      "path": "/vendor/shifts/CZ-%25",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "POST",
+      "path": "/vendor/orders/CZ-%25/actions",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "DELETE",
+      "path": "/vendor/schedule/blocks/CZ-%25",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / injection in path ids → 404, never 500",
+      "method": "POST",
+      "path": "/vendor/notifications/CZ-%25/read",
+      "status": 500,
+      "body": ""
+    },
+    {
+      "test": "8-Robust / sort/order params: injection & unknown keys ignored (200)",
+      "method": "GET",
+      "path": "/vendor/orders?tab=all&sort=__proto__&order=asc",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / sort/order params: injection & unknown keys ignored (200)",
+      "method": "GET",
+      "path": "/vendor/customers?sort=__proto__&order=asc",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / sort/order params: injection & unknown keys ignored (200)",
+      "method": "GET",
+      "path": "/vendor/staff?sort=__proto__&order=asc",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / sort/order params: injection & unknown keys ignored (200)",
+      "method": "GET",
+      "path": "/vendor/reviews?sort=__proto__&order=asc",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / sort/order params: injection & unknown keys ignored (200)",
+      "method": "GET",
+      "path": "/vendor/orders?tab=all&sort=constructor&order=desc",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / sort/order params: injection & unknown keys ignored (200)",
+      "method": "GET",
+      "path": "/vendor/customers?sort=constructor&order=desc",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / sort/order params: injection & unknown keys ignored (200)",
+      "method": "GET",
+      "path": "/vendor/reviews?sort=constructor&order=desc",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / invalid date query params never 500",
+      "method": "GET",
+      "path": "/vendor/schedule?branchId=br_nasr&date=garbage",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / invalid date query params never 500",
+      "method": "GET",
+      "path": "/vendor/availability?branchId=br_nasr&date=garbage",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / invalid date query params never 500",
+      "method": "GET",
+      "path": "/vendor/reports?from=garbage",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / invalid date query params never 500",
+      "method": "GET",
+      "path": "/vendor/reports?to=garbage",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / invalid date query params never 500",
+      "method": "GET",
+      "path": "/vendor/audit?from=garbage",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    },
+    {
+      "test": "8-Robust / invalid date query params never 500",
+      "method": "GET",
+      "path": "/vendor/audit?to=2026-99-99",
+      "status": 500,
+      "body": "{\"status\":false,\"message\":\"حدث خطأ غير متوقع في الخادم\",\"data\":null}"
+    }
+  ]
+}
