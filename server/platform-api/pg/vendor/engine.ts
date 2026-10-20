@@ -17,7 +17,17 @@ import type postgres from "postgres";
 import { isSameDay, now, round2 } from "../../db";
 import { MockApiError } from "../../http";
 import type { VendorActor } from "../../router";
-import { OCCUPYING, clockToMin, hoursFor, normalizePhone, normalizePlate } from "../../vendor/engine";
+import {
+  OCCUPYING,
+  bookingHorizon,
+  clockToMin,
+  hoursFor,
+  normalizePhone,
+  normalizePlate,
+  offerAmount,
+  recognitionForWash,
+  withManualDiscount,
+} from "../../vendor/engine";
 import { branchById, customersWhere, e164, offersWhere, orderById, servicesWhere, vehiclesWhere } from "../entities";
 import { staffNames } from "../lookups";
 import { defaultCommissionPct, logAudit } from "../platform";
@@ -124,7 +134,7 @@ export function overlapping<T extends Occupancy>(rows: T[], start: Date, end: Da
 
 export async function availability(q: Q, branch: Branch, date: Date, durationMin: number): Promise<AvailabilitySlot[]> {
   const h = hoursFor(branch, date);
-  if (h.closed || !branch.active) return [];
+  if (h.closed || !branch.active || atMinutes(date, 0) > bookingHorizon(branch)) return [];
   const step = branch.settings.slotIntervalMin || 30;
   const open = clockToMin(h.open);
   const close = clockToMin(h.close, true);
@@ -408,11 +418,8 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       }
       const old = o.total;
       const manual = payload.discountType === "fixed" ? Math.min(value, o.subtotal) : Math.round((o.subtotal * value) / 100);
-      // A manual discount stacks on an applied offer (it never replaces it); a new manual discount replaces an older manual one.
-      const offerPart = o.discount?.reason.startsWith("عرض") ? o.discount : null;
-      const discount = offerPart
-        ? { amount: Math.min(o.subtotal, offerPart.amount + manual), pct: 0, reason: `${offerPart.reason} + ${reason}` }
-        : { amount: manual, pct: payload.discountType === "fixed" ? 0 : value, reason };
+      const [offer] = o.offerId ? await offersWhere(t, t`of.id = ${o.offerId}`) : [];
+      const discount = withManualDiscount(o, offer ? offerAmount(offer, o.subtotal) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       const total = await writeTotals(t, o, o.items, discount);
       await audit(t, actor, o, "order.discount", old, total, reason);
       return `تم تطبيق الخصم — الإجمالي الآن ${total} ج.م`;
@@ -480,6 +487,15 @@ export async function recognize(q: Q, businessId: string, plate?: string | null,
     usualServiceId: usual[0]?.id ?? null,
     usualServiceName: usual[0]?.name ?? null,
   };
+}
+
+/** `recognize` as returned to the portal (see `recognitionForWash`). */
+export async function recognizeForWash(q: Q, businessId: string, plate?: string | null, phone?: string | null): Promise<CustomerRecognition> {
+  const rec = await recognize(q, businessId, plate, phone);
+  const known = rec.customer
+    ? (await q`select 1 from public.orders where customer_id = ${rec.customer.id} and business_id = ${businessId} limit 1`).length > 0
+    : false;
+  return recognitionForWash(rec, known);
 }
 
 /** Creates a walk-in or phone order (customer/vehicle reused or created) and returns its id. */

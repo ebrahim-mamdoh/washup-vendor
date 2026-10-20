@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { VendorAccount } from "@/types/vendor/auth";
+import type { StaffPermissions } from "@/types/washes";
 import { MockApiError } from "../http";
 import type { VendorActor } from "../router";
 import type { MockDatabase } from "../schema";
@@ -69,6 +70,13 @@ export function singleBranch(actor: VendorActor, branchId: string | null | undef
 
 export function assertOwner(actor: VendorActor, what = "هذا الإجراء"): void {
   if (actor.role !== "owner") throw new MockApiError(`${what} متاح لمالك المغسلة فقط`, 403);
+}
+
+/** A manager can only grant permissions he holds himself (the owner grants anything). */
+export function capPermissions(actor: VendorActor, permissions: StaffPermissions): StaffPermissions {
+  if (actor.role === "owner") return permissions;
+  const own = actor.staff.permissions;
+  return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [k, v && Boolean(own[k as keyof StaffPermissions])])) as unknown as StaffPermissions;
 }
 
 export function assertNotSuspended(actor: VendorActor): void {

@@ -9,15 +9,15 @@ import { MockApiError, ok, requireText, sortBy } from "../../http";
 import type { VendorActor } from "../../router";
 import type { Shift } from "../../schema";
 import { defaultPermissions } from "../../seed";
-import { clockToMin, dayKey, hasManualDiscount, normalizePhone } from "../../vendor/engine";
-import { isLocalAuth } from "../auth";
+import { assertClosableDay, cleanShiftPatterns, dayKey, hasManualDiscount, isPlausibleDuration, normalizePhone } from "../../vendor/engine";
+import { createPhoneLogin, isLocalAuth } from "../auth";
 import { PHONE, auditWhere, dayClosingsWhere, e164, shiftsWhere, staffById, staffWhere } from "../entities";
 import { dayBounds, paged, searchPattern } from "../list";
 import { branchNames, onShiftAt, staffNames } from "../lookups";
 import { logAudit } from "../platform";
 import { vroute } from "../router";
 import { type Q, db, tx } from "../sql";
-import { assertBranch, assertOwner, scopeBranches, singleBranch } from "./scope";
+import { assertBranch, assertOwner, capPermissions, scopeBranches, singleBranch } from "./scope";
 
 /**
  * Vendor team on Postgres: staff (D10 / OW-11 / OW-17), shift closings
@@ -28,7 +28,6 @@ import { assertBranch, assertOwner, scopeBranches, singleBranch } from "./scope"
 const PERIOD_DAYS = { today: 1, "7d": 7, "30d": 30 } as const;
 const PERMISSION_KEYS: (keyof StaffPermissions)[] = ["confirmBooking", "cancelOrder", "closeShift", "editServices", "refund", "collectPayment", "runService", "manageStaff"];
 const METHODS: PaymentMethod[] = ["cash", "card", "online"];
-const HHMM = /^(([01]\d|2[0-3]):[0-5]\d|24:00)$/;
 const EMPTY_NAME = { ar: "—", en: "—" };
 
 function audit(q: Q, actor: VendorActor, action: string, entity: string, entityId: string, branchId: string | null, oldValue: unknown, newValue: unknown, reason?: string | null) {
@@ -92,7 +91,7 @@ type PerfOrder = {
 function performance(orders: PerfOrder[], discountLogs: number): StaffPerformance {
   const durations = orders
     .map((o) => (o.startedAt && o.completedAt ? (new Date(o.completedAt).getTime() - new Date(o.startedAt).getTime()) / 60000 : null))
-    .filter((d): d is number => d !== null);
+    .filter(isPlausibleDuration);
   const stars = orders.flatMap((o) => o.stars);
   const discounted = orders.filter((o) => hasManualDiscount(o as unknown as Order));
   return {
@@ -233,18 +232,27 @@ export const vendorTeamRoutes = [
       const cap = Math.min(Number(body.maxDiscountPct ?? 10), actor.role === "owner" ? 50 : actor.staff.maxDiscountPct);
       const maxDiscountPct = Number.isNaN(cap) ? 10 : Math.round(cap);
 
-      // Profile only: the Supabase Auth account is created separately (user_id stays null).
       const [{ id }] = await t<{ id: string }[]>`
         insert into public.staff (business_id, branch_id, name, phone, role, status, max_discount_pct, permissions)
         values (${actor.business.id}, ${branchId}, ${name}, ${e164(phone)}, ${role}, 'active', ${maxDiscountPct},
-                ${t.json(asJson(parsePermissions(body.permissions, role)))})
+                ${t.json(asJson(capPermissions(actor, parsePermissions(body.permissions, role))))})
         returning id`;
       await replacePatterns(t, id, [{ start: "09:00", end: "17:00", days: [0, 1, 2, 3, 4, 5, 6] }]);
       await audit(t, actor, "staff.create", "staff", id, branchId, null, `${name} · ${role}`);
-      return staffById(t, id);
+      // Local auth accepts the demo password for every profile; otherwise create the Supabase Auth login and link it.
+      const login = isLocalAuth() ? null : await createPhoneLogin(e164(phone));
+      if (login && "userId" in login) await t`update public.staff set user_id = ${login.userId} where id = ${id}`;
+      return { ...(await staffById(t, id)), login };
     });
-    // Local auth accepts the demo password for every profile; with Supabase Auth the login is set up separately.
-    return ok(member, isLocalAuth() ? `تمت إضافة ${member.name} — كلمة المرور المؤقتة demo1234` : `تمت إضافة ${member.name}`);
+    const { login, ...staff } = member;
+    const message = !login
+      ? `تمت إضافة ${staff.name} — كلمة المرور المؤقتة demo1234`
+      : "userId" in login
+        ? `تمت إضافة ${staff.name} — كلمة المرور المؤقتة: ${login.password} (أرسلها له، تظهر مرة واحدة فقط)`
+        : login.skipped === "taken"
+          ? `تمت إضافة ${staff.name} — هذا الرقم له حساب دخول آخر على كارزن، تواصل مع الدعم لربطه`
+          : `تمت إضافة ${staff.name} — لم يُنشأ حساب الدخول (مفتاح Supabase السري غير مضبوط على الخادم)`;
+    return ok(staff, message);
   }),
 
   vroute("PATCH", "/vendor/staff/:id", async ({ params, body, actor }) => {
@@ -305,16 +313,8 @@ export const vendorTeamRoutes = [
     const member = await tx(async (t) => {
       const current = await businessStaff(t, actor, params.id);
       if (!current || !actor.branchIds.includes(current.branchId) || current.role === "owner") throw new MockApiError("الموظف غير موجود", 404);
-      const shifts = Array.isArray(body.shifts) ? (body.shifts as ShiftPattern[]) : [];
-      for (const p of shifts) {
-        if (!HHMM.test(String(p.start)) || !HHMM.test(String(p.end))) throw new MockApiError("صيغة الوقت غير صحيحة", 422);
-        if (clockToMin(p.end, true) <= clockToMin(p.start)) throw new MockApiError("نهاية الوردية يجب أن تكون بعد بدايتها", 422);
-        // The database requires 1–7 whole weekdays per pattern.
-        if (!Array.isArray(p.days) || !p.days.length || !p.days.every((d) => Number.isInteger(Number(d)) && d >= 0 && d <= 6)) {
-          throw new MockApiError("أيام غير صالحة", 422);
-        }
-      }
-      const patterns = shifts.map((p) => ({ start: p.start, end: p.end, days: [...new Set(p.days.map(Number))].sort() }));
+      // The database requires valid times and 1–7 whole weekdays per pattern.
+      const patterns = cleanShiftPatterns(body.shifts ?? []);
       await replacePatterns(t, current.id, patterns);
       await audit(t, actor, "staff.schedule", "staff", current.id, current.branchId, current.scheduledShifts, patterns);
       return staffById(t, current.id);
@@ -457,6 +457,7 @@ export const vendorTeamRoutes = [
     const branchId = String(body.branchId ?? "");
     assertBranch(actor, branchId);
     const date = String(body.date ?? dayKey(now()));
+    assertClosableDay(date);
     const [start, end] = dateBounds(date);
 
     const closing = await tx(async (t) => {

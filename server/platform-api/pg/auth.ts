@@ -100,6 +100,29 @@ export async function identityFromToken(token: string): Promise<Identity | null>
   return identity;
 }
 
+/**
+ * Creates the Supabase Auth login of a new wash account (phone + temporary
+ * password, phone pre-confirmed) with the server-only secret key. Returns the
+ * auth user id and the password to hand over, or a reason when it can't:
+ * no secret key configured, or the phone already has a login (e.g. a customer
+ * of the mobile app) — never linked automatically.
+ */
+export async function createPhoneLogin(phoneE164: string): Promise<{ userId: string; password: string } | { skipped: "no_key" | "taken" }> {
+  const secret = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) return { skipped: "no_key" };
+  const { url } = supabaseEnv();
+  const password = randomBytes(6).toString("base64url");
+  const res = await fetch(`${url}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: { apikey: secret, Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ phone: phoneE164, password, phone_confirm: true }),
+  });
+  if (res.status === 422 || res.status === 409) return { skipped: "taken" };
+  if (!res.ok) throw new Error(`Supabase Auth user creation failed: ${res.status}`);
+  const user = (await res.json()) as { id: string };
+  return { userId: user.id, password };
+}
+
 export async function signOut(token: string): Promise<void> {
   cache().tokens.delete(token);
   if (isLocalAuth()) {
