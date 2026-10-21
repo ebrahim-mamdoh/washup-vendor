@@ -1,6 +1,7 @@
 "use client";
 
 import { send } from "@/lib/api/request";
+import { isFirebaseConfigured } from "@/lib/firebase/config";
 
 /**
  * Browser push (Firebase Cloud Messaging) for the panel. Firebase is loaded on
@@ -12,12 +13,6 @@ import { send } from "@/lib/api/request";
  */
 export type PushNamespace = "vendor" | "admin";
 
-const CONFIG = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || undefined;
 const SW_URL = "/push-sw.js";
 
@@ -26,7 +21,7 @@ const tokenKey = (ns: PushNamespace) => `carzen-push-token-${ns}`;
 export type PushAvailability = "unconfigured" | "unsupported" | "ready";
 
 export function pushAvailability(): PushAvailability {
-  if (!CONFIG.apiKey || !CONFIG.projectId || !CONFIG.messagingSenderId || !CONFIG.appId) return "unconfigured";
+  if (!isFirebaseConfigured()) return "unconfigured";
   if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("Notification" in window) || !("PushManager" in window)) {
     return "unsupported";
   }
@@ -51,9 +46,13 @@ function storeToken(ns: PushNamespace, token: string | null) {
 }
 
 async function messaging() {
-  const [{ getApps, initializeApp }, { getMessaging, isSupported }] = await Promise.all([import("firebase/app"), import("firebase/messaging")]);
+  const [{ getMessaging, isSupported }, { getFirebaseApp }] = await Promise.all([
+    import("firebase/messaging"),
+    import("@/lib/firebase/client"),
+  ]);
   if (!(await isSupported())) throw new Error("unsupported");
-  const app = getApps()[0] ?? initializeApp(CONFIG as Required<typeof CONFIG>);
+  const app = getFirebaseApp();
+  if (!app) throw new Error("unconfigured");
   return getMessaging(app);
 }
 
