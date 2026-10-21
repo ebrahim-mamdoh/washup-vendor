@@ -33,7 +33,22 @@ export const vendorAuthRoutes = [
       db.vendorSessions[token] = staff.id;
       const actor = resolveVendorActor(db, token)!;
       logAudit(db, { actorType: "staff", actorId: staff.id, action: "vendor.login", entity: "staff", entityId: staff.id, branchId: staff.branchId });
-      return ok({ access_token: token, token_type: "Bearer", account: toVendorAccount(db, actor) }, "تم تسجيل الدخول بنجاح");
+      // Mock sessions don't expire: the token is its own refresh token.
+      return ok(
+        { access_token: token, token_type: "Bearer", refresh_token: token, expires_in: null, account: toVendorAccount(db, actor) },
+        "تم تسجيل الدخول بنجاح",
+      );
+    },
+    true,
+  ),
+
+  vroute(
+    "POST",
+    "/vendor/auth/refresh",
+    ({ db, body }) => {
+      const token = String(body.refresh_token ?? "");
+      if (!resolveVendorActor(db, token)) throw new MockApiError("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
+      return ok({ access_token: token, token_type: "Bearer", refresh_token: token, expires_in: null });
     },
     true,
   ),

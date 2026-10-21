@@ -94,6 +94,103 @@ export function daysBetween(from: string | Date, to: Date = serverNow()): number
   return Math.round((b.getTime() - a.getTime()) / 86400000);
 }
 
+// ── Audit values ─────────────────────────────────────────────
+// Audit entries store before/after values as text; structured ones are JSON
+// (shift patterns, permissions, settings…). Show them as readable Arabic.
+
+const AUDIT_KEY_LABELS: Record<string, string> = {
+  name: "الاسم",
+  title: "العنوان",
+  price: "السعر",
+  durationMin: "المدة",
+  active: "مفعّل",
+  role: "الدور",
+  branchId: "الفرع",
+  maxDiscountPct: "حد الخصم",
+  permissions: "الصلاحيات",
+  capacity: "السعة",
+  discount: "الخصم",
+  email: "البريد",
+  ownerName: "المالك",
+  commissionRate: "العمولة",
+  autoConfirm: "تأكيد تلقائي",
+  slotIntervalMin: "مدة الموعد",
+  leadTimeMin: "مهلة الحجز",
+  maxAdvanceDays: "أقصى أيام مسبقة",
+  freeCancelMin: "الإلغاء المجاني",
+  noShowGraceMin: "مهلة عدم الحضور",
+  reminderMin: "التذكير",
+};
+
+const clock = (hhmm: unknown) => {
+  const [h, m] = String(hhmm).split(":").map(Number);
+  return Number.isNaN(h) ? String(hhmm) : `${h % 12 || 12}:${String(m || 0).padStart(2, "0")} ${h >= 12 && h < 24 ? "م" : "ص"}`;
+};
+
+function auditPart(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "نعم" : "لا";
+  if (Array.isArray(value)) return value.map(auditPart).join("، ");
+  if (typeof value === "object") {
+    const o = value as Record<string, unknown>;
+    // Weekly shift pattern.
+    if ("start" in o && "end" in o && Array.isArray(o.days)) return `${clock(o.start)}–${clock(o.end)} (${o.days.length} أيام)`;
+    // Localized text.
+    if (typeof o.ar === "string") return o.ar;
+    const entries = Object.entries(o);
+    // Permission maps: count what is granted.
+    if (entries.length && entries.every(([, v]) => typeof v === "boolean")) {
+      return `${entries.filter(([, v]) => v).length}/${entries.length} مفعّلة`;
+    }
+    return entries.map(([k, v]) => `${AUDIT_KEY_LABELS[k] ?? k}: ${auditPart(v)}`).join("، ");
+  }
+  return String(value);
+}
+
+/** Status codes stored in audit values (orders, payments, offers, reviews, shifts, accounts). */
+const AUDIT_WORDS: Record<string, string> = {
+  pending: "بانتظار",
+  confirmed: "مؤكد",
+  waiting: "في الانتظار",
+  in_service: "جارٍ التنفيذ",
+  completed: "مكتمل",
+  cancelled: "ملغي",
+  no_show: "لم يحضر",
+  paid: "مدفوع",
+  refunded: "مسترد",
+  settled: "مُسوّى",
+  draft: "مسودة",
+  scheduled: "مجدول",
+  active: "نشط",
+  expired: "منتهي",
+  disabled: "موقوف",
+  suspended: "موقوف",
+  approved: "معتمد",
+  rejected: "مرفوض",
+  visible: "ظاهر",
+  hidden: "مخفي",
+  reported: "مُبلغ عنه",
+  open: "مفتوحة",
+  submitted: "مُسلّمة",
+  reviewed: "تمت المراجعة",
+  flagged: "للمتابعة",
+  inactive: "غير نشط",
+};
+
+/** An audit old/new value for display: JSON becomes readable text, status codes become Arabic. */
+export function formatAuditValue(v: string | null): string | null {
+  if (!v) return null;
+  const t = v.trim();
+  if (!(t.startsWith("{") || t.startsWith("["))) {
+    return t.split(" · ").map((part) => AUDIT_WORDS[part] ?? part).join(" · ");
+  }
+  try {
+    return auditPart(JSON.parse(t));
+  } catch {
+    return v;
+  }
+}
+
 // ── Server clock calibration ─────────────────────────────────
 // The platform API runs a demo clock (and production servers can differ from
 // the device clock). The axios client feeds the X-Demo-Now header here so every

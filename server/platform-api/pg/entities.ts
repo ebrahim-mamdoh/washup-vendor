@@ -16,7 +16,7 @@ import type { Branch, Business, Staff, WashService } from "@/types/washes";
 import type postgres from "postgres";
 
 import { MockApiError } from "../http";
-import { prettyPhone } from "../vendor/engine";
+import { nationalPhone, prettyPhone } from "../vendor/engine";
 import type { Shift } from "../schema";
 import { ISO, type Q } from "./sql";
 
@@ -38,14 +38,20 @@ import { ISO, type Q } from "./sql";
  */
 type Frag = postgres.Fragment;
 
-/** E.164 → the API display format (`+20 120 000 0007`, same as the mock `prettyPhone`). */
+/** E.164 → the API display format (`+20 120 000 0007`, `+20 2 2555 0142`; same as the mock `prettyPhone`). */
 export const apiPhone = (p: string | null): string => (p ? prettyPhone(p) : "");
-export const e164 = (p: string): string => `+20${p.replace(/\D/g, "").slice(-10)}`;
+/** Any Egyptian number (mobile or landline, with or without +20 / 0) → E.164. */
+export const e164 = (p: string): string => `+20${nationalPhone(p)}`;
 
-/** SQL for `apiPhone(col)`: `+20 ` + last 10 digits grouped 3-3-4. */
+/** SQL for `apiPhone(col)`: the national number (see `nationalPhone`) in `prettyPhone`'s groups. */
 export const PHONE = (col: string) =>
-  `(select case when d = '' then '' else '+20 ' || substr(d, 1, 3) || ' ' || substr(d, 4, 3) || ' ' || substr(d, 7) end
-    from (select right(regexp_replace(coalesce(${col}, ''), '[^0-9]', '', 'g'), 10) as d) x)`;
+  `(select case when d = '' then ''
+                when length(d) = 10 and left(d, 1) = '1' then '+20 ' || substr(d, 1, 3) || ' ' || substr(d, 4, 3) || ' ' || substr(d, 7)
+                when length(d) = 9 and left(d, 1) in ('2', '3') then '+20 ' || substr(d, 1, 1) || ' ' || substr(d, 2, 4) || ' ' || substr(d, 6)
+                when length(d) >= 8 then '+20 ' || substr(d, 1, 2) || ' ' || substr(d, 3, 3) || ' ' || substr(d, 6)
+                else '+20 ' || d end
+    from (select ltrim(case when r like '0020%' then substr(r, 5) when r like '20%' and length(r) > 10 then substr(r, 3) else r end, '0') as d
+          from (select regexp_replace(coalesce(${col}, ''), '[^0-9]', '', 'g') as r) y) x)`;
 
 function select<T>(q: Q, cols: string, from: string, cond: Frag, tail?: Frag): Promise<T[]> {
   return q`select ${q.unsafe(cols)} from ${q.unsafe(from)} where ${cond} ${tail ?? q``}` as unknown as Promise<T[]>;

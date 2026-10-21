@@ -3,7 +3,7 @@ import "server-only";
 import type { AdminUser } from "@/types/auth";
 
 import { MockApiError, ok } from "../../http";
-import { type Identity, signInWithPassword, signOut } from "../auth";
+import { type Identity, refreshSession, sessionTokens, signInWithPassword, signOut } from "../auth";
 import { adminsWhere } from "../entities";
 import { logAudit } from "../platform";
 import { route } from "../router";
@@ -53,10 +53,20 @@ export const authRoutes = [
         update public.admin_users set last_login_at = now() where id = ${admin.id} returning last_login_at as "lastLoginAt"`;
       await logAudit(sql, { actorId: admin.id, action: "admin.login", entity: "admins", entityId: admin.id });
 
-      return ok(
-        { access_token: session.token, token_type: "Bearer", admin: { ...admin, lastLoginAt: updated.lastLoginAt } },
-        "تم تسجيل الدخول بنجاح",
-      );
+      return ok({ ...sessionTokens(session), admin: { ...admin, lastLoginAt: updated.lastLoginAt } }, "تم تسجيل الدخول بنجاح");
+    },
+    true,
+  ),
+
+  // Renews an expiring session; the profile is re-checked (a deactivated admin can't refresh).
+  route(
+    "POST",
+    "/admin/auth/refresh",
+    async ({ body }) => {
+      const session = await refreshSession(String(body.refresh_token ?? ""));
+      const admin = session ? await resolveAdmin(db(), session.identity) : null;
+      if (!session || !admin || admin.role !== "super") throw new MockApiError("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
+      return ok(sessionTokens(session));
     },
     true,
   ),

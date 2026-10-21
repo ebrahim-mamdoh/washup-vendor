@@ -14,11 +14,11 @@ import type {
 } from "@/types/vendor/dashboard";
 import type { Branch, Staff } from "@/types/washes";
 
-import { daysAgo, isSameDay, now, round2 } from "../../db";
+import { daysAgo, now, round2 } from "../../db";
 import { ok } from "../../http";
 import { serviceName } from "../../lookups";
 import type { VendorActor } from "../../router";
-import { hoursFor, isOpenAt, overdueMinutes } from "../../vendor/engine";
+import { dayKey, hoursFor, isOpenAt, overdueMinutes } from "../../vendor/engine";
 import { branchesWhere, ordersWhere, shiftsWhere } from "../entities";
 import { onShiftAt, staffNames } from "../lookups";
 import { vroute } from "../router";
@@ -36,10 +36,30 @@ const EMPTY: Localized = { ar: "—", en: "—" };
 
 const paidRevenue = (os: Order[]) => os.filter((o) => o.paymentStatus === "paid").reduce((s, o) => s + o.total, 0);
 
+/**
+ * Each order's schedule time and local day, parsed once per request. The KPI,
+ * chart and card math walks the same ~1,000 orders dozens of times; re-parsing
+ * dates (and converting them to the local time zone) on every pass made the
+ * 30-day dashboard take seconds of CPU.
+ */
+const stamps = new WeakMap<Order, { t: number; day: string }>();
+function stamp(o: Order) {
+  let s = stamps.get(o);
+  if (!s) {
+    const d = new Date(o.scheduledAt);
+    s = { t: d.getTime(), day: dayKey(d) };
+    stamps.set(o, s);
+  }
+  return s;
+}
+const onDay = (o: Order, day: string) => stamp(o).day === day;
+
 function inRange(orders: Order[], from: Date, to: Date) {
+  const a = from.getTime();
+  const b = to.getTime();
   return orders.filter((o) => {
-    const t = new Date(o.scheduledAt).getTime();
-    return t >= from.getTime() && t <= to.getTime();
+    const t = stamp(o).t;
+    return t >= a && t <= b;
   });
 }
 
@@ -95,15 +115,15 @@ function buildKpis(scoped: Order[], period: VendorPeriod): VendorKpi[] {
   }));
 }
 
-function liveBranch(b: Branch, scoped: Order[], onShift: Staff[]): LiveBranchCard {
+function liveBranch(b: Branch, scoped: Order[], onShift: Staff[], at: Date, todayKey: string): LiveBranchCard {
   const mine = scoped.filter((o) => o.branchId === b.id);
-  const today = mine.filter((o) => isSameDay(o.scheduledAt, now()));
-  const h = hoursFor(b, now());
+  const today = mine.filter((o) => onDay(o, todayKey));
+  const h = hoursFor(b, at);
   return {
     id: b.id,
     name: b.name,
     area: b.area,
-    isOpen: isOpenAt(b),
+    isOpen: isOpenAt(b, at),
     opensAt: h.closed ? null : h.open,
     closesAt: h.closed ? null : h.close,
     activeOrders: today.filter((o) => ["pending", "confirmed", "waiting", "in_service"].includes(o.status)).length,
@@ -117,11 +137,11 @@ function liveBranch(b: Branch, scoped: Order[], onShift: Staff[]): LiveBranchCar
   };
 }
 
-function carsInside(scoped: Order[], branches: Map<string, Branch>, staff: Map<string, string>): CarInside[] {
+function carsInside(scoped: Order[], branches: Map<string, Branch>, staff: Map<string, string>, at: Date, todayKey: string): CarInside[] {
   return scoped
     .filter(
       (o) =>
-        o.status === "waiting" || o.status === "in_service" || (o.status === "completed" && o.paymentStatus === "pending" && isSameDay(o.scheduledAt, now())),
+        o.status === "waiting" || o.status === "in_service" || (o.status === "completed" && o.paymentStatus === "pending" && onDay(o, todayKey)),
     )
     .map((o) => {
       const since = [...o.timeline].reverse().find((e) => e.status === o.status)?.at ?? o.scheduledAt;
@@ -135,7 +155,7 @@ function carsInside(scoped: Order[], branches: Map<string, Branch>, staff: Map<s
         branchName: branches.get(o.branchId)?.name ?? EMPTY,
         staffName: (o.assignedStaffId && staff.get(o.assignedStaffId)) || null,
         since,
-        overdueMin: overdueMinutes(o),
+        overdueMin: overdueMinutes(o, at),
       };
     })
     .sort((a, b) => ["in_service", "waiting", "completed"].indexOf(a.status) - ["in_service", "waiting", "completed"].indexOf(b.status));
@@ -148,6 +168,8 @@ async function alerts(
   scoped: Order[],
   branches: Map<string, Branch>,
   onShift: Map<string, Staff[]>,
+  at: Date,
+  todayKey: string,
 ): Promise<VendorAlert[]> {
   const [shifts, [{ lowUnreplied }]] = await Promise.all([
     shiftsWhere(q, q`sh.branch_id = any(${branchIds}) and sh.review_status = 'submitted' and coalesce(sh.difference, 0) <> 0`, q`order by sh.scheduled_start, sh.id`),
@@ -178,7 +200,7 @@ async function alerts(
       href: `/shifts?filter=difference`,
     });
   }
-  const late = scoped.filter((o) => o.status === "completed" && o.paymentStatus === "pending" && overdueMinutes(o) > 30);
+  const late = scoped.filter((o) => o.status === "completed" && o.paymentStatus === "pending" && overdueMinutes(o, at) > 30);
   if (late.length) {
     out.push({
       id: "pay_pending",
@@ -191,7 +213,7 @@ async function alerts(
   }
   for (const id of branchIds) {
     const b = branches.get(id)!;
-    if (isOpenAt(b) && (onShift.get(id) ?? []).length === 0) {
+    if (isOpenAt(b, at) && (onShift.get(id) ?? []).length === 0) {
       out.push({
         id: `noshift_${id}`,
         type: "no_shift",
@@ -202,7 +224,7 @@ async function alerts(
       });
     }
   }
-  const last7 = inRange(scoped, daysAgo(6), endOfDay(now()));
+  const last7 = inRange(scoped, daysAgo(6), endOfDay(at));
   const cancelRate = last7.length >= 10 ? last7.filter((o) => o.status === "cancelled").length / last7.length : 0;
   if (cancelRate >= 0.15) {
     out.push({
@@ -214,7 +236,7 @@ async function alerts(
       href: "/bookings?tab=cancelled",
     });
   }
-  const noShows = scoped.filter((o) => o.status === "no_show" && isSameDay(o.scheduledAt, now())).length;
+  const noShows = scoped.filter((o) => o.status === "no_show" && onDay(o, todayKey)).length;
   if (noShows) {
     out.push({ id: "noshow", type: "no_show", severity: "info", title: `${noShows} عدم حضور اليوم`, description: "تم تحرير مواعيدهم.", href: "/bookings?tab=no_show" });
   }
@@ -274,13 +296,14 @@ export const vendorDashboardRoutes = [
     const branches = new Map(branchRows.map((b) => [b.id, b]));
     const onShift = new Map(branchIds.map((id, i) => [id, shiftLists[i]]));
     const inside = scoped.filter((o) => o.status === "waiting" || o.status === "in_service" || o.status === "completed");
+    const todayKey = dayKey(at);
     const [staff, alertList] = await Promise.all([
       staffNames(sql, inside.map((o) => o.assignedStaffId)),
-      alerts(sql, actor, branchIds, scoped, branches, onShift),
+      alerts(sql, actor, branchIds, scoped, branches, onShift, at, todayKey),
     ]);
 
     const periodOrders = inRange(scoped, daysAgo(n - 1), endOfDay(at));
-    const today = scoped.filter((o) => isSameDay(o.scheduledAt, at));
+    const today = scoped.filter((o) => onDay(o, todayKey));
 
     let revenueChart: { label: string; value: number }[];
     if (period === "today") {
@@ -292,7 +315,8 @@ export const vendorDashboardRoutes = [
     } else {
       revenueChart = Array.from({ length: n }, (_, i) => {
         const d = daysAgo(n - 1 - i);
-        return { label: `${d.getDate()}/${d.getMonth() + 1}`, value: paidRevenue(scoped.filter((o) => isSameDay(o.scheduledAt, d))) };
+        const key = dayKey(d);
+        return { label: `${d.getDate()}/${d.getMonth() + 1}`, value: paidRevenue(scoped.filter((o) => onDay(o, key))) };
       });
     }
 
@@ -314,8 +338,8 @@ export const vendorDashboardRoutes = [
       branchId: query.get("branchId") ?? "all",
       generatedAt: at.toISOString(),
       kpis: buildKpis(scoped, period),
-      liveBranches: branchIds.map((id) => liveBranch(branches.get(id)!, scoped, onShift.get(id) ?? [])),
-      carsInside: carsInside(scoped, branches, staff),
+      liveBranches: branchIds.map((id) => liveBranch(branches.get(id)!, scoped, onShift.get(id) ?? [], at, todayKey)),
+      carsInside: carsInside(scoped, branches, staff, at, todayKey),
       alerts: alertList,
       charts: {
         revenueByHour: revenueChart,

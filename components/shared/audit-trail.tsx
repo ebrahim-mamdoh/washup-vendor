@@ -3,7 +3,7 @@ import { History } from "lucide-react";
 import { EmptyState } from "./states";
 import { UserAvatar } from "./user-avatar";
 import { AUDIT_ACTION } from "../../lib/constants/labels";
-import { formatDateTime } from "../../lib/format";
+import { formatAuditValue, formatDateTime } from "../../lib/format";
 import type { AuditLog } from "@/types/audit";
 
 type AuditTrailProps = {
@@ -13,7 +13,8 @@ type AuditTrailProps = {
   emptyText?: string;
 };
 
-function formatValue(v: string | null) {
+function formatValue(raw: string | null) {
+  const v = formatAuditValue(raw);
   if (!v) return null;
   return v.length > 80 ? `${v.slice(0, 80)}…` : v;
 }

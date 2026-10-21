@@ -28,7 +28,7 @@ export function useLogin() {
     meta: { skipErrorToast: true },
     onSuccess: ({ data }) => {
       queryClient.clear();
-      establishSession({ account: data.account, accessToken: data.access_token, tokenType: data.token_type });
+      establishSession({ account: data.account, tokens: data });
     },
   });
 }
