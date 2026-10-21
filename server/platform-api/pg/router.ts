@@ -16,6 +16,7 @@ export interface PgAdminContext {
   /** Authenticated admin (null only on public routes). */
   admin: AdminUser;
   token: string | null;
+  headers: Headers;
 }
 
 export interface PgVendorContext {
@@ -25,6 +26,7 @@ export interface PgVendorContext {
   /** Signed-in owner/manager and the branches they may see (null only on public routes). */
   actor: VendorActor;
   token: string | null;
+  headers: Headers;
 }
 
 export interface PgRouteDef<C> {

@@ -47,10 +47,23 @@ export const authRoutes = [
         entityId: admin.id,
       });
 
+      // Mock sessions don't expire: the token is its own refresh token.
       return ok(
-        { access_token: token, token_type: "Bearer", admin: toPublicAdmin(admin) },
+        { access_token: token, token_type: "Bearer", refresh_token: token, expires_in: null, admin: toPublicAdmin(admin) },
         "تم تسجيل الدخول بنجاح",
       );
+    },
+    true,
+  ),
+
+  route(
+    "POST",
+    "/admin/auth/refresh",
+    ({ db, body }) => {
+      const token = String(body.refresh_token ?? "");
+      const admin = db.admins.find((a) => a.id === db.sessions[token] && a.status === "active" && a.role === "super");
+      if (!admin) throw new MockApiError("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
+      return ok({ access_token: token, token_type: "Bearer", refresh_token: token, expires_in: null });
     },
     true,
   ),

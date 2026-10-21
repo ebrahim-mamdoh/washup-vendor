@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useUrlState } from "@/hooks/use-url-state";
 import { AUDIT_ACTION, AUDIT_ENTITY, TONES } from "@/lib/constants/labels";
 import type { CsvColumn } from "@/lib/export-csv";
-import { formatDateTime, formatRelative } from "@/lib/format";
+import { formatAuditValue, formatDateTime, formatRelative } from "@/lib/format";
 import { useBranchScope } from "@/hooks/use-branch-scope";
 import { useAudit } from "@/hooks/use-insights";
 import type { VendorAuditItem } from "@/types/vendor/insights";
@@ -56,7 +56,8 @@ function entityHref(l: VendorAuditItem): string | null {
   }
 }
 
-function truncate(v: string | null, max = 40) {
+function truncate(raw: string | null, max = 40) {
+  const v = formatAuditValue(raw);
   if (!v) return null;
   return v.length > max ? `${v.slice(0, max)}…` : v;
 }
@@ -166,7 +167,7 @@ export default function AuditPageContent() {
         const newV = truncate(l.newValue);
         if (!oldV && !newV) return <span className="text-xs text-muted-foreground">—</span>;
         return (
-          <p className="num max-w-64 text-xs leading-relaxed text-muted-foreground" dir="auto" title={[l.oldValue ?? "—", l.newValue ?? "—"].join(" ← ")}>
+          <p className="num max-w-64 text-xs leading-relaxed text-muted-foreground" dir="auto" title={[formatAuditValue(l.oldValue) ?? "—", formatAuditValue(l.newValue) ?? "—"].join(" ← ")}>
             {oldV ? <span className="line-through decoration-destructive/50">{oldV}</span> : null}
             {oldV && newV ? <span className="mx-1.5">←</span> : null}
             {newV ? <span className="text-foreground">{newV}</span> : null}

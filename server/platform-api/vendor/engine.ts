@@ -488,9 +488,24 @@ export function normalizePhone(p: string): string {
   return digits.slice(-10);
 }
 
+/**
+ * Egyptian national number (no country code, no trunk 0): mobiles are 10 digits ("1XXXXXXXXX"),
+ * Cairo/Alexandria landlines 9 ("2XXXXXXXX"), other landlines 8–9.
+ */
+export function nationalPhone(p: string): string {
+  let d = p.replace(/\D/g, "");
+  if (d.startsWith("0020")) d = d.slice(4);
+  else if (d.startsWith("20") && d.length > 10) d = d.slice(2);
+  return d.replace(/^0+/, "");
+}
+
+/** Display format: mobiles `+20 1XX XXX XXXX`, Cairo/Alex landlines `+20 2 XXXX XXXX`, others `+20 XX XXX XXXX`. */
 export function prettyPhone(p: string): string {
-  const d = normalizePhone(p);
-  return `+20 ${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
+  const d = nationalPhone(p);
+  if (d.length === 10 && d.startsWith("1")) return `+20 ${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
+  if (d.length === 9 && (d.startsWith("2") || d.startsWith("3"))) return `+20 ${d[0]} ${d.slice(1, 5)} ${d.slice(5)}`;
+  if (d.length >= 8) return `+20 ${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}`;
+  return d ? `+20 ${d}` : "";
 }
 
 export function recognize(db: MockDatabase, businessId: string, plate?: string | null, phone?: string | null): CustomerRecognition {
@@ -645,7 +660,7 @@ export function offerAmount(offer: { discountType: "percent" | "fixed"; discount
  * current discount is then taken as the offer part).
  */
 export function withManualDiscount(o: Order, offerPart: number | null, manual: number, pct: number, reason: string): NonNullable<Order["discount"]> {
-  if (!o.discount?.reason.startsWith("عرض")) return { amount: manual, pct, reason };
+  if (!o.discount || !isOfferReason(o.discount.reason)) return { amount: manual, pct, reason };
   const offerReason = o.discount.reason.split(" + ")[0];
   return { amount: Math.min(o.subtotal, (offerPart ?? o.discount.amount) + manual), pct: 0, reason: `${offerReason} + ${reason}` };
 }
@@ -742,8 +757,16 @@ export function assertClosableDay(date: string): void {
   if (date > dayKey(now())) throw new MockApiError("لا يمكن إغلاق يوم لم يأتِ بعد", 422, { date: ["تاريخ في المستقبل"] });
 }
 
+/**
+ * True when a discount reason starts with an offer: "عرض: …" (portal and seed) or "offer"
+ * (the customer app's create_order), optionally followed by " + <manual reason>".
+ */
+export function isOfferReason(reason: string): boolean {
+  return reason.startsWith("عرض") || reason === "offer" || reason.startsWith("offer + ");
+}
+
 /** True when staff applied a manual discount (alone or stacked on an offer). */
 export function hasManualDiscount(o: Order): boolean {
   if (!o.discount) return false;
-  return !o.discount.reason.startsWith("عرض") || o.discount.reason.includes(" + ");
+  return !isOfferReason(o.discount.reason) || o.discount.reason.includes(" + ");
 }

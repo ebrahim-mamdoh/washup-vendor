@@ -2,7 +2,7 @@ import "server-only";
 
 import { MockApiError, ok } from "../../http";
 import { normalizePhone } from "../../vendor/engine";
-import { signInWithPassword, signOut } from "../auth";
+import { refreshSession, sessionTokens, signInWithPassword, signOut } from "../auth";
 import { e164 } from "../entities";
 import { logAudit } from "../platform";
 import { vroute } from "../router";
@@ -36,10 +36,20 @@ export const vendorAuthRoutes = [
       if (!actor) throw new MockApiError("لا توجد مغسلة معتمدة مرتبطة بهذا الحساب", 403);
 
       await logAudit(sql, { actorType: "staff", actorId: actor.staff.id, action: "vendor.login", entity: "staff", entityId: actor.staff.id, branchId: staff.branch_id });
-      return ok(
-        { access_token: session.token, token_type: "Bearer", account: await toVendorAccount(sql, actor) },
-        "تم تسجيل الدخول بنجاح",
-      );
+      return ok({ ...sessionTokens(session), account: await toVendorAccount(sql, actor) }, "تم تسجيل الدخول بنجاح");
+    },
+    true,
+  ),
+
+  // Renews an expiring session; the account is re-checked (a suspended staff member can't refresh).
+  vroute(
+    "POST",
+    "/vendor/auth/refresh",
+    async ({ body }) => {
+      const session = await refreshSession(String(body.refresh_token ?? ""));
+      const actor = session ? await resolveVendorActor(db(), session.identity) : null;
+      if (!session || !actor) throw new MockApiError("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
+      return ok(sessionTokens(session));
     },
     true,
   ),

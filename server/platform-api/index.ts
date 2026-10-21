@@ -11,6 +11,7 @@ import { financeRoutes } from "./handlers/finance";
 import { offerRoutes } from "./handlers/offers";
 import { orderRoutes } from "./handlers/orders";
 import { platformRoutes } from "./handlers/platform";
+import { pushRoutes } from "./handlers/push";
 import { reviewRoutes } from "./handlers/reviews";
 import { washRoutes } from "./handlers/washes";
 import { MockApiError, fail } from "./http";
@@ -33,6 +34,7 @@ const ROUTES: RouteDef[] = [
   ...financeRoutes,
   ...adminRoutes,
   ...platformRoutes,
+  ...pushRoutes,
 ];
 
 /** Simulated network latency so loading states are visible (set MOCK_API_LATENCY=0 to disable). */
