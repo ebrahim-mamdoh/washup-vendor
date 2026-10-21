@@ -11,9 +11,11 @@ carZone** (same file names) so the repo matches the hosted project.
 | `migrations/20261021090000_customer_data_api_hardening.sql` | **to apply** (needs the mobile developer's OK) | Closes direct customer writes to orders/items/events, guards customers/reviews/complaints, fixes the `sync_customer_profile` account takeover, view/function rights, legacy write policies |
 | `migrations/20261021091000_app_orders_commission_ledger.sql` | **to apply** | Commission ledger rows for customer-app orders (+ backfill of 18) |
 | `migrations/20261021092000_foreign_key_indexes.sql` | **to apply** | Indexes for the 25 unindexed foreign keys |
+| `migrations/20261021100000_panel_notifications.sql` | **to apply** (after creating 3 Vault secrets, see the file header) | Wash/admin notifications for customer-app bookings & cancellations, applications, complaints, pushed to the panels' browsers; `push_devices.app` accepts `admin` |
 | `maintenance/2026-10-21_demo_data_cleanup.sql` | **to run once** (SQL editor) | Stale demo orders, branch landlines with an extra 0, placeholder report reasons |
 
-All four "to apply / to run" files were dry-run on the project inside a rolled-back transaction: no errors.
+All "to apply / to run" files were dry-run on the project inside a rolled-back transaction: no errors
+(the notifications triggers were exercised with a simulated customer cancellation and application).
 
 Apply in this order (SQL editor, or `supabase db push` from carZone after moving the files):
-`20261021090000` → `20261021091000` → `20261021092000` → then the maintenance script.
+`20261021090000` → `20261021091000` → `20261021092000` → `20261021100000` → then the maintenance script.

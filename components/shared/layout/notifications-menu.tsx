@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 
+import { PushToggle } from "@/components/shared/layout/push-toggle";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,12 +13,14 @@ import { VENDOR_NOTIFICATION_TYPE } from "@/lib/constants/labels";
 import { formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from "@/hooks/use-insights";
+import { useWebPush } from "@/hooks/use-web-push";
 
 export function NotificationsMenu() {
   const router = useRouter();
   const { data, isLoading } = useNotifications("all");
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
+  const push = useWebPush("vendor");
   const unread = data?.meta.unread ?? 0;
   const items = data?.items.slice(0, 6) ?? [];
 
@@ -43,6 +46,7 @@ export function NotificationsMenu() {
             </Button>
           ) : null}
         </div>
+        <PushToggle {...push} />
         <div className="max-h-96 overflow-y-auto">
           {isLoading
             ? Array.from({ length: 3 }, (_, i) => (

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { fetchMe, login, logout } from "@/lib/services/auth.service";
+import { disablePush } from "@/lib/push/web-push";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { VendorLoginPayload } from "@/types/vendor/auth";
 
@@ -38,7 +39,11 @@ export function useLogout() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => logout(),
+    // This browser stops receiving the account's pushes once signed out.
+    mutationFn: async () => {
+      await disablePush("vendor").catch(() => undefined);
+      return logout();
+    },
     meta: { skipErrorToast: true },
     onSettled: () => {
       clearAuth();

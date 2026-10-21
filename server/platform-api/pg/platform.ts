@@ -8,6 +8,7 @@ import type { VendorNotificationType } from "@/types/vendor/catalog";
 import type { VendorBusinessSettings } from "../schema";
 import { DEFAULT_NOTIFICATION_PREFS } from "../vendor/notify";
 import { apiPhone } from "./entities";
+import { queuePush } from "./push";
 import type { Q } from "./sql";
 
 /**
@@ -52,7 +53,9 @@ export async function pushAdminNotification(
   body: Localized,
   href: string,
 ): Promise<void> {
-  await q`insert into public.admin_notifications (type, title, body, href) values (${type}, ${q.json(title)}, ${q.json(body)}, ${href})`;
+  const [row] = await q<{ id: string }[]>`
+    insert into public.admin_notifications (type, title, body, href) values (${type}, ${q.json(title)}, ${q.json(body)}, ${href}) returning id`;
+  queuePush("admin", row.id);
 }
 
 export async function vendorSettingsFor(q: Q, businessId: string): Promise<VendorBusinessSettings> {
@@ -81,9 +84,11 @@ export async function pushVendorNotification(
   href: string,
 ): Promise<void> {
   if (type !== "platform" && !(await vendorSettingsFor(q, businessId)).notificationPrefs[type]) return;
-  await q`
+  const [row] = await q<{ id: string }[]>`
     insert into public.vendor_notifications (business_id, branch_id, type, title, body, href)
-    values (${businessId}, ${branchId}, ${type}, ${q.json({ ar: title, en: title })}, ${q.json({ ar: body, en: body })}, ${href})`;
+    values (${businessId}, ${branchId}, ${type}, ${q.json({ ar: title, en: title })}, ${q.json({ ar: body, en: body })}, ${href})
+    returning id`;
+  queuePush("vendor", row.id);
 }
 
 export async function defaultCommissionPct(q: Q): Promise<number> {

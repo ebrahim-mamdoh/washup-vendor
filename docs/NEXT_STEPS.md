@@ -42,6 +42,21 @@
 - التقييم بقى مسموح بس على طلب العميل نفسه لما يكون «مكتمل». وبعد كده العميل يعدّل النجوم والتعليق بس.
 - إشعارات العميل: يقدر يعلّمها «مقروءة» بس (`read`).
 
+### 1-ب. إشعارات المتصفح (Firebase) للوحتين
+الكود جاهز ومجرّب على السيرفر: تسجيل المتصفح، والإرسال بعد كل إشعار بتعمله اللوحة، وحذف التوكنات الميتة، وحماية الـ hook. ناقص 3 خطوات منك:
+1. **سجّل Web App في Firebase:** من Firebase Console ← مشروع CarZone (`chatapp-188`) ← Project settings ← Your apps ← Add app ← Web. انسخ `apiKey` و`appId` وحطهم في `.env` اللوحتين (`NEXT_PUBLIC_FIREBASE_API_KEY` و`NEXT_PUBLIC_FIREBASE_APP_ID`)، وبعدين اعمل build من جديد.
+   - Project ID والـ Sender ID متحطين.
+   - الـ VAPID key اختياري: Cloud Messaging ← Web Push certificates.
+   - الأداة منعتني أسجّل الـ Web App بنفسي، لأنه بيعدّل مشروع Firebase مشترك.
+2. **بعد الـ build:** زر «إشعارات المتصفح» هيظهر في قايمة الجرس. فعّله من المتصفح، والإشعار هيوصل حتى لو التاب مقفول.
+3. **عشان حجوزات التطبيق توصل للمغسلة** (حاليًا مفيش ولا إشعار لـ 55 حجز في الأسبوع)، طبّق `20261021100000_panel_notifications.sql`. قبلها اعمل 3 secrets في Supabase Vault:
+   - `panel_push_vendor_url` = `https://<لوحة المغسلة>/api/v1/vendor/push/hook`
+   - `panel_push_admin_url` = `https://<السوبر أدمن>/api/v1/admin/push/hook`
+   - `panel_push_secret` = نفس `PUSH_WEBHOOK_SECRET` اللي في `.env` اللوحتين
+   - الـ URLs لازم تكون اللوحتين منشورين عليها (Supabase مش هيقدر يوصل لـ localhost).
+
+**على السيرفر المنشور:** حط `FIREBASE_SERVICE_ACCOUNT` (موجود في `.env` المحلي، base64 من ملف الـ service account) و`PUSH_WEBHOOK_SECRET`. الاتنين سريين، ومش موجودين في git.
+
 ### 2. نقل ملفات الـ migrations لريبو carZone
 ريبو carZone (`D:\Project Analysis`) مشترك، والأداة منعتني أكتب فيه. انقل ملفات `washup-vendor/supabase/migrations/*` لـ `carZone/supabase/migrations/` بنفس الأسماء. بعد كده سجّل اللي اتطبق في الـ migration history (`supabase migration repair --status applied 20261020120000`).
 ملحوظة: جداول `legacy_*` وأي اختلاف في الأعمدة مش موجودين في الملفات. استخدم `supabase db pull` عشان تجيبهم.
