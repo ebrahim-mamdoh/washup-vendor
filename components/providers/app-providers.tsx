@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 
 import { AuthBootstrap } from "@/components/providers/auth-bootstrap";
+import { FirebaseAnalytics } from "@/components/providers/firebase-analytics";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +20,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         <AuthBootstrap>
           <TooltipProvider delay={250}>
             {children}
+            <FirebaseAnalytics />
             <Toaster />
           </TooltipProvider>
         </AuthBootstrap>

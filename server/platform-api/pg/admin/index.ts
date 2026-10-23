@@ -13,6 +13,7 @@ import { applicationRoutes } from "./applications";
 import { offerRoutes } from "./offers";
 import { adminRoutes } from "./admins";
 import { platformRoutes } from "./platform";
+import { pushRoutes } from "./push";
 
 /** Admin namespace (`/api/v1/admin/*`) on Postgres — same route list as `../../index.ts`. */
-export const ADMIN_ROUTES: PgRouteDef<PgAdminContext>[] = [...authRoutes, ...washRoutes, ...orderRoutes, ...customerRoutes, ...complaintRoutes, ...reviewRoutes, ...financeRoutes, ...dashboardRoutes, ...applicationRoutes, ...offerRoutes, ...adminRoutes, ...platformRoutes];
+export const ADMIN_ROUTES: PgRouteDef<PgAdminContext>[] = [...authRoutes, ...washRoutes, ...orderRoutes, ...customerRoutes, ...complaintRoutes, ...reviewRoutes, ...financeRoutes, ...dashboardRoutes, ...applicationRoutes, ...offerRoutes, ...adminRoutes, ...platformRoutes, ...pushRoutes];

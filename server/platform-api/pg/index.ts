@@ -49,7 +49,7 @@ export async function handleSupabaseRequest(req: Request, segments: string[]): P
 
   const header = req.headers.get("authorization") ?? "";
   const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : null;
-  const base = { params: matched.params, query: new URL(req.url).searchParams, body: await readBody(req), token };
+  const base = { params: matched.params, query: new URL(req.url).searchParams, body: await readBody(req), token, headers: req.headers };
 
   try {
     const sql = db();

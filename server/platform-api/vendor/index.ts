@@ -6,6 +6,7 @@ import { vendorCatalogRoutes } from "./catalog";
 import { vendorDashboardRoutes } from "./dashboard";
 import { vendorInsightRoutes } from "./insights";
 import { vendorOperationRoutes } from "./operations";
+import { vendorPushRoutes } from "./push";
 import { vendorTeamRoutes } from "./team";
 
 /** Vendor (wash owner / branch manager) namespace — `/api/v1/vendor/*`. */
@@ -16,4 +17,5 @@ export const VENDOR_ROUTES: VendorRouteDef[] = [
   ...vendorCatalogRoutes,
   ...vendorTeamRoutes,
   ...vendorInsightRoutes,
+  ...vendorPushRoutes,
 ];

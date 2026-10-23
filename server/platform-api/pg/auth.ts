@@ -50,16 +50,31 @@ function supabaseEnv() {
  * credentials are wrong. `localProfileId` is the profile the caller already
  * matched by email/phone (used only in local mode).
  */
+/**
+ * A signed-in session: the Bearer token, the refresh token that renews it and
+ * its lifetime in seconds (null: does not expire — local auth).
+ */
+export type Session = { token: string; refreshToken: string; expiresIn: number | null; identity: Identity };
+
+type SupabaseTokenBody = { access_token: string; refresh_token: string; expires_in?: number; user: { id: string } };
+
+function toSession(body: SupabaseTokenBody): Session {
+  const identity: Identity = { kind: "supabase", userId: body.user.id };
+  cache().tokens.set(body.access_token, { identity, until: Date.now() + TOKEN_CACHE_MS });
+  return { token: body.access_token, refreshToken: body.refresh_token, expiresIn: body.expires_in ?? null, identity };
+}
+
 export async function signInWithPassword(
   credentials: { email: string } | { phone: string },
   password: string,
   localProfileId: string | null,
-): Promise<{ token: string; identity: Identity } | null> {
+): Promise<Session | null> {
   if (isLocalAuth()) {
     if (!localProfileId || password !== (process.env.CARZEN_LOCAL_PASSWORD ?? "demo1234")) return null;
     const token = `local_${randomBytes(24).toString("hex")}`;
     cache().local.set(token, localProfileId);
-    return { token, identity: { kind: "local", profileId: localProfileId } };
+    // Local sessions live as long as the process: the token is its own refresh token.
+    return { token, refreshToken: token, expiresIn: null, identity: { kind: "local", profileId: localProfileId } };
   }
 
   const { url, key } = supabaseEnv();
@@ -71,10 +86,40 @@ export async function signInWithPassword(
   if (res.status === 400 || res.status === 401 || res.status === 422) return null;
   if (res.status === 429) throw new MockApiError("محاولات كثيرة لتسجيل الدخول، حاول بعد قليل", 429);
   if (!res.ok) throw new Error(`Supabase Auth sign-in failed: ${res.status}`);
-  const body = (await res.json()) as { access_token: string; expires_in?: number; user: { id: string } };
-  const identity: Identity = { kind: "supabase", userId: body.user.id };
-  cache().tokens.set(body.access_token, { identity, until: Date.now() + TOKEN_CACHE_MS });
-  return { token: body.access_token, identity };
+  return toSession((await res.json()) as SupabaseTokenBody);
+}
+
+/**
+ * Renews a session from its refresh token (Supabase access tokens last an hour;
+ * refresh tokens rotate on every use). Null when the refresh token is invalid,
+ * used up or revoked — the client must sign in again.
+ */
+export async function refreshSession(refreshToken: string): Promise<Session | null> {
+  if (!refreshToken) return null;
+  if (isLocalAuth()) {
+    const profileId = cache().local.get(refreshToken);
+    return profileId ? { token: refreshToken, refreshToken, expiresIn: null, identity: { kind: "local", profileId } } : null;
+  }
+  const { url, key } = supabaseEnv();
+  const res = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: key, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 422) return null;
+  if (res.status === 429) throw new MockApiError("طلبات تجديد كثيرة، حاول بعد قليل", 429);
+  if (!res.ok) throw new Error(`Supabase Auth refresh failed: ${res.status}`);
+  return toSession((await res.json()) as SupabaseTokenBody);
+}
+
+/** The token fields every login/refresh response carries. */
+export function sessionTokens(session: Session) {
+  return {
+    access_token: session.token,
+    token_type: "Bearer",
+    refresh_token: session.refreshToken,
+    expires_in: session.expiresIn,
+  };
 }
 
 /** Bearer token → identity, or null when the session is invalid or expired. */

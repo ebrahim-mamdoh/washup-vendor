@@ -1,3 +1,4 @@
+import type { SessionTokens } from "../auth";
 import type { Localized } from "../common";
 import type { BusinessStatus, StaffPermissions } from "../washes";
 
@@ -39,9 +40,7 @@ export interface VendorLoginPayload {
   password: string;
 }
 
-export interface VendorLoginResponse {
-  access_token: string;
-  token_type: string;
+export interface VendorLoginResponse extends SessionTokens {
   account: VendorAccount;
 }
 

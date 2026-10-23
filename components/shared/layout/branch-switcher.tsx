@@ -19,11 +19,11 @@ export function BranchSwitcher() {
       <Tooltip>
         <TooltipTrigger
           render={
-            <span className="flex h-9 items-center gap-2 rounded-lg border border-input bg-card px-3 text-sm font-medium" />
+            <span className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-input bg-card px-3 text-sm font-medium" />
           }
         >
-          <MapPin className="size-4 text-muted-foreground" />
-          <span className="max-w-40 truncate">{branch?.name.ar ?? "فرعي"}</span>
+          <MapPin className="size-4 shrink-0 text-muted-foreground" />
+          <span className="max-w-24 truncate sm:max-w-40">{branch?.name.ar ?? "فرعي"}</span>
           <Lock className="size-3.5 text-muted-foreground" />
         </TooltipTrigger>
         <TooltipContent>مدير الفرع يرى فرعه فقط</TooltipContent>
@@ -34,7 +34,7 @@ export function BranchSwitcher() {
   const items = { all: "كل الفروع", ...Object.fromEntries(branches.map((b) => [b.id, b.name.ar])) };
   return (
     <Select value={branchId} onValueChange={(v) => setBranchId(String(v ?? "all"))} items={items}>
-      <SelectTrigger aria-label="الفرع" className="h-9 max-w-56 min-w-40 bg-card data-[size=default]:h-9">
+      <SelectTrigger aria-label="الفرع" className="h-9 max-w-40 min-w-0 bg-card data-[size=default]:h-9 sm:max-w-56 sm:min-w-40">
         <MapPin className="size-4 text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>

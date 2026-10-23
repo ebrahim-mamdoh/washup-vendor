@@ -322,6 +322,11 @@ export const AUDIT_ENTITY: Record<string, string> = {
 };
 
 /** Deep link for an audit row's entity. */
+/** Order discount reason for display: the customer app stores an offer discount as "offer". */
+export function discountReasonLabel(reason: string): string {
+  return reason === "offer" ? "عرض" : reason.startsWith("offer + ") ? `عرض${reason.slice(5)}` : reason;
+}
+
 export function auditEntityHref(entity: string, entityId: string): string | null {
   switch (entity) {
     case "businesses":

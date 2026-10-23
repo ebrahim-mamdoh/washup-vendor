@@ -1,0 +1,445 @@
+{
+    "metrics": {
+        "group_duration": {
+            "avg": 81.22396877567792,
+            "min": 7.9359,
+            "med": 23.5496,
+            "max": 1665.4762,
+            "p(90)": 149.7174400000003,
+            "p(95)": 390.4499000000001
+        },
+        "checks": {
+            "passes": 4207,
+            "fails": 0,
+            "thresholds": {
+                "rate>0.99": false
+            },
+            "value": 1
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 2197,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(95)": 382.7809999999999,
+            "avg": 86.10804401456528,
+            "min": 7.1391,
+            "med": 29.8498,
+            "max": 1656.7861,
+            "p(90)": 151.32534
+        },
+        "iteration_duration": {
+            "p(95)": 2981.650309999999,
+            "avg": 2011.158025508611,
+            "min": 41.3513,
+            "med": 2075.7232000000004,
+            "max": 3749.0057,
+            "p(90)": 2910.18583
+        },
+        "data_received": {
+            "count": 15516511,
+            "rate": 110713.30347849587
+        },
+        "iterations": {
+            "count": 1278,
+            "rate": 9.11877688518493
+        },
+        "http_req_duration{kind:write}": {
+            "max": 1175.4856,
+            "p(90)": 85.44108000000003,
+            "p(95)": 171.0230300000001,
+            "avg": 60.34691147540982,
+            "min": 10.5215,
+            "med": 19.5164,
+            "thresholds": {
+                "p(95)<1500": false
+            }
+        },
+        "data_sent": {
+            "count": 483305,
+            "rate": 3448.474540292882
+        },
+        "http_req_blocked": {
+            "p(90)": 0.6027000000000007,
+            "p(95)": 1.0515,
+            "avg": 0.22124005461993607,
+            "min": 0,
+            "med": 0,
+            "max": 24.3226
+        },
+        "http_req_waiting": {
+            "min": 7.1391,
+            "med": 29.3244,
+            "max": 1656.7861,
+            "p(90)": 150.68534000000002,
+            "p(95)": 382.57746,
+            "avg": 85.60200650887582
+        },
+        "vus_max": {
+            "min": 35,
+            "max": 35,
+            "value": 35
+        },
+        "http_req_receiving": {
+            "med": 0.5074,
+            "max": 5.411,
+            "p(90)": 0.9646,
+            "p(95)": 1.0012,
+            "avg": 0.47986372325898996,
+            "min": 0
+        },
+        "http_req_duration{kind:read}": {
+            "avg": 88.50054125248504,
+            "min": 7.1391,
+            "med": 31.91735,
+            "max": 1656.7861,
+            "p(90)": 156.8522700000001,
+            "p(95)": 395.94015499999995,
+            "thresholds": {
+                "p(95)<800": false
+            }
+        },
+        "vus": {
+            "min": 1,
+            "max": 30,
+            "value": 1
+        },
+        "http_req_sending": {
+            "avg": 0.02617378243058716,
+            "min": 0,
+            "med": 0,
+            "max": 3.8992,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_duration": {
+            "avg": 86.10804401456528,
+            "min": 7.1391,
+            "med": 29.8498,
+            "max": 1656.7861,
+            "p(90)": 151.32534,
+            "p(95)": 382.7809999999999
+        },
+        "order_write_ms": {
+            "avg": 68.40983606557377,
+            "min": 10,
+            "med": 22,
+            "max": 1180,
+            "p(90)": 86,
+            "p(95)": 266.74999999999903
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "page_load_api_ms": {
+            "avg": 81.09202958093672,
+            "min": 8,
+            "med": 24,
+            "max": 1665,
+            "p(90)": 149.80000000000018,
+            "p(95)": 388.0000000000002
+        },
+        "business_errors": {
+            "passes": 0,
+            "fails": 2134,
+            "value": 0
+        },
+        "http_req_connecting": {
+            "max": 10.9487,
+            "p(90)": 0.5421,
+            "p(95)": 0.829399999999995,
+            "avg": 0.17866695493855247,
+            "min": 0,
+            "med": 0
+        },
+        "http_reqs": {
+            "count": 2197,
+            "rate": 15.676019418428242
+        }
+    },
+    "setup_data": {
+        "manager": "fa_71f6e56f58da0a1621e1f1516effd2538c495f8a2b175c27",
+        "owner": "fa_e6279bcc926fc1dd95c6e3f01613f9ff9fbaffde532bbd24"
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "page finance": {
+                "checks": {
+                    "status 200": {
+                        "name": "status 200",
+                        "path": "::page finance::status 200",
+                        "id": "264b2a40534231041e33a2d5f314c128",
+                        "passes": 114,
+                        "fails": 0
+                    },
+                    "envelope ok": {
+                        "passes": 114,
+                        "fails": 0,
+                        "name": "envelope ok",
+                        "path": "::page finance::envelope ok",
+                        "id": "99b03c958ae18260057225c8b7b67d9c"
+                    }
+                },
+                "name": "page finance",
+                "path": "::page finance",
+                "id": "f849112f40bf20a2b9a942c4e150cd1e",
+                "groups": {}
+            },
+            "page bookings": {
+                "path": "::page bookings",
+                "id": "13e0b9353a182537e30cab8bf8a478c0",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "id": "ae6214d2f1ef7269074064d3704be35f",
+                            "passes": 110,
+                            "fails": 0,
+                            "name": "status 200",
+                            "path": "::page bookings::status 200"
+                        },
+                        "envelope ok": {
+                            "name": "envelope ok",
+                            "path": "::page bookings::envelope ok",
+                            "id": "753ea3596c0e363b30f0020874097957",
+                            "passes": 110,
+                            "fails": 0
+                        }
+                    },
+                "name": "page bookings"
+            },
+            "page search": {
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "path": "::page search::status 200",
+                            "id": "3bdf3d2a2ab4af963123bbfd3b6aa29f",
+                            "passes": 112,
+                            "fails": 0,
+                            "name": "status 200"
+                        },
+                        "envelope ok": {
+                            "passes": 112,
+                            "fails": 0,
+                            "name": "envelope ok",
+                            "path": "::page search::envelope ok",
+                            "id": "1556e2a3de6d5e3d29cf34d37205a517"
+                        }
+                    },
+                "name": "page search",
+                "path": "::page search",
+                "id": "9c53529c63e3503ccd6dc762201a1cce"
+            },
+            "page dashboard": {
+                "path": "::page dashboard",
+                "id": "4cd2be9dbfb313b5e0f4da5370345998",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "id": "fad4a91f33c2d8a3e0bf67b125a233fa",
+                            "passes": 565,
+                            "fails": 0,
+                            "name": "status 200",
+                            "path": "::page dashboard::status 200"
+                        },
+                        "envelope ok": {
+                            "name": "envelope ok",
+                            "path": "::page dashboard::envelope ok",
+                            "id": "2454db351f303bd0d366fb23e34cf6c6",
+                            "passes": 565,
+                            "fails": 0
+                        }
+                    },
+                "name": "page dashboard"
+            },
+            "page schedule": {
+                "name": "page schedule",
+                "path": "::page schedule",
+                "id": "d031d6926d76c71810e70b947709719a",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "path": "::page schedule::status 200",
+                            "id": "ca6b93d7b117d1a8ffbc76bc17b03df5",
+                            "passes": 234,
+                            "fails": 0,
+                            "name": "status 200"
+                        },
+                        "envelope ok": {
+                            "passes": 234,
+                            "fails": 0,
+                            "name": "envelope ok",
+                            "path": "::page schedule::envelope ok",
+                            "id": "3f37c47c4460233536569f78897e1870"
+                        }
+                    }
+            },
+            "page staff": {
+                "name": "page staff",
+                "path": "::page staff",
+                "id": "a70ce28a526027b9e6ffe8a71930b46a",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "fails": 0,
+                            "name": "status 200",
+                            "path": "::page staff::status 200",
+                            "id": "b12e54cb27c68965dad3d84bfc29cba5",
+                            "passes": 116
+                        },
+                        "envelope ok": {
+                            "path": "::page staff::envelope ok",
+                            "id": "5d93185f8751ef0c7dddccd648fb8efa",
+                            "passes": 116,
+                            "fails": 0,
+                            "name": "envelope ok"
+                        }
+                    }
+            },
+            "page live": {
+                "id": "dab0993fc0a1fe96e188bce882d9a249",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "name": "status 200",
+                            "path": "::page live::status 200",
+                            "id": "3cb819543c8b10bbedcffbad2bcc3bee",
+                            "passes": 204,
+                            "fails": 0
+                        },
+                        "envelope ok": {
+                            "name": "envelope ok",
+                            "path": "::page live::envelope ok",
+                            "id": "27f0a0b6050211a3270715483503a1e8",
+                            "passes": 204,
+                            "fails": 0
+                        }
+                    },
+                "name": "page live",
+                "path": "::page live"
+            },
+            "page customers": {
+                "id": "4f17018301890a68b1c1d93acde7767b",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "name": "status 200",
+                            "path": "::page customers::status 200",
+                            "id": "7c1cd2a66af8b3137c222602fdab1d8c",
+                            "passes": 102,
+                            "fails": 0
+                        },
+                        "envelope ok": {
+                            "passes": 102,
+                            "fails": 0,
+                            "name": "envelope ok",
+                            "path": "::page customers::envelope ok",
+                            "id": "849e079b4760c354e4183c55cb960be9"
+                        }
+                    },
+                "name": "page customers",
+                "path": "::page customers"
+            },
+            "page reports": {
+                "name": "page reports",
+                "path": "::page reports",
+                "id": "cc3706c20ac2aa1868e620d45fc8b4a9",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "fails": 0,
+                            "name": "status 200",
+                            "path": "::page reports::status 200",
+                            "id": "65556c3a9822aade1d24755c052299ca",
+                            "passes": 101
+                        },
+                        "envelope ok": {
+                            "passes": 101,
+                            "fails": 0,
+                            "name": "envelope ok",
+                            "path": "::page reports::envelope ok",
+                            "id": "e0751916396ad9249a21435012027d6a"
+                        }
+                    }
+            },
+            "page orderDetail": {
+                "name": "page orderDetail",
+                "path": "::page orderDetail",
+                "id": "b1bbdf824d9556d14a733f35efcd125f",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "name": "status 200",
+                            "path": "::page orderDetail::status 200",
+                            "id": "3ece31f693754f909b55c479457f3368",
+                            "passes": 106,
+                            "fails": 0
+                        },
+                        "envelope ok": {
+                            "passes": 106,
+                            "fails": 0,
+                            "name": "envelope ok",
+                            "path": "::page orderDetail::envelope ok",
+                            "id": "1912d95e19f87f004014bc558fbe6aac"
+                        }
+                    }
+            },
+            "page orders": {
+                "name": "page orders",
+                "path": "::page orders",
+                "id": "45bc7266547437c7215fffdd56291c91",
+                "groups": {},
+                "checks": {
+                        "status 200": {
+                            "name": "status 200",
+                            "path": "::page orders::status 200",
+                            "id": "8e7540b8a5d42ca9f6b71f27769bf481",
+                            "passes": 248,
+                            "fails": 0
+                        },
+                        "envelope ok": {
+                            "name": "envelope ok",
+                            "path": "::page orders::envelope ok",
+                            "id": "4dc7608bc035a7639e6b738b122a96c6",
+                            "passes": 248,
+                            "fails": 0
+                        }
+                    }
+            }
+        },
+        "checks": {
+            "order created": {
+                "fails": 0,
+                "name": "order created",
+                "path": "::order created",
+                "id": "5e7ce872bb14a562c4b9054c8eda7170",
+                "passes": 61
+            },
+            "action note": {
+                "passes": 61,
+                "fails": 0,
+                "name": "action note",
+                "path": "::action note",
+                "id": "8d882a5e0a1106777f245045c1211768"
+            },
+            "cancelled": {
+                "id": "2fb08118c1037881ddecf5f2d0b66b2b",
+                "passes": 61,
+                "fails": 0,
+                "name": "cancelled",
+                "path": "::cancelled"
+            }
+        }
+    }
+}

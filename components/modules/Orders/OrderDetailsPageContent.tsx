@@ -13,7 +13,7 @@ import { DetailSkeleton, EmptyState, ErrorState } from "@/components/shared/stat
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
-import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, VEHICLE_COLOR } from "@/lib/constants/labels";
+import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, VEHICLE_COLOR, discountReasonLabel } from "@/lib/constants/labels";
 import { formatDateTime, formatDuration, formatMoney, formatRelative } from "@/lib/format";
 import { OrderActions } from "@/components/modules/Orders/actions/OrderActions";
 import { useOrder } from "@/hooks/use-operations";
@@ -113,7 +113,7 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
               </div>
               {order.discount ? (
                 <div className="flex justify-between text-success">
-                  <dt>خصم — {order.discount.reason}</dt>
+                  <dt>خصم — {discountReasonLabel(order.discount.reason)}</dt>
                   <dd className="num">-{formatMoney(order.discount.amount)}</dd>
                 </div>
               ) : null}
