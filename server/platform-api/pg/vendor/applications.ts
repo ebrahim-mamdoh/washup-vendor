@@ -21,7 +21,8 @@ export const vendorApplicationRoutes = [
         throw new MockApiError("رقم موبايل مصري غير صحيح (11 رقم يبدأ بـ 01)", 422, { phone: ["رقم غير صحيح"] });
       }
       const phoneE164 = e164(rawPhone);
-      const email = String(data.email ?? "").trim();
+      const rawEmail = String(data.email ?? "").trim();
+      const email = rawEmail.includes("@") ? rawEmail : `${rawPhone}@partner.washup.app`;
       const area = String(data.area ?? "nasr").trim();
       const address = requireText(data.address, "address", "عنوان المغسلة", 5);
       const lat = Number(data.lat) || 30.05;
@@ -56,7 +57,7 @@ export const vendorApplicationRoutes = [
           id, business_name, owner_name, phone, email, area_id, address, lat, lng,
           capacity, services, working_hours, documents, status, submitted_at
         ) values (
-          ${id}, ${businessName}, ${ownerName}, ${phoneE164}, ${email || null}, ${area}, ${address}, ${lat}, ${lng},
+          ${id}, ${businessName}, ${ownerName}, ${phoneE164}, ${email}, ${area}, ${address}, ${lat}, ${lng},
           ${capacity}, ${sql.json(services as any)}, ${sql.json(workingHours as any)}, ${documents}, 'pending', now()
         )
       `;

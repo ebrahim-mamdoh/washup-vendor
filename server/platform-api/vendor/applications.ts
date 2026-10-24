@@ -18,7 +18,8 @@ export const vendorApplicationRoutes = [
       if (phone.length !== 10) {
         throw new MockApiError("رقم موبايل مصري غير صحيح (11 رقم يبدأ بـ 01)", 422, { phone: ["رقم غير صحيح"] });
       }
-      const email = String(data.email ?? "").trim();
+      const rawEmail = String(data.email ?? "").trim();
+      const email = rawEmail.includes("@") ? rawEmail : `${phone}@partner.washup.app`;
       const area = String(data.area ?? "nasr").trim();
       const address = requireText(data.address, "address", "عنوان المغسلة", 5);
       const lat = Number(data.lat) || 30.05;
