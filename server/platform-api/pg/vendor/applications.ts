@@ -84,7 +84,24 @@ export const vendorApplicationRoutes = [
     "/vendor/applications/:id",
     async ({ params }) => {
       const sql = db();
-      const [app] = await applicationsWhere(sql, sql`ap.id = ${params.id}`);
+      const target = String(params.id ?? "").trim();
+      let app: any;
+
+      if (target.startsWith("app_")) {
+        [app] = await applicationsWhere(sql, sql`ap.id = ${target}`);
+      } else {
+        const digits = target.replace(/\D/g, "");
+        const p10 = digits.startsWith("20") ? digits.slice(2) : digits.startsWith("0") ? digits.slice(1) : digits;
+        if (p10.length === 10) {
+          const phoneE = e164(p10);
+          [app] = await applicationsWhere(
+            sql,
+            sql`ap.phone = ${phoneE} or ap.phone like ${"%" + p10}`,
+            sql`order by ap.submitted_at desc limit 1`
+          );
+        }
+      }
+
       if (!app) throw new MockApiError("طلب الانضمام غير موجود", 404);
       return ok(app);
     },

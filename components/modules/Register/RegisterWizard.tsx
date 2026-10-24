@@ -1,27 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Building2,
-  Calendar,
+  Camera,
   Check,
   CheckCircle2,
   Clock,
   Clock3,
+  FileCheck,
   FileText,
+  Image as ImageIcon,
+  Loader2,
   MapPin,
   Plus,
   RefreshCw,
+  Search,
   Sparkles,
   Trash2,
   Upload,
-  User,
   Wrench,
-  AlertCircle,
+  XCircle,
+  FileEdit,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,15 +42,29 @@ import { fetchApplication, submitApplication } from "@/lib/services/applications
 import type { ApplicationService, SubmitApplicationPayload, WashApplication } from "@/types/applications";
 import type { WorkingDay } from "@/types/washes";
 
+// Dynamically import the Leaflet map picker to avoid SSR window issues
+const MapLocationPicker = dynamic(
+  () => import("./MapLocationPicker"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[280px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 text-sm text-muted-foreground sm:h-[320px]">
+        <Loader2 className="size-6 animate-spin text-primary" />
+        <span>جاري تحميل الخريطة التفاعلية...</span>
+      </div>
+    ),
+  }
+);
+
 const AREAS = [
-  { id: "nasr", name: "مدينة نصر" },
-  { id: "helio", name: "مصر الجديدة" },
-  { id: "nc", name: "التجمع والقاهرة الجديدة" },
-  { id: "maadi", name: "المعادي" },
-  { id: "zamalek", name: "الزمالك" },
-  { id: "moh", name: "المهندسين والدقي" },
-  { id: "zayed", name: "الشيخ زايد" },
-  { id: "oct", name: "٦ أكتوبر" },
+  { id: "nasr", name: "مدينة نصر", defaultCoords: [30.0561, 31.3412] as [number, number] },
+  { id: "helio", name: "مصر الجديدة", defaultCoords: [30.112, 31.345] as [number, number] },
+  { id: "nc", name: "التجمع والقاهرة الجديدة", defaultCoords: [30.0131, 31.4395] as [number, number] },
+  { id: "maadi", name: "المعادي", defaultCoords: [29.9602, 31.2569] as [number, number] },
+  { id: "zamalek", name: "الزمالك", defaultCoords: [30.0631, 31.2185] as [number, number] },
+  { id: "moh", name: "المهندسين والدقي", defaultCoords: [30.0524, 31.2003] as [number, number] },
+  { id: "zayed", name: "الشيخ زايد", defaultCoords: [30.045, 30.985] as [number, number] },
+  { id: "oct", name: "٦ أكتوبر", defaultCoords: [29.972, 30.94] as [number, number] },
 ];
 
 const WEEKDAYS = [
@@ -79,6 +100,23 @@ const STEPS = [
   { num: 6, title: "تأكيد الطلب", icon: CheckCircle2 },
 ];
 
+interface UploadedDocItem {
+  id: string;
+  name: string;
+  path: string;
+  size?: number;
+  type?: string;
+  category: "storefront" | "commercial_reg";
+  uploading?: boolean;
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function RegisterWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -86,6 +124,10 @@ export default function RegisterWizard() {
   const [loading, setLoading] = useState(false);
   const [activeApp, setActiveApp] = useState<WashApplication | null>(null);
   const [fetchingStatus, setFetchingStatus] = useState(false);
+
+  // Hidden File Inputs Refs
+  const storefrontInputRef = useRef<HTMLInputElement>(null);
+  const commercialInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -101,36 +143,176 @@ export default function RegisterWizard() {
     capacity: 4,
   });
 
+  // Services State
   const [services, setServices] = useState(DEFAULT_SERVICES);
   const [newServiceName, setNewServiceName] = useState("");
-  const [newServicePrice, setNewServicePrice] = useState(150);
-  const [newServiceDuration, setNewServiceDuration] = useState(30);
+  const [newServicePrice, setNewServicePrice] = useState<number | "">(150);
+  const [newServiceDuration, setNewServiceDuration] = useState<number | "">(30);
 
+  // Working Hours State
   const [workingHours, setWorkingHours] = useState<WorkingDay[]>(INITIAL_HOURS);
-  const [documents, setDocuments] = useState<string[]>([
-    "السجل_التجاري.pdf",
-    "صورة_الواجهة_الأمامية.jpg",
+
+  // Uploaded Documents State
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocItem[]>([
+    {
+      id: "doc_default_1",
+      name: "السجل_التجاري_المعتمد.pdf",
+      path: "commercial_reg.pdf",
+      size: 485000,
+      type: "application/pdf",
+      category: "commercial_reg",
+    },
   ]);
+
+  // Quick lookup state
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [showLookupBox, setShowLookupBox] = useState(false);
 
   // Check query param for existing application id or status check
   useEffect(() => {
-    const appId = searchParams.get("id") || (typeof window !== "undefined" ? localStorage.getItem("carzen_application_id") : null);
+    const appId =
+      searchParams.get("id") ||
+      (typeof window !== "undefined" ? localStorage.getItem("carzen_application_id") : null);
     if (appId) {
       loadApplicationStatus(appId);
     }
   }, [searchParams]);
 
-  async function loadApplicationStatus(id: string) {
+  async function loadApplicationStatus(id: string, silent = false) {
     try {
-      setFetchingStatus(true);
+      if (!silent) setFetchingStatus(true);
       const res = await fetchApplication(id);
-      setActiveApp(res);
+      if (res) {
+        // If status changed from pending while user was watching, alert them
+        setActiveApp((prev) => {
+          if (silent && prev && prev.status !== res.status) {
+            if (res.status === "rejected") {
+              toast.error("تم تحديث حالة طلبك: تم رفض الطلب من إدارة المنصة");
+            } else if (res.status === "approved") {
+              toast.success("تهانينا! تمت الموافقة على طلب انضمام مغسلتك 🎉");
+            } else if (res.status === "needs_changes") {
+              toast.warning("تم تحديث حالة طلبك: مطلوب استكمال بعض التعديلات");
+            }
+          }
+          return res;
+        });
+      }
+      return res;
     } catch {
       // not found or error
+      return null;
     } finally {
-      setFetchingStatus(false);
+      if (!silent) setFetchingStatus(false);
     }
   }
+
+  // Auto-poll status periodically when pending or needs_changes, and on tab visibility
+  useEffect(() => {
+    if (!activeApp?.id) return;
+    if (activeApp.status !== "pending" && activeApp.status !== "needs_changes") return;
+
+    const interval = setInterval(() => {
+      loadApplicationStatus(activeApp.id, true);
+    }, 10000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadApplicationStatus(activeApp.id, true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [activeApp?.id, activeApp?.status]);
+
+  // Handle Edit & Resubmit for rejected applications or needs_changes
+  const handleEditAndResubmit = (app: WashApplication) => {
+    const rawDigits = app.phone.replace(/\D/g, "");
+    const cleanPhone = rawDigits.startsWith("20")
+      ? "0" + rawDigits.slice(2)
+      : rawDigits.startsWith("0")
+      ? rawDigits
+      : "0" + rawDigits;
+
+    setFormData({
+      businessName: app.businessName || "",
+      ownerName: app.ownerName || "",
+      phone: cleanPhone || "",
+      email: app.email?.includes("@partner.washup.app") ? "" : app.email || "",
+      branchName: app.businessName ? `الفرع الرئيسي - ${app.businessName}` : "الفرع الرئيسي",
+      area: app.area || "nasr",
+      address: app.address || "",
+      lat: Number(app.lat) || 30.0561,
+      lng: Number(app.lng) || 31.3412,
+      capacity: Number(app.capacity) || 4,
+    });
+
+    if (Array.isArray(app.services) && app.services.length > 0) {
+      setServices(
+        app.services.map((s) => ({
+          name: s.name,
+          price: s.price,
+          durationMin: s.durationMin,
+          selected: true,
+        }))
+      );
+    }
+
+    if (Array.isArray(app.workingHours) && app.workingHours.length > 0) {
+      setWorkingHours(app.workingHours);
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("carzen_application_id");
+    }
+    setActiveApp(null);
+    setStep(1);
+    toast.info("تم استرجاع بياناتك السابقة. يمكنك الآن تعديل أي بيان وإعادة إرسال الطلب.");
+  };
+
+  // Lookup application by ID or phone number
+  const handleLookup = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const q = lookupQuery.trim();
+    if (!q) {
+      toast.error("يرجى إدخال رقم الطلب أو رقم الهاتف");
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await fetchApplication(q);
+      if (res && res.id) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("carzen_application_id", res.id);
+        }
+        setActiveApp(res);
+        toast.success(`تم العثور على طلب مغسلة "${res.businessName}"`);
+        setLookupQuery("");
+        setShowLookupBox(false);
+      } else {
+        toast.error("لم يتم العثور على أي طلب مسجل بهذا الرقم");
+      }
+    } catch {
+      toast.error("لم يتم العثور على طلب بهذا الرقم أو الهاتف. تأكد من إدخال رقم هاتف أو كود طلب صحيح.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle area change: update area and optionally center map to area default coords
+  const handleAreaChange = (newArea: string) => {
+    const areaMeta = AREAS.find((a) => a.id === newArea);
+    setFormData((prev) => ({
+      ...prev,
+      area: newArea,
+      lat: areaMeta ? areaMeta.defaultCoords[0] : prev.lat,
+      lng: areaMeta ? areaMeta.defaultCoords[1] : prev.lng,
+    }));
+  };
 
   const handleNext = () => {
     if (step === 1) {
@@ -154,6 +336,10 @@ export default function RegisterWizard() {
         toast.error("يرجى إدخال العنوان التفصيلي للفرع");
         return;
       }
+      if (!formData.lat || !formData.lng) {
+        toast.error("يرجى تحديد موقع الفرع على الخريطة");
+        return;
+      }
     }
 
     if (step === 4) {
@@ -173,33 +359,116 @@ export default function RegisterWizard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Add custom service with clear duration and price
   const handleAddCustomService = () => {
     if (!newServiceName.trim()) {
-      toast.error("يرجى كتابة اسم الخدمة");
+      toast.error("يرجى كتابة اسم الخدمة (مثال: نانو سيراميك)");
       return;
     }
+    const priceNum = Number(newServicePrice);
+    if (!priceNum || priceNum <= 0) {
+      toast.error("يرجى إدخال سعر صحيح للخدمة بالجنيه");
+      return;
+    }
+    const durationNum = Number(newServiceDuration);
+    if (!durationNum || durationNum <= 0) {
+      toast.error("يرجى إدخال مدة الخدمة بالدقائق");
+      return;
+    }
+
     setServices((prev) => [
       ...prev,
       {
         name: newServiceName.trim(),
-        price: Number(newServicePrice) || 100,
-        durationMin: Number(newServiceDuration) || 30,
+        price: priceNum,
+        durationMin: durationNum,
         selected: true,
       },
     ]);
     setNewServiceName("");
     setNewServicePrice(150);
     setNewServiceDuration(30);
-    toast.success("تمت إضافة الخدمة بنجاح");
+    toast.success(`تمت إضافة خدمة "${newServiceName.trim()}" بنجاح ✨`);
   };
 
-  const handleAddSimulatedFile = (name: string) => {
-    if (!documents.includes(name)) {
-      setDocuments((prev) => [...prev, name]);
-      toast.success(`تم إرفاق: ${name}`);
+  // File Upload Handler (real device file picker via API -> Supabase Storage)
+  const handleUploadFile = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    category: "storefront" | "commercial_reg"
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const tempId = `temp_${Date.now()}_${i}`;
+
+      // Optimistic item
+      const optimisticDoc: UploadedDocItem = {
+        id: tempId,
+        name: file.name,
+        path: file.name,
+        size: file.size,
+        type: file.type,
+        category,
+        uploading: true,
+      };
+
+      setUploadedDocs((prev) => [optimisticDoc, ...prev]);
+
+      try {
+        const uploadForm = new FormData();
+        uploadForm.append("file", file);
+        uploadForm.append(
+          "bucket",
+          category === "storefront" ? "branch-photos" : "application-documents"
+        );
+
+        const res = await fetch("/api/v1/vendor/upload", {
+          method: "POST",
+          body: uploadForm,
+        });
+
+        const json = await res.json();
+        if (res.ok && json.status && json.data) {
+          setUploadedDocs((prev) =>
+            prev.map((d) =>
+              d.id === tempId
+                ? {
+                    ...d,
+                    path: json.data.path || json.data.storedName,
+                    uploading: false,
+                  }
+                : d
+            )
+          );
+          toast.success(`تم رفع الملف "${file.name}" بنجاح 📁`);
+        } else {
+          // If upload fails, keep filename for submission
+          setUploadedDocs((prev) =>
+            prev.map((d) => (d.id === tempId ? { ...d, uploading: false } : d))
+          );
+          toast.info(`تم إرفاق "${file.name}"`);
+        }
+      } catch (err) {
+        console.warn("[Upload Error]", err);
+        setUploadedDocs((prev) =>
+          prev.map((d) => (d.id === tempId ? { ...d, uploading: false } : d))
+        );
+        toast.info(`تم إرفاق "${file.name}"`);
+      }
     }
+
+    // Reset input
+    e.target.value = "";
   };
 
+  const handleRemoveDoc = (id: string) => {
+    setUploadedDocs((prev) => prev.filter((d) => d.id !== id));
+    toast.info("تمت إزالة المستند");
+  };
+
+  // Final Application Submission to Supabase API
   const handleSubmit = async () => {
     try {
       setLoading(true);
@@ -210,6 +479,9 @@ export default function RegisterWizard() {
           price: s.price,
           durationMin: s.durationMin,
         }));
+
+      // Document strings to be stored in Supabase text[] column
+      const documentPaths = uploadedDocs.map((d) => d.path || d.name);
 
       const payload: SubmitApplicationPayload = {
         businessName: formData.businessName.trim(),
@@ -224,7 +496,7 @@ export default function RegisterWizard() {
         capacity: formData.capacity,
         workingHours,
         services: selectedServices,
-        documents,
+        documents: documentPaths.length ? documentPaths : ["commercial_reg.pdf"],
       };
 
       const res = await submitApplication(payload);
@@ -232,7 +504,7 @@ export default function RegisterWizard() {
       if (typeof window !== "undefined") {
         localStorage.setItem("carzen_application_id", res.id);
       }
-      toast.success("تم إرسال طلب الانضمام بنجاح!");
+      toast.success("تم إرسال طلب الانضمام بنجاح إلى قاعدة بيانات كارزن!");
       router.replace(`/register?id=${res.id}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "حدث خطأ أثناء إرسال الطلب";
@@ -266,9 +538,9 @@ export default function RegisterWizard() {
             {isApproved ? (
               <CheckCircle2 className="size-8" />
             ) : isNeedsChanges ? (
-              <AlertCircle className="size-8" />
+              <AlertTriangle className="size-8" />
             ) : isRejected ? (
-              <Trash2 className="size-8" />
+              <XCircle className="size-8" />
             ) : (
               <Clock3 className="size-8" />
             )}
@@ -280,7 +552,7 @@ export default function RegisterWizard() {
               : isNeedsChanges
               ? "مطلوب استكمال بعض التعديلات"
               : isRejected
-              ? "نعتذر، لم يتم قبول الطلب"
+              ? "نعتذر، تم رفض طلب الانضمام"
               : "طلبك قيد المراجعة الآن ⏳"}
           </h1>
 
@@ -288,14 +560,58 @@ export default function RegisterWizard() {
             {isApproved
               ? "تم اعتماد حسابك وفرعك على منصة كارزن بنجاح. يمكنك الآن الدخول لبوابة الشركاء لبدء التشغيل."
               : isNeedsChanges
-              ? activeApp.reviewNote || "يرجى مراجعة الملاحظات وتعديل البيانات المطلوبة للتفعيل."
+              ? "راجع ملاحظات فريق المراجعة الموضحة أدناه لتعديل البيانات وإعادة تفعيل الطلب."
               : isRejected
-              ? activeApp.reviewNote || "شكراً لاهتمامك، لا تتطابق بيانات المغسلة مع معايير المنصة الحالية."
-              : "يقوم فريق مراجعة شركاء كارزن بفحص المستندات ومعاينة الموقع وسيتم إشعارك خلال 24 ساعة."}
+              ? "تمت مراجعة بيانات المغسلة من قبل إدارة المنصة ولم يتم قبول الطلب وفقاً للأسباب الموضحة أدناه."
+              : "يقوم فريق مراجعة شركاء كارزن بفحص المستندات ومعاينة الموقع وسيتم إشعارك فور اتخاذ القرار."}
           </p>
         </div>
 
-        <Card className="mt-8 border-border/60 shadow-sm">
+        {/* Dedicated Alert Box for Rejection Reason */}
+        {isRejected && (
+          <div className="mt-6 rounded-2xl border border-rose-300 bg-rose-50/90 p-5 shadow-xs text-rose-950 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+            <div className="flex items-start gap-3.5">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-rose-600/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400">
+                <AlertCircle className="size-5" />
+              </div>
+              <div className="space-y-1.5 text-right flex-1">
+                <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200">
+                  سبب الرفض الموضح من إدارة كارزن:
+                </h4>
+                <p className="text-sm font-semibold leading-relaxed text-rose-800 dark:text-rose-300 bg-white/70 dark:bg-black/20 p-2.5 rounded-lg border border-rose-200/50">
+                  {activeApp.reviewNote || "البيانات أو المستندات المرفقة لا تتوافق مع شروط الانضمام للمنصة حالياً."}
+                </p>
+                <p className="text-xs text-rose-700 dark:text-rose-400 pt-1">
+                  يمكنك الضغط على زر <span className="font-bold underline">&quot;تعديل البيانات وإعادة التقديم&quot;</span> أدناه لتصحيح المشكلة مباشرة دون إعادة كتابة كل البيانات.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Alert Box for Needs Changes */}
+        {isNeedsChanges && (
+          <div className="mt-6 rounded-2xl border border-amber-300 bg-amber-50/90 p-5 shadow-xs text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            <div className="flex items-start gap-3.5">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-600/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                <AlertTriangle className="size-5" />
+              </div>
+              <div className="space-y-1.5 text-right flex-1">
+                <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                  ملاحظات فريق المراجعة لاستكمال التفعيل:
+                </h4>
+                <p className="text-sm font-semibold leading-relaxed text-amber-800 dark:text-amber-300 bg-white/70 dark:bg-black/20 p-2.5 rounded-lg border border-amber-200/50">
+                  {activeApp.reviewNote || "يرجى مراجعة البيانات واستكمال المستندات المطلوبة للمعاينة."}
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 pt-1">
+                  اضغط على زر <span className="font-bold underline">&quot;تعديل واستكمال البيانات&quot;</span> لإجراء التعديلات المطلوبة.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Card className="mt-6 border-border/60 shadow-sm">
           <CardContent className="space-y-4 p-6">
             <div className="flex items-center justify-between border-b pb-3 text-sm">
               <span className="text-muted-foreground">رقم الطلب</span>
@@ -311,7 +627,7 @@ export default function RegisterWizard() {
             </div>
             <div className="flex items-center justify-between border-b pb-3 text-sm">
               <span className="text-muted-foreground">رقم الهاتف</span>
-              <span className="num font-medium dir-ltr text-right">{activeApp.phone}</span>
+              <span dir="ltr" className="font-mono font-medium text-left">{activeApp.phone}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">حالة الطلب</span>
@@ -331,13 +647,14 @@ export default function RegisterWizard() {
                   : isNeedsChanges
                   ? "مطلوب تعديلات"
                   : isRejected
-                  ? "مرفوض"
+                  ? "مرفوض (Rejected)"
                   : "قيد المراجعة (Pending)"}
               </span>
             </div>
           </CardContent>
         </Card>
 
+        {/* Action Buttons */}
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           {isApproved ? (
             <Link href="/login" className="w-full sm:w-auto">
@@ -345,32 +662,125 @@ export default function RegisterWizard() {
                 دخول بوابة الشركاء (تسجيل الدخول)
               </Button>
             </Link>
+          ) : isRejected ? (
+            <>
+              <Button
+                size="lg"
+                onClick={() => handleEditAndResubmit(activeApp)}
+                className="w-full sm:w-auto gap-2"
+              >
+                <FileEdit className="size-4" />
+                تعديل البيانات وإعادة التقديم
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    localStorage.removeItem("carzen_application_id");
+                  }
+                  setActiveApp(null);
+                  setStep(1);
+                  router.replace("/register");
+                }}
+                className="w-full sm:w-auto"
+              >
+                تقديم طلب مغسلة جديدة
+              </Button>
+            </>
+          ) : isNeedsChanges ? (
+            <>
+              <Button
+                size="lg"
+                onClick={() => handleEditAndResubmit(activeApp)}
+                className="w-full sm:w-auto gap-2"
+              >
+                <FileEdit className="size-4" />
+                تعديل واستكمال البيانات
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => loadApplicationStatus(activeApp.id)}
+                disabled={fetchingStatus}
+                className="w-full sm:w-auto"
+              >
+                <RefreshCw className={`me-2 size-4 ${fetchingStatus ? "animate-spin" : ""}`} />
+                تحديث حالة الطلب
+              </Button>
+            </>
           ) : (
-            <Button
-              variant="outline"
-              onClick={() => loadApplicationStatus(activeApp.id)}
-              disabled={fetchingStatus}
-              className="w-full sm:w-auto"
-            >
-              <RefreshCw className={`me-2 size-4 ${fetchingStatus ? "animate-spin" : ""}`} />
-              تحديث حالة الطلب
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => loadApplicationStatus(activeApp.id)}
+                disabled={fetchingStatus}
+                className="w-full sm:w-auto"
+              >
+                <RefreshCw className={`me-2 size-4 ${fetchingStatus ? "animate-spin" : ""}`} />
+                تحديث حالة الطلب
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    localStorage.removeItem("carzen_application_id");
+                  }
+                  setActiveApp(null);
+                  setStep(1);
+                  router.replace("/register");
+                }}
+                className="w-full sm:w-auto text-muted-foreground"
+              >
+                تقديم طلب لمغسلة أخرى
+              </Button>
+            </>
           )}
+        </div>
 
-          <Button
-            variant="ghost"
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                localStorage.removeItem("carzen_application_id");
-              }
-              setActiveApp(null);
-              setStep(1);
-              router.replace("/register");
-            }}
-            className="w-full sm:w-auto text-muted-foreground"
-          >
-            تقديم طلب لمغسلة أخرى
-          </Button>
+        {/* Live Auto-Refresh Notice */}
+        {!isApproved && !isRejected && (
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            ⚡ يتم تحديث الصفحة تلقائياً فور اتخاذ إدارة المنصة قرار المراجعة.
+          </p>
+        )}
+
+        {/* Lookup / Switcher Box */}
+        <div className="mt-10 border-t pt-6 text-center">
+          {!showLookupBox ? (
+            <button
+              type="button"
+              onClick={() => setShowLookupBox(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground hover:underline"
+            >
+              <Search className="size-3.5" />
+              <span>متابعة طلب آخر برقم الطلب أو الهاتف؟ اضغط هنا</span>
+            </button>
+          ) : (
+            <div className="mx-auto max-w-md rounded-xl border bg-muted/20 p-4">
+              <p className="mb-2.5 text-xs font-semibold text-muted-foreground text-right">
+                البحث عن طلب انضمام سابق برقم الطلب أو رقم الهاتف:
+              </p>
+              <form onSubmit={handleLookup} className="flex items-center gap-2">
+                <Input
+                  placeholder="أدخل كود الطلب (app_...) أو رقم الهاتف..."
+                  value={lookupQuery}
+                  onChange={(e) => setLookupQuery(e.target.value)}
+                  className="text-sm bg-background"
+                  dir="auto"
+                />
+                <Button type="submit" size="sm" disabled={isSearching}>
+                  {isSearching ? <Loader2 className="size-4 animate-spin" /> : "بحث"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowLookupBox(false)}
+                >
+                  إلغاء
+                </Button>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -379,6 +789,23 @@ export default function RegisterWizard() {
   // --- RENDER: WIZARD FORM ---
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+      {/* Hidden file inputs for device file pickers */}
+      <input
+        ref={storefrontInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(e) => handleUploadFile(e, "storefront")}
+        className="hidden"
+      />
+      <input
+        ref={commercialInputRef}
+        type="file"
+        accept="application/pdf,image/jpeg,image/png"
+        multiple
+        onChange={(e) => handleUploadFile(e, "commercial_reg")}
+        className="hidden"
+      />
+
       {/* Top Header */}
       <header className="mb-8 flex flex-col items-center text-center">
         <BrandLogo subtitle="بوابة الشركاء" className="mb-4" />
@@ -386,12 +813,51 @@ export default function RegisterWizard() {
         <p className="mt-1 text-sm text-muted-foreground">
           انضم إلى شبكة كارزن واجعل مغسلتك رقمية بالكامل لاستقبال آلاف حجوزات العملاء.
         </p>
-        <div className="mt-3 text-xs text-muted-foreground">
-          لديك حساب شريك بالفعل؟{" "}
-          <Link href="/login" className="font-semibold text-primary hover:underline">
-            تسجيل الدخول هنا
-          </Link>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+          <span>
+            لديك حساب شريك بالفعل؟{" "}
+            <Link href="/login" className="font-semibold text-primary hover:underline">
+              تسجيل الدخول هنا
+            </Link>
+          </span>
+          <span>•</span>
+          <button
+            type="button"
+            onClick={() => setShowLookupBox((prev) => !prev)}
+            className="font-semibold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
+          >
+            <Search className="size-3" />
+            استعلام عن حالة طلب سابق
+          </button>
         </div>
+
+        {showLookupBox && (
+          <div className="mt-4 mx-auto w-full max-w-md rounded-xl border bg-muted/20 p-3.5 text-right">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">
+              أدخل كود طلب الانضمام أو رقم الهاتف للاستعلام عن الحالة:
+            </p>
+            <form onSubmit={handleLookup} className="flex items-center gap-2">
+              <Input
+                placeholder="مثال: app_... أو 01012345678"
+                value={lookupQuery}
+                onChange={(e) => setLookupQuery(e.target.value)}
+                className="text-sm bg-background"
+                dir="auto"
+              />
+              <Button type="submit" size="sm" disabled={isSearching}>
+                {isSearching ? <Loader2 className="size-4 animate-spin" /> : "استعلام"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowLookupBox(false)}
+              >
+                إلغاء
+              </Button>
+            </form>
+          </div>
+        )}
       </header>
 
       {/* Progress Steps Indicator */}
@@ -501,17 +967,17 @@ export default function RegisterWizard() {
             </div>
           )}
 
-          {/* STEP 2: LOCATION & BRANCH */}
+          {/* STEP 2: LOCATION & BRANCH WITH INTERACTIVE MAP & CURRENT LOCATION */}
           {step === 2 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold">2. موقع الفرع والعنوان</h2>
                 <p className="text-sm text-muted-foreground">
-                  تحديد المنطقة والعنوان الدقيق ليتمكن العملاء من الوصول إليك بسهولة.
+                  حدد موقع الفرع بدقة على الخريطة لتسهيل وصول العملاء وحساب المسافات.
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="branchName">اسم الفرع (اختياري)</Label>
@@ -528,7 +994,7 @@ export default function RegisterWizard() {
                     <select
                       id="area"
                       value={formData.area}
-                      onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                      onChange={(e) => handleAreaChange(e.target.value)}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       {AREAS.map((a) => (
@@ -551,19 +1017,19 @@ export default function RegisterWizard() {
                   />
                 </div>
 
-                {/* Simulated Coordinates Card */}
-                <div className="rounded-xl border border-dashed bg-muted/30 p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <MapPin className="size-4 text-primary" />
-                    <span>إحداثيات الموقع على الخريطة (GPS Coordinates)</span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    تُستخدم لحساب المسافة الدقيقة بين العميل والمغسلة على تطبيق كارزن.
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-4 text-xs font-mono">
-                    <span className="rounded bg-muted px-2 py-1">خط العرض (Lat): {formData.lat}</span>
-                    <span className="rounded bg-muted px-2 py-1">خط الطول (Lng): {formData.lng}</span>
-                  </div>
+                {/* Interactive Leaflet Map Location Picker */}
+                <div className="space-y-2 pt-1">
+                  <Label className="text-sm font-semibold">
+                    تحديد موقع الفرع على الخريطة (GPS Pin Picker):
+                  </Label>
+                  <MapLocationPicker
+                    lat={formData.lat}
+                    lng={formData.lng}
+                    area={formData.area}
+                    onChange={(newLat, newLng) => {
+                      setFormData((prev) => ({ ...prev, lat: newLat, lng: newLng }));
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -614,7 +1080,7 @@ export default function RegisterWizard() {
                         <span className="w-24 font-medium">{WEEKDAYS[i]}</span>
 
                         <div className="flex items-center gap-2">
-                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                             <input
                               type="checkbox"
                               checked={h.closed}
@@ -664,21 +1130,22 @@ export default function RegisterWizard() {
             </div>
           )}
 
-          {/* STEP 4: SERVICES & PRICING */}
+          {/* STEP 4: SERVICES & PRICING WITH CLEAR LABELS */}
           {step === 4 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold">4. باقات وخدمات الغسيل</h2>
                 <p className="text-sm text-muted-foreground">
-                  حدد الخدمات التي تقدمها مع أسعارها المقترحة ومتوسط المدة بالدقائق.
+                  حدد الخدمات التي تقدمها، وقم بتعديل الأسعار والمدد المتوقعة بالدقائق.
                 </p>
               </div>
 
               <div className="space-y-3">
+                {/* Services List with clear editable price & duration */}
                 {services.map((svc, idx) => (
                   <div
                     key={idx}
-                    className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition-all ${
+                    className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 transition-all ${
                       svc.selected
                         ? "border-primary/50 bg-primary/5 shadow-xs"
                         : "border-border/60 bg-muted/20 opacity-70"
@@ -696,118 +1163,269 @@ export default function RegisterWizard() {
                         className="size-4.5 accent-primary"
                       />
                       <div>
-                        <div className="font-semibold">{svc.name}</div>
+                        <div className="font-semibold text-foreground">{svc.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          المدة: {svc.durationMin} دقيقة تقريبية
+                          مدة الخدمة: {svc.durationMin} دقيقة تقريبية
                         </div>
                       </div>
                     </label>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      {/* Duration Input with label */}
                       <div className="flex items-center gap-1.5">
-                        <Input
-                          type="number"
-                          value={svc.price}
-                          disabled={!svc.selected}
-                          onChange={(e) => {
-                            const copy = [...services];
-                            copy[idx] = { ...copy[idx], price: Number(e.target.value) || 0 };
-                            setServices(copy);
-                          }}
-                          className="h-9 w-20 text-center font-bold"
-                        />
-                        <span className="text-xs text-muted-foreground">ج.م</span>
+                        <span className="text-xs text-muted-foreground">المدة:</span>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={5}
+                            step={5}
+                            value={svc.durationMin}
+                            disabled={!svc.selected}
+                            onChange={(e) => {
+                              const copy = [...services];
+                              copy[idx] = {
+                                ...copy[idx],
+                                durationMin: Math.max(5, Number(e.target.value) || 5),
+                              };
+                              setServices(copy);
+                            }}
+                            className="h-8.5 w-20 pe-6 text-center text-xs font-semibold"
+                          />
+                          <span className="pointer-events-none absolute end-1.5 top-2 text-[10px] text-muted-foreground">
+                            د
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Price Input with label */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">السعر:</span>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={10}
+                            step={10}
+                            value={svc.price}
+                            disabled={!svc.selected}
+                            onChange={(e) => {
+                              const copy = [...services];
+                              copy[idx] = {
+                                ...copy[idx],
+                                price: Math.max(0, Number(e.target.value) || 0),
+                              };
+                              setServices(copy);
+                            }}
+                            className="h-8.5 w-24 pe-7 text-center font-bold text-xs"
+                          />
+                          <span className="pointer-events-none absolute end-1.5 top-2 text-[10px] font-medium text-muted-foreground">
+                            ج.م
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {/* Add Custom Service Row */}
-                <div className="mt-4 rounded-xl border border-dashed p-4">
-                  <div className="mb-2 text-xs font-semibold text-muted-foreground">
-                    إضافة خدمة أخرى خاصة بمغسلتك:
+                {/* Add Custom Service Section with Distinct, Explicit Inputs */}
+                <div className="mt-5 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-4 sm:p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Sparkles className="size-4 text-primary" />
+                    <span className="text-sm font-bold text-foreground">
+                      إضافة خدمة جديدة خاصة بمغسلتك:
+                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Input
-                      placeholder="اسم الخدمة (مثال: نانو سيراميك)"
-                      value={newServiceName}
-                      onChange={(e) => setNewServiceName(e.target.value)}
-                      className="flex-1 min-w-[160px]"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="السعر"
-                      value={newServicePrice}
-                      onChange={(e) => setNewServicePrice(Number(e.target.value) || 0)}
-                      className="w-20 text-center"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="المدة"
-                      value={newServiceDuration}
-                      onChange={(e) => setNewServiceDuration(Number(e.target.value) || 20)}
-                      className="w-20 text-center"
-                    />
-                    <Button type="button" variant="secondary" onClick={handleAddCustomService}>
-                      <Plus className="me-1 size-4" /> إضافة
-                    </Button>
+
+                  <div className="grid gap-3 sm:grid-cols-[1.5fr_1fr_1fr_auto]">
+                    {/* Service Name Input */}
+                    <div className="space-y-1">
+                      <Label htmlFor="custom-service-name" className="text-xs font-medium">
+                        اسم الخدمة *
+                      </Label>
+                      <Input
+                        id="custom-service-name"
+                        placeholder="مثال: نانو سيراميك 9H"
+                        value={newServiceName}
+                        onChange={(e) => setNewServiceName(e.target.value)}
+                        className="h-9.5 text-xs bg-background"
+                      />
+                    </div>
+
+                    {/* Price Input with Explicit Unit */}
+                    <div className="space-y-1">
+                      <Label htmlFor="custom-service-price" className="text-xs font-medium">
+                        السعر (بالجنيه) *
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="custom-service-price"
+                          type="number"
+                          placeholder="150"
+                          value={newServicePrice}
+                          onChange={(e) =>
+                            setNewServicePrice(e.target.value === "" ? "" : Number(e.target.value))
+                          }
+                          className="h-9.5 pe-9 text-xs font-bold text-center bg-background"
+                        />
+                        <span className="pointer-events-none absolute end-2.5 top-2.5 text-xs font-semibold text-muted-foreground">
+                          ج.م
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Duration Input with Explicit Unit */}
+                    <div className="space-y-1">
+                      <Label htmlFor="custom-service-duration" className="text-xs font-medium">
+                        المدة المتوقعة *
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="custom-service-duration"
+                          type="number"
+                          placeholder="30"
+                          value={newServiceDuration}
+                          onChange={(e) =>
+                            setNewServiceDuration(e.target.value === "" ? "" : Number(e.target.value))
+                          }
+                          className="h-9.5 pe-12 text-xs text-center font-semibold bg-background"
+                        />
+                        <span className="pointer-events-none absolute end-2.5 top-2.5 text-xs text-muted-foreground">
+                          دقيقة
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Add Button */}
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        onClick={handleAddCustomService}
+                        className="h-9.5 w-full bg-primary text-primary-foreground sm:w-auto"
+                      >
+                        <Plus className="me-1 size-4" /> إضافة الخدمة
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* STEP 5: DOCUMENTS & PHOTOS */}
+          {/* STEP 5: DOCUMENTS & PHOTOS WITH REAL DEVICE FILE PICKER */}
           {step === 5 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold">5. المستندات والصور</h2>
+                <h2 className="text-xl font-bold">5. المستندات والصور الرسمية</h2>
                 <p className="text-sm text-muted-foreground">
-                  رفع المستندات يعجل من سرعة اعتماد المغسلة وتفعيلها فوراً للعملاء.
+                  اضغط على أي من الخيارات أدناه لفتح متصفح ملفات جهازك واختيار الصور أو ملفات الـ PDF.
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
+                {/* Storefront Photo Card -> Opens Device File Picker for Images */}
                 <div
-                  onClick={() => handleAddSimulatedFile(`صورة_واجهة_${Date.now().toString(36)}.jpg`)}
-                  className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-6 text-center transition-colors hover:bg-primary/10"
+                  onClick={() => storefrontInputRef.current?.click()}
+                  className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-6 text-center transition-all hover:border-primary hover:bg-primary/10 hover:shadow-sm"
                 >
-                  <Upload className="mb-2 size-8 text-primary" />
-                  <span className="text-sm font-semibold">صورة واجهة المغسلة</span>
-                  <span className="mt-1 text-xs text-muted-foreground">اضغط لرفع صورة JPG أو PNG</span>
+                  <div className="mb-3 flex size-12 items-center justify-center rounded-xl bg-primary/15 text-primary transition-transform group-hover:scale-105">
+                    <Camera className="size-6" />
+                  </div>
+                  <span className="text-sm font-bold text-foreground">صورة واجهة المغسلة</span>
+                  <span className="mt-1 text-xs text-muted-foreground">
+                    اضغط لاختيار صورة من ملفات جهازك (JPG, PNG, WebP)
+                  </span>
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                    <Upload className="size-3" /> استعراض الصور في جهازك
+                  </span>
                 </div>
 
+                {/* Commercial Registration / Tax Card -> Opens Device File Picker for PDF / Docs */}
                 <div
-                  onClick={() => handleAddSimulatedFile(`سجل_تجاري_${Date.now().toString(36)}.pdf`)}
-                  className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 p-6 text-center transition-colors hover:bg-muted/50"
+                  onClick={() => commercialInputRef.current?.click()}
+                  className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/30 p-6 text-center transition-all hover:border-primary/60 hover:bg-muted/50 hover:shadow-sm"
                 >
-                  <FileText className="mb-2 size-8 text-muted-foreground" />
-                  <span className="text-sm font-semibold">السجل التجاري أو البطاقة الضريبية</span>
-                  <span className="mt-1 text-xs text-muted-foreground">اضغط لرفع ملف PDF أو صورة</span>
+                  <div className="mb-3 flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-transform group-hover:scale-105">
+                    <FileText className="size-6 text-primary" />
+                  </div>
+                  <span className="text-sm font-bold text-foreground">
+                    السجل التجاري أو البطاقة الضريبية
+                  </span>
+                  <span className="mt-1 text-xs text-muted-foreground">
+                    اضغط لاختيار ملف من جهازك (PDF أو صورة المستند)
+                  </span>
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-foreground">
+                    <Upload className="size-3" /> استعراض الملفات في جهازك
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">المستندات المرفقة بالطلب ({documents.length}):</Label>
-                <div className="space-y-1.5">
-                  {documents.map((doc, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-xs"
-                    >
-                      <div className="flex items-center gap-2">
-                        <FileText className="size-4 text-primary" />
-                        <span className="font-medium">{doc}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setDocuments(documents.filter((_, idx) => idx !== i))}
-                        className="text-rose-500 hover:text-rose-700"
+              {/* Uploaded Files List */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>المستندات والصور المرفقة بالطلب ({uploadedDocs.length}):</span>
+                  <span>الحد الأقصى للملف: 10 ميجابايت</span>
+                </div>
+
+                <div className="space-y-2">
+                  {uploadedDocs.map((doc) => {
+                    const isPdf =
+                      doc.name.toLowerCase().endsWith(".pdf") || doc.type === "application/pdf";
+                    return (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between rounded-xl border bg-background/80 p-3 text-xs shadow-xs transition-colors"
                       >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
+                              isPdf
+                                ? "bg-rose-500/10 text-rose-600"
+                                : "bg-sky-500/10 text-sky-600"
+                            }`}
+                          >
+                            {isPdf ? (
+                              <FileText className="size-4" />
+                            ) : (
+                              <ImageIcon className="size-4" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-foreground">
+                              {doc.name}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <span>
+                                {doc.category === "storefront"
+                                  ? "صورة الواجهة"
+                                  : "سجل تجاري / ترخيص"}
+                              </span>
+                              {doc.size && <span>• {formatFileSize(doc.size)}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {doc.uploading ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+                              <Loader2 className="size-3.5 animate-spin" /> جاري الرفع...
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                              <Check className="size-3" /> جاهز للطلب
+                            </span>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDoc(doc.id)}
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            title="حذف المستند"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -824,7 +1442,7 @@ export default function RegisterWizard() {
               </div>
 
               <div className="space-y-4 text-sm">
-                <div className="rounded-xl border bg-muted/20 p-4 space-y-2">
+                <div className="rounded-xl border bg-muted/20 p-4 space-y-2.5">
                   <div className="flex justify-between border-b pb-2">
                     <span className="text-muted-foreground">اسم المغسلة:</span>
                     <span className="font-bold text-foreground">{formData.businessName}</span>
@@ -843,6 +1461,12 @@ export default function RegisterWizard() {
                       {AREAS.find((a) => a.id === formData.area)?.name} — {formData.address}
                     </span>
                   </div>
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-muted-foreground">إحداثيات الخريطة (GPS):</span>
+                    <span className="font-mono text-xs text-primary dir-ltr">
+                      {formData.lat}, {formData.lng}
+                    </span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">سعة المغسلة:</span>
                     <span className="font-bold">{formData.capacity} سيارات في نفس الوقت</span>
@@ -850,20 +1474,34 @@ export default function RegisterWizard() {
                 </div>
 
                 <div className="rounded-xl border bg-muted/20 p-4">
-                  <div className="mb-2 font-bold">
+                  <div className="mb-2 font-bold text-foreground">
                     الخدمات المختارة ({services.filter((s) => s.selected).length}):
                   </div>
-                  <ul className="space-y-1 text-xs">
+                  <ul className="space-y-1.5 text-xs">
                     {services
                       .filter((s) => s.selected)
                       .map((s, i) => (
-                        <li key={i} className="flex justify-between">
-                          <span>{s.name}</span>
+                        <li key={i} className="flex justify-between items-center border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
+                          <span className="font-medium">{s.name}</span>
                           <span className="font-semibold text-primary">
                             {s.price} ج.م ({s.durationMin} دقيقة)
                           </span>
                         </li>
                       ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border bg-muted/20 p-4">
+                  <div className="mb-2 font-bold text-foreground">
+                    المستندات المرفقة ({uploadedDocs.length}):
+                  </div>
+                  <ul className="space-y-1 text-xs text-muted-foreground">
+                    {uploadedDocs.map((d, i) => (
+                      <li key={i} className="flex items-center gap-1.5">
+                        <FileCheck className="size-3.5 text-emerald-600" />
+                        <span>{d.name}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>

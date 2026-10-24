@@ -93,7 +93,19 @@ export const vendorApplicationRoutes = [
     "GET",
     "/vendor/applications/:id",
     ({ db, params }) => {
-      const app = db.applications.find((a) => a.id === params.id);
+      const target = String(params.id ?? "").trim();
+      let app: WashApplication | undefined;
+
+      if (target.startsWith("app_")) {
+        app = db.applications.find((a) => a.id === target);
+      } else {
+        const digits = target.replace(/\D/g, "");
+        const p10 = digits.startsWith("20") ? digits.slice(2) : digits.startsWith("0") ? digits.slice(1) : digits;
+        app = db.applications
+          .filter((a) => a.phone.replace(/\D/g, "").endsWith(p10))
+          .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0];
+      }
+
       if (!app) throw new MockApiError("طلب الانضمام غير موجود", 404);
       return ok(app);
     },
