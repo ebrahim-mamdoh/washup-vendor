@@ -68,3 +68,20 @@ export interface ApproveApplicationResult {
   application: WashApplication;
   businessId: string;
 }
+
+export interface SubmitApplicationPayload {
+  businessName: string;
+  ownerName: string;
+  phone: string;
+  email: string;
+  branchName?: string;
+  area: string;
+  address: string;
+  lat: number;
+  lng: number;
+  capacity: number;
+  workingHours: WorkingDay[];
+  services: ApplicationService[];
+  documents?: string[];
+  photos?: string[];
+}
