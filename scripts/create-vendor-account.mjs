@@ -123,7 +123,7 @@ async function main() {
         values (
           ${businessId}, ${t.json(BRANCH_NAME)}, 'nc', ${t.json(ADDRESS)}, 30.0131, 31.4289,
           ${E164_PHONE}, 4, true, true,
-          true, 30, 60, 7, 120,
+          false /* manual confirmation, the platform default; the wash can switch it on */, 30, 60, 7, 120,
           15, 60, 5.0, 1
         )
         returning id

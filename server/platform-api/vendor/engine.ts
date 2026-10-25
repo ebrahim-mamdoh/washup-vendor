@@ -95,7 +95,8 @@ export function priceServices(db: MockDatabase, branchId: string, serviceIds: st
 
   const items: OrderItem[] = services.map((s) => ({ serviceId: s.id, name: s.name, type: s.type, price: s.price, durationMin: s.durationMin }));
   const subtotal = items.reduce((sum, it) => sum + it.price, 0);
-  const offer = bestOffer(db, branchId, primaries[0].category, subtotal);
+  // Offers apply to the primary service only — the same rule as the customer app's create_order.
+  const offer = bestOffer(db, branchId, primaries[0].category, primaries[0].price);
 
   return {
     items,
@@ -107,7 +108,8 @@ export function priceServices(db: MockDatabase, branchId: string, serviceIds: st
   };
 }
 
-function bestOffer(db: MockDatabase, branchId: string, category: string, subtotal: number) {
+/** Best live offer for the branch; `base` is the primary service's price (the part offers discount). */
+function bestOffer(db: MockDatabase, branchId: string, category: string, base: number) {
   const t = now().getTime();
   let best: { id: string; amount: number; title: Localized } | null = null;
   for (const o of db.offers) {
@@ -115,7 +117,7 @@ function bestOffer(db: MockDatabase, branchId: string, category: string, subtota
     if (new Date(o.startAt).getTime() > t || new Date(o.endAt).getTime() < t) continue;
     if (!o.branchIds.includes(branchId)) continue;
     if (o.serviceCategories.length && !o.serviceCategories.includes(category)) continue;
-    const amount = Math.min(subtotal, o.discountType === "percent" ? Math.round((subtotal * o.discountValue) / 100) : o.discountValue);
+    const amount = offerAmount(o, base);
     if (!best || amount > best.amount) best = { id: o.id, amount, title: o.title };
   }
   return best;
@@ -253,7 +255,7 @@ export function allowedActions(db: MockDatabase, actor: VendorActor, o: Order): 
 function recomputeTotals(db: MockDatabase, o: Order) {
   o.subtotal = o.items.reduce((s, it) => s + it.price, 0);
   o.durationMin = o.items.reduce((s, it) => s + it.durationMin, 0);
-  if (o.discount && o.discount.pct > 0) o.discount.amount = Math.round((o.subtotal * o.discount.pct) / 100);
+  if (o.discount) o.discount.amount = discountAfterItemsChange(o.discount, o.items, o.subtotal);
   o.total = Math.max(0, o.subtotal - (o.discount?.amount ?? 0));
   const txn = db.transactions.find((t) => t.orderId === o.id);
   if (txn && txn.status === "pending") {
@@ -423,7 +425,7 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       const old = o.total;
       const manual = payload.discountType === "fixed" ? Math.min(value, o.subtotal) : Math.round((o.subtotal * value) / 100);
       const offer = o.offerId ? db.offers.find((x) => x.id === o.offerId) : undefined;
-      o.discount = withManualDiscount(o, offer ? offerAmount(offer, o.subtotal) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
+      o.discount = withManualDiscount(o, offer ? offerAmount(offer, primaryPrice(o.items)) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       recomputeTotals(db, o);
       audit(db, actor, o, "order.discount", old, o.total, reason);
       return `تم تطبيق الخصم — الإجمالي الآن ${o.total} ج.م`;
@@ -647,9 +649,28 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 
 // ── Shared rules (mock + Postgres) ──────────────────────────
 
-/** Amount an offer takes off `subtotal` (same formula as `bestOffer`). */
-export function offerAmount(offer: { discountType: "percent" | "fixed"; discountValue: number }, subtotal: number): number {
-  return Math.min(subtotal, offer.discountType === "percent" ? Math.round((subtotal * offer.discountValue) / 100) : offer.discountValue);
+/**
+ * Amount an offer takes off `base` — the primary service's price, never the add-ons (the same rule
+ * as the customer app's create_order, so an order costs the same through every channel).
+ */
+export function offerAmount(offer: { discountType: "percent" | "fixed"; discountValue: number }, base: number): number {
+  return Math.min(base, offer.discountType === "percent" ? Math.round((base * offer.discountValue) / 100) : offer.discountValue);
+}
+
+/** Price of the order's primary service (what offers discount). */
+export function primaryPrice(items: Pick<OrderItem, "type" | "price">[]): number {
+  return items.find((it) => it.type === "primary")?.price ?? 0;
+}
+
+/**
+ * The discount once the items change (an add-on was added). A percent discount from an offer stays
+ * a percent of the primary service; a manual percent discount follows the new subtotal; fixed
+ * amounts (and offer + manual stacks, stored as an amount) stay as they are.
+ */
+export function discountAfterItemsChange(d: NonNullable<Order["discount"]>, items: Pick<OrderItem, "type" | "price">[], subtotal: number): number {
+  if (!(d.pct > 0)) return d.amount;
+  const offerOnly = isOfferReason(d.reason) && !d.reason.includes(" + ");
+  return Math.round(((offerOnly ? primaryPrice(items) : subtotal) * d.pct) / 100);
 }
 
 /**

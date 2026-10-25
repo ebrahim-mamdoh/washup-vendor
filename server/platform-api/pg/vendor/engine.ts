@@ -21,10 +21,12 @@ import {
   OCCUPYING,
   bookingHorizon,
   clockToMin,
+  discountAfterItemsChange,
   hoursFor,
   normalizePhone,
   normalizePlate,
   offerAmount,
+  primaryPrice,
   recognitionForWash,
   withManualDiscount,
 } from "../../vendor/engine";
@@ -57,7 +59,8 @@ function atMinutes(date: Date, minutes: number): Date {
 
 // ── Pricing (spec A8.1: price always computed, never typed) ──
 
-async function bestOffer(q: Q, branchId: string, category: string, subtotal: number) {
+/** Best live offer for the branch; `base` is the primary service's price (the part offers discount). */
+async function bestOffer(q: Q, branchId: string, category: string, base: number) {
   const at = now().toISOString();
   const offers = await offersWhere(
     q,
@@ -70,7 +73,7 @@ async function bestOffer(q: Q, branchId: string, category: string, subtotal: num
   );
   let best: { id: string; amount: number; title: Localized } | null = null;
   for (const o of offers) {
-    const amount = Math.min(subtotal, o.discountType === "percent" ? Math.round((subtotal * o.discountValue) / 100) : o.discountValue);
+    const amount = offerAmount(o, base);
     if (!best || amount > best.amount) best = { id: o.id, amount, title: o.title };
   }
   return best;
@@ -92,7 +95,8 @@ async function priceWithOffer(q: Q, branchId: string, serviceIds: string[]): Pro
 
   const items: OrderItem[] = services.map((s) => ({ serviceId: s.id, name: s.name, type: s.type, price: s.price, durationMin: s.durationMin }));
   const subtotal = items.reduce((sum, it) => sum + it.price, 0);
-  const offer = await bestOffer(q, branchId, primaries[0].category, subtotal);
+  // Offers apply to the primary service only — the same rule as the customer app's create_order.
+  const offer = await bestOffer(q, branchId, primaries[0].category, primaries[0].price);
   return {
     preview: {
       items,
@@ -250,7 +254,7 @@ async function writeTotals(t: Tx, o: Order, items: OrderItem[], discount: Order[
   const subtotal = items.reduce((s, it) => s + it.price, 0);
   const durationMin = items.reduce((s, it) => s + it.durationMin, 0);
   const d = discount ? { ...discount } : null;
-  if (d && d.pct > 0) d.amount = Math.round((subtotal * d.pct) / 100);
+  if (d) d.amount = discountAfterItemsChange(d, items, subtotal);
   const total = Math.max(0, subtotal - (d?.amount ?? 0));
   const rows = await t`
     update public.orders set subtotal = ${subtotal}, duration_min = ${durationMin}, discount_amount = ${d?.amount ?? null},
@@ -419,7 +423,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       const old = o.total;
       const manual = payload.discountType === "fixed" ? Math.min(value, o.subtotal) : Math.round((o.subtotal * value) / 100);
       const [offer] = o.offerId ? await offersWhere(t, t`of.id = ${o.offerId}`) : [];
-      const discount = withManualDiscount(o, offer ? offerAmount(offer, o.subtotal) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
+      const discount = withManualDiscount(o, offer ? offerAmount(offer, primaryPrice(o.items)) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       const total = await writeTotals(t, o, o.items, discount);
       await audit(t, actor, o, "order.discount", old, total, reason);
       return `تم تطبيق الخصم — الإجمالي الآن ${total} ج.م`;

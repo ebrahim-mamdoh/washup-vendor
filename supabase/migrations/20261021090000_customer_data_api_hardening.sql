@@ -12,9 +12,17 @@
 --   orders / order_items / order_events: read-only; writes go through the booking RPCs.
 --   customer_notifications: read + mark as read only (they are created by triggers).
 --   customers: name and locale only; status, phone and the auth link are server-managed.
---   reviews: a customer reviews his own completed order once; only stars/comment/tags editable.
+--   reviews: a customer reviews his own completed order once; only stars/comment/tags editable
+--            (so a review hidden by the Super Admin cannot be made visible again by its author).
 --   complaints: opened by the customer as "open"; workflow columns are admin-only.
---   sync_customer_profile: links an existing record only to a verified phone sign-in.
+--
+-- Applied 2026-10-25 after checking the customer app's traffic (Data API logs, 4 days): it writes
+-- orders only through create_order/cancel_order/reschedule_order, and directly only to reviews,
+-- vehicles, favorites, push devices, live-booking devices and notifications (mark as read).
+-- Left out on purpose until the mobile developer moves sign-in to phone OTP:
+--   - the sync_customer_profile change (customers sign in by e-mail today; requiring a verified
+--     phone would block anyone whose number a wash already registered as a walk-in);
+--   - security_invoker on the app_health / branch_shares views (the app may read them).
 
 -- ── Orders: booking RPCs only ───────────────────────────────
 drop policy if exists "Customers can insert own orders" on public.orders;
@@ -24,9 +32,30 @@ drop policy if exists "Customers can insert own order events" on public.order_ev
 revoke insert, update, delete on public.orders, public.order_items, public.order_events from anon, authenticated;
 
 -- ── Customer notifications: created by triggers, customers only mark them read ──
+-- A guard trigger (not a column grant) so the app's "mark as read" keeps working whatever
+-- columns its PATCH carries: everything but `read` is put back.
 drop policy if exists "Customers can insert own notifications" on public.customer_notifications;
-revoke insert, update, delete on public.customer_notifications from anon, authenticated;
-grant update (read) on public.customer_notifications to authenticated;
+revoke insert, delete on public.customer_notifications from anon, authenticated;
+
+create or replace function public.guard_customer_notification()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if current_user not in ('authenticated', 'anon') then return new; end if;
+  new.id := old.id;
+  new.customer_id := old.customer_id;
+  new.type := old.type;
+  new.title := old.title;
+  new.body := old.body;
+  new.href := old.href;
+  new.order_id := old.order_id;
+  new.created_at := old.created_at;
+  return new;
+end $$;
+
+drop trigger if exists customer_notifications_guard_client_writes on public.customer_notifications;
+create trigger customer_notifications_guard_client_writes before update on public.customer_notifications
+  for each row execute function public.guard_customer_notification();
+revoke all on function public.guard_customer_notification() from public, anon, authenticated;
 
 -- ── Guards for the direct writes that stay allowed ──────────
 -- These run as the caller: current_user is 'authenticated'/'anon' only for Data API writes;
@@ -124,77 +153,8 @@ create trigger complaints_guard_client_writes before insert on public.complaints
 
 revoke all on function public.guard_customer_row(), public.guard_customer_review(), public.guard_customer_complaint() from public, anon, authenticated;
 
--- ── sync_customer_profile: no linking by an unverified phone ──
-create or replace function public.sync_customer_profile(p_phone text, p_name text default null, p_locale text default 'ar')
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare
-  v_uid uuid := auth.uid();
-  v_cust public.customers%rowtype;
-  v_clean_phone text;
-  v_verified text;
-begin
-  if v_uid is null then
-    raise exception 'Not authenticated';
-  end if;
-
-  -- Normalize phone to E.164 (strip whitespace)
-  v_clean_phone := regexp_replace(coalesce(p_phone, ''), '\s+', '', 'g');
-  -- The phone this sign-in has proven (phone OTP), as digits; null for email/Google sign-ins.
-  select nullif(regexp_replace(coalesce(u.phone, ''), '\D', '', 'g'), '') into v_verified
-  from auth.users u where u.id = v_uid and u.phone_confirmed_at is not null;
-
-  -- 1. Already linked: update the profile.
-  select * into v_cust from public.customers where user_id = v_uid limit 1;
-  if found then
-    update public.customers
-    set name = case when p_name is not null and length(trim(p_name)) >= 2 then trim(p_name) else name end,
-        locale = coalesce(p_locale, locale),
-        last_active_at = now(),
-        updated_at = now()
-    where id = v_cust.id
-    returning * into v_cust;
-    return to_jsonb(v_cust);
-  end if;
-
-  -- 2. An existing record with this phone (seeded, or created by a wash for a walk-in) is linked only
-  --    to the sign-in that verified that very phone; otherwise anyone could take it over.
-  select * into v_cust from public.customers where phone = v_clean_phone limit 1;
-  if found then
-    if v_cust.user_id is not null then
-      raise exception 'phone_in_use';
-    end if;
-    if v_verified is null or v_verified <> regexp_replace(v_clean_phone, '\D', '', 'g') then
-      raise exception 'phone_verification_required';
-    end if;
-    update public.customers
-    set user_id = v_uid,
-        name = case when p_name is not null and length(trim(p_name)) >= 2 then trim(p_name) else name end,
-        locale = coalesce(p_locale, locale),
-        last_active_at = now(),
-        updated_at = now()
-    where id = v_cust.id
-    returning * into v_cust;
-    return to_jsonb(v_cust);
-  end if;
-
-  -- 3. New customer (a phone sign-in must use its own verified phone).
-  if v_verified is not null and v_verified <> regexp_replace(v_clean_phone, '\D', '', 'g') then
-    raise exception 'phone_mismatch';
-  end if;
-  if p_name is not null and length(trim(p_name)) >= 2 then
-    insert into public.customers (id, user_id, name, phone, locale, status, last_active_at)
-    values (public.gen_id('cu'), v_uid, trim(p_name), v_clean_phone, coalesce(p_locale, 'ar'), 'active', now())
-    returning * into v_cust;
-    return to_jsonb(v_cust);
-  end if;
-
-  return null;
-end $$;
-
 -- ── Function execute rights ─────────────────────────────────
 -- Functions are executable by PUBLIC by default; keep only what the app calls.
-revoke execute on function public.sync_customer_profile(text, text, text) from public, anon;
-grant execute on function public.sync_customer_profile(text, text, text) to authenticated;
 revoke execute on function public.handle_order_status_notification() from public, anon, authenticated;
 revoke execute on function public.notify_customer_notification_push() from public, anon, authenticated;
 revoke execute on function public.is_staff_or_admin() from public, anon;
@@ -202,11 +162,6 @@ grant execute on function public.is_staff_or_admin() to authenticated;
 -- Used by the customer RLS policies (authenticated only); signed-out callers have no customer.
 revoke execute on function public.current_customer_id() from public, anon;
 grant execute on function public.current_customer_id() to authenticated;
-
--- ── Views run with the caller's rights (no RLS bypass) ──────
-alter view public.app_health set (security_invoker = true);
-alter view public.branch_shares set (security_invoker = true);
-grant select, insert on public.legacy_branch_shares to anon, authenticated;
 
 -- ── Legacy tables: no public write policies ────────────────
 drop policy if exists "Public write areas" on public.legacy_areas;

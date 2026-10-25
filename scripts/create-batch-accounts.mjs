@@ -176,7 +176,7 @@ async function createVendor(sql) {
         values (
           ${businessId}, ${t.json(branchName)}, 'nasr', ${t.json(address)}, 30.0561, 31.3412,
           ${VENDOR_PHONE_E164}, 4, true, false,
-          true, 30, 60, 7, 120,
+          false /* manual confirmation, the platform default; the wash can switch it on */, 30, 60, 7, 120,
           15, 60, 5.0, 0
         )
         returning id

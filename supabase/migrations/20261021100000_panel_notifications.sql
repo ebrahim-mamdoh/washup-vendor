@@ -3,8 +3,8 @@
 -- The partner portal and the Super Admin create their own notifications (and push them to the
 -- browser through FCM). Events from the customer app never reached them: 55 app bookings in a week
 -- produced no "new booking" for the wash. This adds, in the database:
---   wash   ← new customer-app booking (new_booking), booking cancelled by the customer (booking_cancelled)
---   admin  ← new wash application (application), new customer complaint (complaint)
+--   wash   ← new customer-app booking, customer cancelled, customer rescheduled, booking expired unconfirmed
+--   admin  ← new customer complaint (complaint)
 -- Each row is also pushed to the panel's browsers: the trigger posts {id} to the panel's
 -- /api/v1/{vendor|admin}/push/hook with the shared secret (pg_net, like the customer app's send-push).
 --
@@ -66,7 +66,9 @@ begin
   perform public.panel_push('admin', v_id);
 end $$;
 
--- Customer-app bookings and customer cancellations → the wash.
+-- Things the wash must know that happen outside its portal → the wash.
+--   new app booking · customer cancelled · customer moved the time · booking expired unconfirmed.
+-- Cancellations by the wash itself or by the Super Admin are notified by the panels' own code.
 create or replace function public.wash_order_notifications()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
@@ -75,34 +77,44 @@ declare
 begin
   select name ->> 'ar' into v_branch from public.branches where id = new.branch_id;
   v_when := to_char(new.scheduled_at at time zone 'Africa/Cairo', 'YYYY-MM-DD HH24:MI');
-  if tg_op = 'INSERT' and new.source = 'app' then
+  if tg_op = 'INSERT' then
+    if new.source = 'app' then
+      perform public.notify_wash(new.business_id, new.branch_id, 'new_booking',
+        'حجز جديد من التطبيق ' || new.number,
+        coalesce(v_branch, '') || ' · ' || v_when || case when new.status = 'pending' then ' · بانتظار تأكيدك' else ' · تم تأكيده تلقائيًا' end,
+        '/orders/' || new.id);
+    end if;
+  elsif new.status = 'cancelled' and old.status is distinct from 'cancelled' then
+    if new.cancelled_by_type = 'customer' then
+      perform public.notify_wash(new.business_id, new.branch_id, 'booking_cancelled',
+        'العميل ألغى الحجز ' || new.number,
+        coalesce(v_branch, '') || ' · ' || v_when || coalesce(' · ' || nullif(new.cancel_reason, 'Cancelled by customer'), ''),
+        '/orders/' || new.id);
+    elsif new.cancelled_by_type = 'system' and new.cancel_reason = 'expired_unconfirmed' then
+      perform public.notify_wash(new.business_id, new.branch_id, 'booking_cancelled',
+        'انتهى وقت تأكيد الحجز ' || new.number,
+        coalesce(v_branch, '') || ' · ' || v_when || ' · ألغي تلقائيًا لأنه لم يؤكَّد قبل الموعد',
+        '/orders/' || new.id);
+    end if;
+  elsif new.source = 'app' and new.scheduled_at is distinct from old.scheduled_at and new.status in ('pending', 'confirmed') then
     perform public.notify_wash(new.business_id, new.branch_id, 'new_booking',
-      'حجز جديد من التطبيق ' || new.number,
-      coalesce(v_branch, '') || ' — ' || v_when || case when new.status = 'pending' then ' — بانتظار التأكيد' else '' end,
-      '/orders/' || new.id);
-  elsif tg_op = 'UPDATE' and new.status = 'cancelled' and old.status is distinct from 'cancelled' and new.cancelled_by_type = 'customer' then
-    perform public.notify_wash(new.business_id, new.branch_id, 'booking_cancelled',
-      'العميل ألغى الحجز ' || new.number,
-      coalesce(v_branch, '') || ' — ' || v_when || coalesce(' — ' || nullif(new.cancel_reason, 'Cancelled by customer'), ''),
+      'العميل غيّر موعد الحجز ' || new.number,
+      coalesce(v_branch, '') || ' · الموعد الجديد ' || v_when || case when new.status = 'pending' then ' · بانتظار تأكيدك' else '' end,
       '/orders/' || new.id);
   end if;
   return new;
 end $$;
 
 drop trigger if exists trg_wash_order_notifications on public.orders;
-create trigger trg_wash_order_notifications after insert or update of status on public.orders
+create trigger trg_wash_order_notifications after insert or update of status, scheduled_at on public.orders
   for each row execute function public.wash_order_notifications();
 
--- New wash applications and customer complaints → the Super Admin.
+-- Customer complaints → the Super Admin. (New wash applications are notified by the portal's
+-- /vendor/applications endpoint itself, so they are not repeated here.)
 create or replace function public.admin_inbox_notifications()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if tg_table_name = 'wash_applications' then
-    perform public.notify_admins('application',
-      jsonb_build_object('ar', 'طلب انضمام جديد', 'en', 'New wash application'),
-      jsonb_build_object('ar', new.business_name || ' — بانتظار المراجعة', 'en', new.business_name),
-      '/applications/' || new.id);
-  elsif tg_table_name = 'complaints' then
+  if tg_table_name = 'complaints' then
     perform public.notify_admins('complaint',
       jsonb_build_object('ar', 'شكوى جديدة ' || new.ticket, 'en', 'New complaint ' || new.ticket),
       jsonb_build_object('ar', left(new.description, 120), 'en', left(new.description, 120)),
@@ -112,8 +124,6 @@ begin
 end $$;
 
 drop trigger if exists trg_admin_application_notification on public.wash_applications;
-create trigger trg_admin_application_notification after insert on public.wash_applications
-  for each row execute function public.admin_inbox_notifications();
 
 drop trigger if exists trg_admin_complaint_notification on public.complaints;
 create trigger trg_admin_complaint_notification after insert on public.complaints
