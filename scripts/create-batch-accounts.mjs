@@ -160,7 +160,7 @@ async function createVendor(sql) {
       const bizName = { ar: "مغسلة النصر لخدمات السيارات", en: "Al-Nasr Car Care Wash" };
       const [biz] = await t`
         insert into public.businesses (name, status, commission_rate, rating)
-        values (${t.json(bizName)}, 'active', 0.10, 5.0)
+        values (${t.json(bizName)}, 'active', 10 /* commission %, like the platform default (7) */, 5.0)
         returning id
       `;
       businessId = biz.id;

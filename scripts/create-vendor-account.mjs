@@ -107,7 +107,7 @@ async function main() {
       console.log("Creating new business...");
       const [biz] = await t`
         insert into public.businesses (name, status, status_reason, commission_rate, rating)
-        values (${t.json(BUSINESS_NAME)}, 'active', null, 0.10, 5.0)
+        values (${t.json(BUSINESS_NAME)}, 'active', null, 10 /* commission %, like the platform default (7) */, 5.0)
         returning id
       `;
       businessId = biz.id;
