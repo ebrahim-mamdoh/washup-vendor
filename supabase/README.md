@@ -14,7 +14,11 @@ carZone** (same file names) so the repo matches the hosted project.
 | `migrations/20261025090000_booking_flow_fixes.sql` | **applied** 2026-10-25 | Manual confirmation for the script-made branches; only active washes listed/bookable; offer statuses follow their dates (cron every 5 min) and create_order uses the panels' offer rule; reschedule of a confirmed booking goes back to pending; accurate customer notifications |
 | `migrations/20261021100000_panel_notifications.sql` | **applied** 2026-10-25 + Vault secrets created (set-panel-push-secrets.mjs) | Wash notified of app bookings, customer cancellations/reschedules, expired bookings; admins of complaints; pushed to the panels' browsers |
 | `migrations/20261025100000_lock_reset_functions.sql` | **applied** 2026-10-25 | `reset_all_mock_data()` (truncates every table) and `clean_demo_auth_users()` were callable by anyone through the API; no longer exposed |
+| `migrations/20261025110000_commission_rate_percent.sql` | **applied** 2026-10-25 | Rates stored as fractions by the account scripts (0.10 = meant 10%) converted to percent, ledger rows recomputed |
 | `maintenance/2026-10-21_demo_data_cleanup.sql` | optional | Old demo data |
+
+End-to-end check on the deployed panels: `VENDOR_PHONE=… VENDOR_PASSWORD=… ADMIN_EMAIL=… ADMIN_PASSWORD=… node qa/api-check/e2e-booking.mjs`
+(23/23 on 2026-10-25; writes one app booking, cancelled at the end, and a test offer, disabled at the end).
 
 ## Apply
 

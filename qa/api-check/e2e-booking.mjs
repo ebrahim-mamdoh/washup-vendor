@@ -109,8 +109,14 @@ try {
   await sleep(4000);
   const wn = await sql`select id, type, title->>'ar' as title from public.vendor_notifications where href = ${"/orders/" + order.id} order by created_at`;
   check(wn.some((n) => n.type === "new_booking"), "wash gets a 'new booking' notification", wn.map((n) => n.title).join(" | "));
-  const [push] = await sql`select status_code, content from net._http_response order by created desc limit 1`;
-  check(push?.status_code === 200, "DB pushed it to the partner portal on Vercel", `${push?.status_code} ${String(push?.content ?? "").slice(0, 90)}`);
+  // The portal hook answers {"status":true,…,"data":{"sent":…}}; the customer app's send-push answers {"id":"cn_…",…}.
+  const [push] = await sql`
+    select status_code, content from net._http_response
+    where created > now() - interval '1 minute' and content like '%"data":{"sent"%' order by created desc limit 1`;
+  check(push?.status_code === 200, "DB pushed it to the partner portal on Vercel", `${push?.status_code} ${String(push?.content ?? "none").slice(0, 90)}`);
+  const [customerPush] = await sql`
+    select content from net._http_response where created > now() - interval '1 minute' and content like '%"id":"cn_%' order by created desc limit 1`;
+  if (customerPush) out.push(`INFO  customer app push (mobile send-push): ${String(customerPush.content).slice(0, 90)}`);
   const vlist = await api(VENDOR, "GET", "/vendor/notifications", vToken);
   check((vlist.data ?? []).some((n) => n.href === `/orders/${order.id}`), "the notification shows in the portal's list");
 
