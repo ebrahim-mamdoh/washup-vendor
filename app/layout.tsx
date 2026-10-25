@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_Arabic, Plus_Jakarta_Sans, Unbounded } from "next/font/google";
+import { IBM_Plex_Sans_Arabic, Plus_Jakarta_Sans } from "next/font/google";
 
 import { AppProviders } from "@/components/providers/app-providers";
 import { SITE_NAME } from "@/lib/config/pages";
@@ -20,14 +20,6 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-/** The WASHUP wordmark in the sidebar and login (same face as the website logo). */
-const unbounded = Unbounded({
-  subsets: ["latin"],
-  weight: ["800"],
-  variable: "--font-unbounded",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: {
     default: SITE_NAME,
@@ -36,7 +28,7 @@ export const metadata: Metadata = {
   description: "بوابة شركاء كارزن — نظام التشغيل اليومي لمغاسل السيارات",
   // Private back-office: never index.
   robots: { index: false, follow: false },
-  icons: { icon: "/logo.svg" },
+  icons: { icon: "/brand/icon.png", apple: "/brand/icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -56,7 +48,7 @@ export default function RootLayout({
       lang="ar"
       dir="rtl"
       suppressHydrationWarning
-      className={`${plexArabic.variable} ${jakarta.variable} ${unbounded.variable} h-full`}
+      className={`${plexArabic.variable} ${jakarta.variable} h-full`}
     >
       <body className="min-h-full bg-background font-sans text-foreground">
         <AppProviders>{children}</AppProviders>

@@ -13,8 +13,6 @@
   --font-sans: var(--font-plex-arabic), var(--font-jakarta), system-ui, sans-serif;
   --font-numeric: var(--font-jakarta), var(--font-plex-arabic), system-ui, sans-serif;
   --font-heading: var(--font-sans);
-  /* WASHUP wordmark only (Unbounded 800, latin, ~21 KB) — the website's logo face. */
-  --font-wordmark: var(--font-unbounded), var(--font-jakarta), sans-serif;
 
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
