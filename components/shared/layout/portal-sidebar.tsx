@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { BUSINESS_STATUS } from "@/lib/constants/labels";
 import { cn } from "@/lib/utils";
+import { SetupProgress, SetupWelcome } from "@/components/shared/layout/setup-progress";
 import { SidebarNav } from "@/components/shared/layout/sidebar-nav";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useUIStore } from "@/lib/store/ui-store";
@@ -18,7 +19,7 @@ function BusinessCard() {
   if (!account) return null;
   const meta = BUSINESS_STATUS[account.businessStatus];
   return (
-    <div className="m-3 rounded-xl border border-sidebar-border bg-muted/50 p-3">
+    <div className="m-3 rounded-xl border border-sidebar-border bg-card/80 p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="truncate text-xs font-semibold">{account.businessName.ar}</p>
         <span style={{ "--tone": meta.tone } as CSSProperties} className="tone-dot size-2 shrink-0 rounded-full" aria-label={meta.label} />
@@ -58,6 +59,7 @@ export function PortalSidebar() {
         <div className="flex-1 overflow-y-auto px-3 py-4">
           <SidebarNav collapsed={collapsed} />
         </div>
+        <SetupProgress collapsed={collapsed} />
         {collapsed ? (
           <div className="border-t border-sidebar-border p-3">
             <Button variant="ghost" size="icon" className="w-full" onClick={toggleSidebar} aria-label="توسيع القائمة">
@@ -70,7 +72,7 @@ export function PortalSidebar() {
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="right" className="w-[280px] gap-0 p-0">
+        <SheetContent side="right" className="w-[280px] gap-0 bg-sidebar p-0">
           <SheetTitle className="sr-only">القائمة الرئيسية</SheetTitle>
           <div className="flex h-16 items-center border-b px-4">
             <BrandLogo subtitle="بوابة الشركاء" />
@@ -78,9 +80,11 @@ export function PortalSidebar() {
           <div className="flex-1 overflow-y-auto px-3 py-4">
             <SidebarNav onNavigate={() => setMobileOpen(false)} />
           </div>
+          <SetupProgress onOpen={() => setMobileOpen(false)} />
           <BusinessCard />
         </SheetContent>
       </Sheet>
+      <SetupWelcome />
     </>
   );
 }

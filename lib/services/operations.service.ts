@@ -1,6 +1,6 @@
 import { getData, getPaginated, send } from "@/lib/api/request";
 import type { BlockedSlot } from "@/types/washes";
-import type { VendorDashboard, VendorPeriod } from "@/types/vendor/dashboard";
+import type { SetupChecklist, VendorDashboard, VendorPeriod } from "@/types/vendor/dashboard";
 import type {
   AvailabilitySlot,
   CreateBlockPayload,
@@ -18,6 +18,10 @@ import type {
 
 export function fetchDashboard(branchId: string, period: VendorPeriod) {
   return getData<VendorDashboard>("/vendor/dashboard", { branchId, period }, "تعذر تحميل الرئيسية");
+}
+
+export function fetchSetup() {
+  return getData<SetupChecklist | null>("/vendor/setup", undefined, "تعذر تحميل خطوات الإعداد");
 }
 
 export function fetchOrders(params: VendorOrderListParams) {

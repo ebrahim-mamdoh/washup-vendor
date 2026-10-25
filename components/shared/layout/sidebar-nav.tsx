@@ -46,7 +46,7 @@ export function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
                 className={cn(
                   "group relative flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none",
                   collapsed && "justify-center px-0",
-                  active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-muted hover:text-foreground",
+                  active ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-soft" : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
                 )}
               >
                 {active ? <span className="absolute inset-y-2 start-0 w-[3px] rounded-e-full bg-sidebar-primary" aria-hidden /> : null}

@@ -282,7 +282,7 @@ export const vendorDashboardRoutes = [
     // Oldest day any figure reads: the previous comparison period, and 7 days for sparklines/alerts.
     const windowStart = daysAgo(Math.max(2 * n - 1, 6));
 
-    const [scoped, branchRows, shiftLists, setup] = await Promise.all([
+    const [scoped, branchRows, shiftLists] = await Promise.all([
       ordersWhere(
         sql,
         sql`o.branch_id = any(${branchIds}) and ((o.scheduled_at >= ${windowStart.toISOString()} and o.scheduled_at <= ${endOfDay(at).toISOString()})
@@ -291,7 +291,6 @@ export const vendorDashboardRoutes = [
       ),
       branchesWhere(sql, sql`br.id = any(${branchIds})`),
       Promise.all(branchIds.map((id) => onShiftAt(sql, id, at))),
-      setupChecklist(sql, actor),
     ]);
     const branches = new Map(branchRows.map((b) => [b.id, b]));
     const onShift = new Map(branchIds.map((id, i) => [id, shiftLists[i]]));
@@ -355,8 +354,9 @@ export const vendorDashboardRoutes = [
         topService: topServices[0]?.name ?? null,
         issues: alertList.length,
       },
-      setup,
     };
     return ok(data);
   }),
+  // Guided setup, read by the sidebar card on every page (kept out of the dashboard payload).
+  vroute("GET", "/vendor/setup", async ({ actor }) => ok(await setupChecklist(db(), actor))),
 ];

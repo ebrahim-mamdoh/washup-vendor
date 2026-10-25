@@ -13,6 +13,8 @@
   --font-sans: var(--font-plex-arabic), var(--font-jakarta), system-ui, sans-serif;
   --font-numeric: var(--font-jakarta), var(--font-plex-arabic), system-ui, sans-serif;
   --font-heading: var(--font-sans);
+  /* WASHUP wordmark only (Unbounded 800, latin, ~21 KB) — the website's logo face. */
+  --font-wordmark: var(--font-unbounded), var(--font-jakarta), sans-serif;
 
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -111,13 +113,14 @@
   --chart-4: #f59e0b;
   --chart-5: #e5484d;
 
-  --sidebar: #ffffff;
+  /* A soft blue tint, a step deeper than the page, so the sidebar reads as its own surface; the active item is a white pill. */
+  --sidebar: #edf3fd;
   --sidebar-foreground: #2b3a55;
   --sidebar-primary: #1463ff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eef4ff;
+  --sidebar-accent: #ffffff;
   --sidebar-accent-foreground: #0e4fd6;
-  --sidebar-border: #e6ecf4;
+  --sidebar-border: #dce6f5;
   --sidebar-ring: #1463ff;
 
   --elevation-1: 0 1px 2px rgb(20 99 255 / 0.05), 0 4px 14px rgb(20 99 255 / 0.05);
@@ -170,13 +173,13 @@
   --chart-4: #c27803;
   --chart-5: #f2555a;
 
-  --sidebar: #0e1626;
+  --sidebar: #0e1829;
   --sidebar-foreground: #c9d3e3;
   --sidebar-primary: #4c86ff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #16233d;
+  --sidebar-accent: #182b4b;
   --sidebar-accent-foreground: #a9c4ff;
-  --sidebar-border: #1d2a40;
+  --sidebar-border: #1c2b45;
   --sidebar-ring: #4c86ff;
 
   --elevation-1: 0 1px 2px rgb(0 0 0 / 0.3);

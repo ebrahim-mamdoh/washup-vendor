@@ -275,8 +275,9 @@ export const vendorDashboardRoutes = [
         topService: topServices[0]?.name ?? null,
         issues: alertList.length,
       },
-      setup: setupChecklist(db, actor),
     };
     return ok(data);
   }),
+  // Guided setup, read by the sidebar card on every page (kept out of the dashboard payload).
+  vroute("GET", "/vendor/setup", ({ db, actor }) => ok(setupChecklist(db, actor))),
 ];

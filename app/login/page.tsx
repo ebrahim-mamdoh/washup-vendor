@@ -21,18 +21,7 @@ export default function LoginPage() {
         <svg className="absolute -top-24 -end-24 size-[520px] text-white/10" viewBox="0 0 200 200" aria-hidden>
           <path fill="currentColor" d="M44.7,-58.7C56.6,-49.8,64.1,-34.6,68.5,-18.4C72.9,-2.3,74.1,14.8,67.6,28.3C61.1,41.8,46.9,51.7,31.6,58.6C16.4,65.5,0.1,69.4,-17,67.5C-34.1,65.6,-52,57.9,-62.8,44.3C-73.6,30.7,-77.3,11.2,-73.6,-6.1C-69.9,-23.5,-58.8,-38.7,-45,-47.4C-31.1,-56.2,-15.6,-58.4,0.6,-59.2C16.8,-60,33.6,-67.5,44.7,-58.7Z" transform="translate(100 100)" />
         </svg>
-        <div className="relative flex items-center gap-2.5 text-white">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-            <svg viewBox="0 0 64 64" className="size-6" aria-hidden>
-              <path d="M18 38c6-14 10-18 14-18s8 4 14 18" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" />
-              <circle cx="32" cy="26" r="4.5" fill="#fff" />
-            </svg>
-          </span>
-          <span className="leading-tight">
-            <span className="num block text-xl font-extrabold">Carzen</span>
-            <span className="block text-xs text-white/80">بوابة الشركاء</span>
-          </span>
-        </div>
+        <BrandLogo tone="light" subtitle="بوابة الشركاء" className="relative" />
 
         <div className="relative max-w-lg space-y-8 text-white">
           <div className="space-y-3">

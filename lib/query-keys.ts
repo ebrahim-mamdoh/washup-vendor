@@ -19,6 +19,8 @@ export const queryKeys = {
 
   dashboardRoot: ["dashboard"] as const,
   dashboard: (branchId: string, period: VendorPeriod) => ["dashboard", branchId, period] as const,
+  /** Under the dashboard root so every wash action (which always refreshes the dashboard) refreshes it too. */
+  setup: ["dashboard", "setup"] as const,
 
   ordersRoot: ["orders"] as const,
   orders: (params: VendorOrderListParams) => ["orders", "list", params] as const,

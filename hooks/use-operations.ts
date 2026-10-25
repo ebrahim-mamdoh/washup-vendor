@@ -3,7 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { useVendorMutation } from "@/hooks/use-vendor-mutation";
-import { CACHE_TTL_LIVE } from "@/lib/cache/ttl";
+import { CACHE_TTL_DYNAMIC, CACHE_TTL_LIVE } from "@/lib/cache/ttl";
 import { queryKeys } from "@/lib/query-keys";
 import {
   bulkConfirm,
@@ -15,6 +15,7 @@ import {
   fetchLive,
   fetchOrder,
   fetchOrders,
+  fetchSetup,
   fetchPricePreview,
   fetchRecognition,
   fetchSchedule,
@@ -33,6 +34,16 @@ export function useDashboard(branchId: string, period: VendorPeriod) {
     placeholderData: keepPreviousData,
     staleTime: CACHE_TTL_LIVE * 1000,
     refetchInterval: LIVE_REFRESH_MS * 2,
+  });
+}
+
+/** Guided setup checklist (null once the wash is set up), shown in the sidebar on every page. */
+export function useSetupChecklist(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.setup,
+    queryFn: fetchSetup,
+    enabled,
+    staleTime: CACHE_TTL_DYNAMIC * 1000,
   });
 }
 

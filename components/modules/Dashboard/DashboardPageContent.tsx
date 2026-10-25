@@ -7,11 +7,9 @@ import {
   AlertTriangle,
   BellRing,
   Car,
-  CheckCircle2,
   ChevronLeft,
   CircleDot,
   Clock,
-  ListChecks,
   PieChart,
   Radio,
   RefreshCw,
@@ -29,7 +27,6 @@ import { EmptyState, ErrorState } from "@/components/shared/states";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUrlState } from "@/hooks/use-url-state";
 import { ORDER_SOURCE, ORDER_STATUS, TONES } from "@/lib/constants/labels";
@@ -105,28 +102,6 @@ export default function DashboardPageContent() {
           </>
         }
       />
-
-      {data?.setup ? (
-        <SectionCard icon={<ListChecks />} title="ابدأ استقبال الحجوزات" description={`أكملت ${data.setup.done} من ${data.setup.total} خطوات الإعداد`}>
-          <Progress value={(data.setup.done / data.setup.total) * 100} className="mb-4" />
-          <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {data.setup.steps.map((s, i) => (
-              <li key={s.key}>
-                <Link
-                  href={s.href}
-                  className={cn(
-                    "flex h-full items-start gap-2.5 rounded-xl border p-3 text-sm transition-colors hover:bg-muted/50",
-                    s.done ? "border-success/30 bg-success/5" : "border-border",
-                  )}
-                >
-                  {s.done ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" /> : <span className="num mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px]">{i + 1}</span>}
-                  <span className={cn(s.done && "text-muted-foreground line-through")}>{s.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-        </SectionCard>
-      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {KPI_ORDER.map((key, i) => {

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_Arabic, Plus_Jakarta_Sans } from "next/font/google";
+import { IBM_Plex_Sans_Arabic, Plus_Jakarta_Sans, Unbounded } from "next/font/google";
 
 import { AppProviders } from "@/components/providers/app-providers";
 import { SITE_NAME } from "@/lib/config/pages";
@@ -17,6 +17,14 @@ const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-jakarta",
+  display: "swap",
+});
+
+/** The WASHUP wordmark in the sidebar and login (same face as the website logo). */
+const unbounded = Unbounded({
+  subsets: ["latin"],
+  weight: ["800"],
+  variable: "--font-unbounded",
   display: "swap",
 });
 
@@ -48,7 +56,7 @@ export default function RootLayout({
       lang="ar"
       dir="rtl"
       suppressHydrationWarning
-      className={`${plexArabic.variable} ${jakarta.variable} h-full`}
+      className={`${plexArabic.variable} ${jakarta.variable} ${unbounded.variable} h-full`}
     >
       <body className="min-h-full bg-background font-sans text-foreground">
         <AppProviders>{children}</AppProviders>

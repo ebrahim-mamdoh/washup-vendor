@@ -112,5 +112,4 @@ export interface VendorDashboard {
     topService: Localized | null;
     issues: number;
   };
-  setup: SetupChecklist | null;
 }
