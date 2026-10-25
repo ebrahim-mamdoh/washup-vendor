@@ -8,11 +8,12 @@ carZone** (same file names) so the repo matches the hosted project.
 |------|----------------------------------------|---------|
 | `migrations/20261020120000_hosted_customer_app_objects.sql` | already there (captured, **do not run**) | Records the customer-app objects created on the hosted DB outside the repo |
 | `migrations/20261020132053_order_notification_skip_anonymous.sql` | **applied** 2026-10-20 | Walk-ins without a customer no longer fail on the notification trigger |
-| `migrations/20261021090000_customer_data_api_hardening.sql` | **to apply** | The app can no longer edit orders/history directly (RPCs only); notifications: mark-as-read only; reviews only on completed orders, moderation stays; complaints open as "open"; no public writes on legacy tables. Checked against 4 days of the app's traffic. |
-| `migrations/20261021091000_app_orders_commission_ledger.sql` | **to apply** | Commission ledger row for every app order (+ backfill); any cancel/no-show drops the pending row |
-| `migrations/20261021092000_foreign_key_indexes.sql` | **to apply** | Indexes for 25 unindexed foreign keys |
-| `migrations/20261025090000_booking_flow_fixes.sql` | **to apply** | Manual confirmation for the script-made branches; only active washes listed/bookable; offer statuses follow their dates (cron every 5 min) and create_order uses the panels' offer rule; reschedule of a confirmed booking goes back to pending; accurate customer notifications |
-| `migrations/20261021100000_panel_notifications.sql` | **to apply**, then create the 3 Vault secrets (file header) | Wash notified of app bookings, customer cancellations/reschedules, expired bookings; admins of complaints; pushed to the panels' browsers |
+| `migrations/20261021090000_customer_data_api_hardening.sql` | **applied** 2026-10-25 | The app can no longer edit orders/history directly (RPCs only); notifications: mark-as-read only; reviews only on completed orders, moderation stays; complaints open as "open"; no public writes on legacy tables. Checked against 4 days of the app's traffic. |
+| `migrations/20261021091000_app_orders_commission_ledger.sql` | **applied** 2026-10-25 | Commission ledger row for every app order (+ backfill); any cancel/no-show drops the pending row |
+| `migrations/20261021092000_foreign_key_indexes.sql` | **applied** 2026-10-25 | Indexes for 25 unindexed foreign keys |
+| `migrations/20261025090000_booking_flow_fixes.sql` | **applied** 2026-10-25 | Manual confirmation for the script-made branches; only active washes listed/bookable; offer statuses follow their dates (cron every 5 min) and create_order uses the panels' offer rule; reschedule of a confirmed booking goes back to pending; accurate customer notifications |
+| `migrations/20261021100000_panel_notifications.sql` | **applied** 2026-10-25 + Vault secrets created (set-panel-push-secrets.mjs) | Wash notified of app bookings, customer cancellations/reschedules, expired bookings; admins of complaints; pushed to the panels' browsers |
+| `migrations/20261025100000_lock_reset_functions.sql` | **applied** 2026-10-25 | `reset_all_mock_data()` (truncates every table) and `clean_demo_auth_users()` were callable by anyone through the API; no longer exposed |
 | `maintenance/2026-10-21_demo_data_cleanup.sql` | optional | Old demo data |
 
 ## Apply
