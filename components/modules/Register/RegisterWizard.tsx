@@ -42,7 +42,7 @@ import { fetchApplication, submitApplication } from "@/lib/services/applications
 import type { ApplicationService, SubmitApplicationPayload, WashApplication } from "@/types/applications";
 import type { WorkingDay } from "@/types/washes";
 
-// Dynamically import the Leaflet map picker to avoid SSR window issues
+// Google Maps picker, loaded on demand (the Maps API and @vis.gl stay out of the wizard's bundle)
 const MapLocationPicker = dynamic(
   () => import("./MapLocationPicker"),
   {
@@ -1017,7 +1017,7 @@ export default function RegisterWizard() {
                   />
                 </div>
 
-                {/* Interactive Leaflet Map Location Picker */}
+                {/* Google Maps location picker */}
                 <div className="space-y-2 pt-1">
                   <Label className="text-sm font-semibold">
                     تحديد موقع الفرع على الخريطة (GPS Pin Picker):
@@ -1028,6 +1028,10 @@ export default function RegisterWizard() {
                     area={formData.area}
                     onChange={(newLat, newLng) => {
                       setFormData((prev) => ({ ...prev, lat: newLat, lng: newLng }));
+                    }}
+                    onPlace={(place) => {
+                      // Prefill the address from the picked place, never overwrite what the owner typed.
+                      setFormData((prev) => (prev.address.trim() ? prev : { ...prev, address: place.address }));
                     }}
                   />
                 </div>

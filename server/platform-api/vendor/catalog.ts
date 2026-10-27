@@ -54,6 +54,17 @@ function parseServiceBody(body: Record<string, unknown>) {
 }
 
 
+/** Optional map pin (both or neither), kept inside Egypt so a slip of the finger can't send customers abroad. */
+function branchLocation(body: Record<string, unknown>): { lat: number; lng: number } | null {
+  if (body.lat === undefined && body.lng === undefined) return null;
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 21.5 || lat > 31.8 || lng < 24.6 || lng > 37) {
+    throw new MockApiError("موقع الفرع على الخريطة يجب أن يكون داخل مصر", 422, { lat: ["قيمة غير صالحة"] });
+  }
+  return { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+}
+
 export const vendorCatalogRoutes = [
   // ── Services (D8) ───────────────────────────────────────
   vroute("GET", "/vendor/services", ({ db, query, actor }) => {
@@ -200,7 +211,8 @@ export const vendorCatalogRoutes = [
     const capacity = Number(body.capacity);
     if (Number.isNaN(capacity) || capacity < 1 || capacity > 30) throw new MockApiError("السعة بين 1 و 30 مكان", 422, { capacity: ["قيمة غير صالحة"] });
     const workingHours = cleanWorkingHours(body.workingHours === undefined ? target.workingHours : body.workingHours);
-    const before = { name: target.name.ar, capacity: target.capacity, active: target.active };
+    const location = branchLocation(body);
+    const before = { name: target.name.ar, capacity: target.capacity, active: target.active, lat: target.lat, lng: target.lng };
     const deactivating = target.active && body.active === false;
 
     // Validate everything before touching the branch: a rejected request leaves no partial change.
@@ -213,8 +225,9 @@ export const vendorCatalogRoutes = [
     target.capacity = Math.round(capacity);
     target.workingHours = workingHours;
     target.active = body.active !== false;
+    if (location) Object.assign(target, location);
 
-    audit(db, actor, "branch.update", "branches", target.id, target.id, before, { name: target.name.ar, capacity: target.capacity, active: target.active }, reason);
+    audit(db, actor, "branch.update", "branches", target.id, target.id, before, { name: target.name.ar, capacity: target.capacity, active: target.active, lat: target.lat, lng: target.lng }, reason);
     if (deactivating) {
       pushAdminNotification(db, "unusual_activity", { ar: "فرع أوقفه المالك", en: "Branch deactivated by owner" }, { ar: `${target.name.ar} — ${reason}`, en: target.name.en }, `/washes/${actor.business.id}`);
       const upcoming = db.orders.filter((o) => o.branchId === target.id && ["pending", "confirmed"].includes(o.status) && new Date(o.scheduledAt) > now()).length;

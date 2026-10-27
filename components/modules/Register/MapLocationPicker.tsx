@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  CheckCircle2,
   LocateFixed,
   Lock,
   MapPin,
-  Navigation,
   RefreshCw,
   ShieldAlert,
 } from "lucide-react";
@@ -17,12 +15,10 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-// Import Leaflet CSS
-import "leaflet/dist/leaflet.css";
+import { LocationPicker } from "@/components/shared/maps/google-map";
+import type { PickedPlace } from "@/components/shared/maps/google-map-utils";
 
 const AREA_COORDINATES: Record<string, [number, number]> = {
   nasr: [30.0561, 31.3412],
@@ -40,154 +36,21 @@ interface MapLocationPickerProps {
   lng: number;
   area?: string;
   onChange: (lat: number, lng: number) => void;
+  /** A place picked from the Google search box (its address can prefill the form). */
+  onPlace?: (place: PickedPlace) => void;
 }
 
+/** Wizard step 2: Google Maps picker (search, click, drag) + a GPS button with permission help. */
 export default function MapLocationPicker({
   lat,
   lng,
   area = "nc",
   onChange,
+  onPlace,
 }: MapLocationPickerProps) {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
   const [locating, setLocating] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
-
-  // Initialize Leaflet Map
-  useEffect(() => {
-    let isMounted = true;
-
-    async function initMap() {
-      if (!mapContainerRef.current || mapInstanceRef.current) return;
-
-      const L = (await import("leaflet")).default;
-
-      if (!isMounted || !mapContainerRef.current) return;
-
-      const initialLat = lat || AREA_COORDINATES[area]?.[0] || 30.0131;
-      const initialLng = lng || AREA_COORDINATES[area]?.[1] || 31.4395;
-
-      const map = L.map(mapContainerRef.current, {
-        center: [initialLat, initialLng],
-        zoom: 14,
-        zoomControl: true,
-      });
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(map);
-
-      // Custom crisp SVG Pin matching Carzen primary theme
-      const customPin = L.divIcon({
-        className: "carzen-map-marker",
-        html: `
-          <div style="
-            position: relative;
-            width: 36px;
-            height: 36px;
-            background: #0284c7;
-            border: 2.5px solid #ffffff;
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.45);
-          ">
-            <div style="
-              width: 12px;
-              height: 12px;
-              background: #ffffff;
-              border-radius: 50%;
-            "></div>
-          </div>
-        `,
-        iconSize: [36, 36],
-        iconAnchor: [18, 36],
-      });
-
-      const marker = L.marker([initialLat, initialLng], {
-        icon: customPin,
-        draggable: true,
-      }).addTo(map);
-
-      // Handle Map Click
-      map.on("click", (e: any) => {
-        const { lat: newLat, lng: newLng } = e.latlng;
-        marker.setLatLng([newLat, newLng]);
-        onChange(Number(newLat.toFixed(6)), Number(newLng.toFixed(6)));
-      });
-
-      // Handle Marker Drag
-      marker.on("dragend", (e: any) => {
-        const pos = e.target.getLatLng();
-        onChange(Number(pos.lat.toFixed(6)), Number(pos.lng.toFixed(6)));
-      });
-
-      mapInstanceRef.current = map;
-      markerRef.current = marker;
-      setMapReady(true);
-
-      // Invalidate size after layout settles
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 250);
-    }
-
-    initMap();
-
-    return () => {
-      isMounted = false;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        markerRef.current = null;
-      }
-    };
-  }, []);
-
-  // Update marker position when lat/lng change from outside (e.g. area change)
-  useEffect(() => {
-    if (mapReady && markerRef.current && mapInstanceRef.current) {
-      const currentPos = markerRef.current.getLatLng();
-      if (
-        Math.abs(currentPos.lat - lat) > 0.0001 ||
-        Math.abs(currentPos.lng - lng) > 0.0001
-      ) {
-        markerRef.current.setLatLng([lat, lng]);
-        mapInstanceRef.current.setView([lat, lng], mapInstanceRef.current.getZoom(), {
-          animate: true,
-        });
-      }
-    }
-  }, [lat, lng, mapReady]);
-
-  // Real-time listener for browser permission changes
-  useEffect(() => {
-    if (typeof window === "undefined" || !navigator.permissions?.query) return;
-
-    let isMounted = true;
-    navigator.permissions
-      .query({ name: "geolocation" as PermissionName })
-      .then((status) => {
-        if (!isMounted) return;
-        status.onchange = () => {
-          if (status.state === "granted") {
-            setShowPermissionDialog(false);
-            toast.success("تم تفعيل صلاحية الموقع بنجاح! جاري التحديد الآن...");
-            executeGetPosition(true);
-          }
-        };
-      })
-      .catch(() => {});
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const areaCenter = AREA_COORDINATES[area] ?? AREA_COORDINATES.nc;
 
   // Execute geolocation with smart fallback (GPS first, then Wi-Fi/Network)
   const executeGetPosition = (highAccuracy: boolean) => {
@@ -198,12 +61,8 @@ export default function MapLocationPicker({
         const userLat = Number(pos.coords.latitude.toFixed(6));
         const userLng = Number(pos.coords.longitude.toFixed(6));
 
+        // The map follows the new value on its own.
         onChange(userLat, userLng);
-
-        if (mapInstanceRef.current && markerRef.current) {
-          markerRef.current.setLatLng([userLat, userLng]);
-          mapInstanceRef.current.setView([userLat, userLng], 16, { animate: true });
-        }
 
         toast.success("تم تحديد موقعك بدقة على الخريطة 📍");
         setLocating(false);
@@ -237,6 +96,30 @@ export default function MapLocationPicker({
     );
   };
 
+  // Real-time listener for browser permission changes
+  useEffect(() => {
+    if (typeof window === "undefined" || !navigator.permissions?.query) return;
+
+    let isMounted = true;
+    navigator.permissions
+      .query({ name: "geolocation" as PermissionName })
+      .then((status) => {
+        if (!isMounted) return;
+        status.onchange = () => {
+          if (status.state === "granted") {
+            setShowPermissionDialog(false);
+            toast.success("تم تفعيل صلاحية الموقع بنجاح! جاري التحديد الآن...");
+            executeGetPosition(true);
+          }
+        };
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Quick Button for Current Location
   const handleLocateMe = async () => {
     if (typeof window === "undefined" || !navigator.geolocation) {
@@ -267,7 +150,7 @@ export default function MapLocationPicker({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <MapPin className="size-3.5 text-primary" />
-          <span>انقر على الخريطة أو اسحب المؤشر لتحديد موقع المغسلة بدقة:</span>
+          <span>ابحث عن العنوان، أو انقر على الخريطة واسحب الدبوس لتحديد موقع المغسلة بدقة:</span>
         </div>
 
         {/* Quick Button for Current Location */}
@@ -289,19 +172,17 @@ export default function MapLocationPicker({
       </div>
 
       {/* Map Container */}
-      <div className="relative overflow-hidden rounded-xl border border-border shadow-inner bg-muted/40">
-        <div
-          ref={mapContainerRef}
-          className="h-[280px] w-full z-0 sm:h-[320px]"
-          style={{ minHeight: "260px" }}
-        />
-
-        {/* Subtle Map Overlay Badge */}
-        <div className="pointer-events-none absolute bottom-3 end-3 z-10 rounded-lg bg-background/90 px-3 py-1.5 text-[11px] font-mono shadow-sm backdrop-blur border border-border/80">
-          <span className="text-muted-foreground">Lat:</span> <span className="font-semibold text-primary">{lat}</span> |{" "}
-          <span className="text-muted-foreground">Lng:</span> <span className="font-semibold text-primary">{lng}</span>
-        </div>
-      </div>
+      <LocationPicker
+        value={{ lat, lng }}
+        onChange={(p) => onChange(p.lat, p.lng)}
+        onPlace={onPlace}
+        fallbackCenter={{ lat: areaCenter[0], lng: areaCenter[1] }}
+        searchPlaceholder="ابحث عن عنوان المغسلة أو اسم المكان"
+        className="h-[280px] sm:h-[320px]"
+      />
+      <p className="num text-[11px] text-muted-foreground" dir="ltr">
+        {lat.toFixed(6)}, {lng.toFixed(6)}
+      </p>
 
       {/* Geolocation Permission Helper Dialog */}
       <Dialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>

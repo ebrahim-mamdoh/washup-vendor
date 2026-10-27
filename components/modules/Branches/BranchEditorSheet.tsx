@@ -4,7 +4,7 @@ import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { AlertTriangle, CopyCheck, MapPinned, Save } from "lucide-react";
+import { AlertTriangle, CopyCheck, ExternalLink, MapPinned, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +16,7 @@ import { AMENITY, AREAS, WEEK_DAYS } from "@/lib/constants/labels";
 import { cn } from "@/lib/utils";
 import { clockToMin } from "@/components/modules/Branches/branch-utils";
 import { Field, FormSection, Unit, unitInputClass } from "@/components/modules/Branches/form-bits";
+import { LocationPicker, googleMapsUrl } from "@/components/shared/maps/lazy";
 import { useUpdateBranch } from "@/hooks/use-catalog";
 import type { VendorBranch } from "@/types/vendor/catalog";
 
@@ -33,6 +34,8 @@ const schema = z
     amenities: z.array(z.string()),
     workingHours: z.array(z.object({ open: z.string(), close: z.string(), closed: z.boolean() })).length(7),
     active: z.boolean(),
+    lat: z.number(),
+    lng: z.number(),
     reason: z.string().trim().min(3, "اكتب سبب التعديل (3 أحرف على الأقل)").max(200, "200 حرف كحد أقصى"),
   })
   .superRefine((v, ctx) => {
@@ -56,6 +59,8 @@ function defaultsFor(b: VendorBranch): Values {
     amenities: b.amenities,
     workingHours: b.workingHours.map((d) => ({ ...d })),
     active: b.active,
+    lat: b.lat,
+    lng: b.lng,
     reason: "",
   };
 }
@@ -91,6 +96,8 @@ function BranchForm({ branch, onDone }: { branch: VendorBranch; onDone: () => vo
   const hours = useWatch({ control, name: "workingHours" });
   const active = useWatch({ control, name: "active" });
   const capacity = Number(useWatch({ control, name: "capacity" }));
+  const lat = useWatch({ control, name: "lat" });
+  const lng = useWatch({ control, name: "lng" });
   const deactivating = branch.active && !active;
   const pending = update.isPending;
 
@@ -113,6 +120,8 @@ function BranchForm({ branch, onDone }: { branch: VendorBranch; onDone: () => vo
       amenities: v.amenities,
       workingHours: v.workingHours,
       active: v.active,
+      // Only a moved pin is sent: branches saved without a location keep theirs untouched.
+      ...(v.lat !== branch.lat || v.lng !== branch.lng ? { lat: v.lat, lng: v.lng } : {}),
       reason: v.reason.trim(),
     }),
   );
@@ -170,6 +179,25 @@ function BranchForm({ branch, onDone }: { branch: VendorBranch; onDone: () => vo
                   <Unit>مكان</Unit>
                 </div>
               </Field>
+            </div>
+          </FormSection>
+
+          <FormSection title="الموقع على الخريطة" description="الدبوس الذي يصل به العملاء إلى الفرع — ابحث عن العنوان أو انقر على الخريطة واسحب الدبوس.">
+            <LocationPicker
+              value={{ lat, lng }}
+              onChange={(p) => {
+                setValue("lat", p.lat, { shouldDirty: true });
+                setValue("lng", p.lng, { shouldDirty: true });
+              }}
+              searchPlaceholder="ابحث عن عنوان الفرع"
+              className="h-64"
+            />
+            <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+              <span className="num" dir="ltr">{lat.toFixed(6)}, {lng.toFixed(6)}</span>
+              <a href={googleMapsUrl({ lat, lng })} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+                <ExternalLink className="size-3" />
+                فتح في خرائط Google
+              </a>
             </div>
           </FormSection>
 

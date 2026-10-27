@@ -65,6 +65,9 @@ export interface UpdateBranchPayload {
   capacity: number;
   workingHours: WorkingDay[];
   active: boolean;
+  /** Pin on the map (both or neither); the customer app sorts and routes by it. */
+  lat?: number;
+  lng?: number;
   reason: string;
 }
 

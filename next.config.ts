@@ -35,7 +35,8 @@ const nextConfig: NextConfig = {
       { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
-      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+      // geolocation=(self): the partner registration and branch editor locate the wash on the map.
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
     ];
 
     return [
