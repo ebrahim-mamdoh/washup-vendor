@@ -25,7 +25,11 @@ function BusinessCard() {
         <span style={{ "--tone": meta.tone } as CSSProperties} className="tone-dot size-2 shrink-0 rounded-full" aria-label={meta.label} />
       </div>
       <p className="mt-0.5 text-[11px] text-muted-foreground">
-        {account.role === "owner" ? `${account.branches.length} فروع · مالك` : `مدير فرع · ${account.branches[0]?.name.ar ?? ""}`}
+        {account.role === "owner"
+          ? `${account.branches.length} فروع · مالك`
+          : account.role === "manager"
+            ? `مدير فرع · ${account.branches[0]?.name.ar ?? ""}`
+            : `موظف · ${account.branches[0]?.name.ar ?? ""}`}
       </p>
     </div>
   );

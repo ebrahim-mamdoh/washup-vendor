@@ -76,14 +76,21 @@ export async function deliverPush(target: PushTarget, id: string): Promise<PushO
   const data = {
     id: row.id,
     type: row.type,
-    title: row.title?.ar || row.title?.en || "Carzen",
+    title: row.title?.ar || row.title?.en || "Wash Up",
     body: row.body?.ar || row.body?.en || "",
     href: row.href || "/notifications",
     app: target,
   };
   const results = await Promise.all(
     tokens.map((token) =>
-      sendFcm({ token, data, webpush: { headers: { Urgency: "high", TTL: "86400" } } }).catch((e) => ({
+      sendFcm({
+        token,
+        notification: { title: data.title, body: data.body },
+        data,
+        webpush: { headers: { Urgency: "high", TTL: "86400" }, notification: { title: data.title, body: data.body } },
+        android: { priority: "HIGH", notification: { sound: "default" } },
+        apns: { payload: { aps: { sound: "default" } } },
+      }).catch((e) => ({
         ok: false as const,
         status: 0,
         errorCode: "NETWORK",
@@ -109,10 +116,12 @@ export async function registerDevice(q: Q, userId: string | null, app: "partner"
   if (token.length < 20 || token.length > 4096) throw new MockApiError("رمز الجهاز غير صالح", 422);
   if (!userId) throw new MockApiError("الإشعارات على المتصفح تحتاج حساب دخول على Supabase", 409);
   const version = typeof body.appVersion === "string" ? body.appVersion.slice(0, 60) : null;
+  const rawPlatform = typeof body.platform === "string" ? body.platform.trim().toLowerCase() : "web";
+  const platform = rawPlatform === "ios" || rawPlatform === "android" || rawPlatform === "web" ? rawPlatform : "web";
   const save = (a: string) => q`
     insert into public.push_devices (user_id, app, platform, token, app_version, last_seen_at)
-    values (${userId}, ${a}, 'web', ${token}, ${version}, now())
-    on conflict (token) do update set user_id = excluded.user_id, app = excluded.app, platform = 'web',
+    values (${userId}, ${a}, ${platform}, ${token}, ${version}, now())
+    on conflict (token) do update set user_id = excluded.user_id, app = excluded.app, platform = ${platform},
       app_version = excluded.app_version, last_seen_at = now()`;
   try {
     await save(app);

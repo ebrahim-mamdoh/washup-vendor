@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { AlertCircle, Eye, EyeOff, LockKeyhole, Smartphone, Store, UserCog } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, LockKeyhole, Smartphone, Store, UserCog, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ type LoginValues = z.infer<typeof loginSchema>;
 const PERSONAS = [
   { key: "owner", name: "خالد منصور", role: "مالك — كل الفروع", phone: "+20 120 000 0000", icon: Store },
   { key: "manager", name: "محمد عادل", role: "مدير فرع — مدينة نصر", phone: "+20 100 555 0102", icon: UserCog },
+  { key: "employee", name: "أحمد سمير", role: "موظف — مدينة نصر", phone: "+20 100 555 0101", icon: UserRound },
 ] as const;
 
 function safeNext(raw: string | null) {
@@ -41,7 +42,7 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = safeNext(searchParams.get("next"));
-  const { isAuthenticated } = useAuthReady();
+  const { isAuthenticated, account } = useAuthReady();
   const login = useLogin();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -57,8 +58,10 @@ export default function LoginForm() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) router.replace(next);
-  }, [isAuthenticated, next, router]);
+    if (!isAuthenticated) return;
+    const dest = next === "/dashboard" && account?.role === "employee" ? "/live" : next;
+    router.replace(dest);
+  }, [isAuthenticated, account?.role, next, router]);
 
   const onSubmit = handleSubmit((values) => login.mutate(values));
   const serverError = login.error ? resolveUserFacingError(login.error, "تعذر تسجيل الدخول") : null;
@@ -123,6 +126,12 @@ export default function LoginForm() {
           </button>
         </div>
         {errors.password ? <p className="text-xs text-destructive">{errors.password.message}</p> : null}
+      </div>
+
+      <div className="flex justify-end">
+        <a href="/forgot-password" className="text-xs text-primary hover:underline">
+          نسيت كلمة المرور؟
+        </a>
       </div>
 
       <Button type="submit" size="lg" className="h-11 w-full rounded-xl text-sm font-semibold" loading={login.isPending}>

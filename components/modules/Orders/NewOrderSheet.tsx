@@ -27,20 +27,21 @@ export function NewOrderSheet() {
   const open = useUIStore((s) => s.newOrderOpen);
   const setOpen = useUIStore((s) => s.setNewOrderOpen);
   const prefill = useUIStore((s) => s.newOrderPrefill);
+  const initialMode = useUIStore((s) => s.newOrderMode);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent side="left" className="w-full gap-0 p-0 sm:max-w-xl">
         {/* Body unmounts on close → the form starts clean every time. */}
-        {open ? <NewOrderForm prefill={prefill} onDone={() => setOpen(false)} /> : null}
+        {open ? <NewOrderForm prefill={prefill} initialMode={initialMode} onDone={() => setOpen(false)} /> : null}
       </SheetContent>
     </Sheet>
   );
 }
 
-function NewOrderForm({ prefill, onDone }: { prefill: NewOrderPrefill | null; onDone: () => void }) {
+function NewOrderForm({ prefill, initialMode, onDone }: { prefill: NewOrderPrefill | null; initialMode: Mode; onDone: () => void }) {
   const router = useRouter();
   const { branches, singleBranchId, isLocked } = useBranchScope();
-  const [mode, setMode] = useState<Mode>("walk_in");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [branchId, setBranchId] = useState(singleBranchId);
   const [plate, setPlate] = useState(prefill?.plate ?? "");
   const [phone, setPhone] = useState(prefill?.phone ?? "");
@@ -77,7 +78,8 @@ function NewOrderForm({ prefill, onDone }: { prefill: NewOrderPrefill | null; on
 
   const plateOk = plate.replace(/[\s-]/g, "").length >= 3;
   const phoneDigits = phone.replace(/\D/g, "");
-  const phoneOk = phoneDigits.length >= 10;
+  const phoneOk = (phoneDigits.length === 11 && phoneDigits.startsWith("01")) || (phoneDigits.length === 10 && phoneDigits.startsWith("1"));
+  const phoneError = mode === "phone" && phone.length > 0 && !phoneOk ? "رقم الموبايل لازم 11 رقم ويبدأ بـ 01" : mode === "phone" && !phone.trim() ? "رقم الموبايل مطلوب للحجز الهاتفي" : null;
   const canSubmit = plateOk && Boolean(primaryId) && (mode === "walk_in" || (phoneOk && Boolean(slot)));
 
   const applyRecognition = () => {
@@ -190,6 +192,7 @@ function NewOrderForm({ prefill, onDone }: { prefill: NewOrderPrefill | null; on
                 placeholder="01xx xxx xxxx"
                 className="num h-10 w-full rounded-lg border border-input bg-card px-3 text-start text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25"
               />
+              {phoneError ? <p className="text-[11px] text-destructive">{phoneError}</p> : null}
             </div>
             <div className="space-y-1.5">
               <label htmlFor="cname" className="text-xs font-medium">
@@ -323,27 +326,26 @@ function NewOrderForm({ prefill, onDone }: { prefill: NewOrderPrefill | null; on
               <Skeleton className="h-24 rounded-xl" />
             ) : (
               <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
-                {(slots.data ?? []).map((s) => {
-                  const disabled = s.past || s.blocked || s.free <= 0;
-                  return (
+                {(slots.data ?? []).filter((s) => !s.past && !s.blocked && s.free > 0).map((s) => (
                     <button
                       key={s.start}
                       type="button"
-                      disabled={disabled}
                       onClick={() => setSlot(s.start)}
                       aria-pressed={slot === s.start}
-                      title={s.blocked ? "فترة محجوبة" : s.free <= 0 ? "مكتمل" : `${s.free} أماكن متاحة`}
+                      title={`${s.free} أماكن متاحة`}
                       className={cn(
-                        "num cursor-pointer rounded-lg border py-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-35",
+                        "num cursor-pointer rounded-lg border py-2 text-xs transition-colors",
                         slot === s.start ? "border-primary bg-primary font-semibold text-primary-foreground" : "border-border hover:bg-muted",
-                        s.blocked && "line-through",
                       )}
                     >
                       {formatTime(s.start)}
                     </button>
-                  );
-                })}
-                {!slots.data?.length ? <p className="col-span-full py-4 text-center text-xs text-muted-foreground">الفرع مغلق في هذا اليوم</p> : null}
+                ))}
+                {!(slots.data ?? []).filter((s) => !s.past && !s.blocked && s.free > 0).length ? (
+                  <p className="col-span-full py-4 text-center text-xs text-muted-foreground">
+                    {!slots.data?.length ? "الفرع مغلق في هذا اليوم" : "لا مواعيد متاحة في هذا اليوم"}
+                  </p>
+                ) : null}
               </div>
             )}
           </section>

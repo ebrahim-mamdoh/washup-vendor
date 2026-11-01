@@ -12,7 +12,7 @@ export function resolveVendorActor(db: MockDatabase, token: string): VendorActor
   const staffId = db.vendorSessions[token];
   if (!staffId) return null;
   const staff = db.staff.find((s) => s.id === staffId);
-  if (!staff || staff.status !== "active" || staff.role === "employee") return null;
+  if (!staff || staff.status !== "active") return null;
   const business = db.businesses.find((b) => b.id === staff.businessId);
   if (!business || business.status === "rejected") return null;
   const branchIds =
@@ -39,7 +39,7 @@ export function toVendorAccount(db: MockDatabase, actor: VendorActor): VendorAcc
       .map((b) => ({ id: b.id, name: b.name, area: b.area, active: b.active, capacity: b.capacity })),
     permissions: actor.staff.permissions,
     maxDiscountPct: actor.staff.maxDiscountPct,
-    canEditServices: actor.role === "owner" || settings.managerCanEditServices,
+    canEditServices: actor.role === "owner" || (actor.role === "manager" && settings.managerCanEditServices),
     lastLoginAt: null,
   };
 }

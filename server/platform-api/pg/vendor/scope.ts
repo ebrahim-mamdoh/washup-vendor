@@ -18,7 +18,7 @@ export async function resolveVendorActor(q: Q, identity: Identity): Promise<Vend
     identity.kind === "supabase"
       ? await staffWhere(q, q`st.user_id = ${identity.userId}`)
       : await staffWhere(q, q`st.id = ${identity.profileId}`);
-  if (!staff || staff.status !== "active" || staff.role === "employee") return null;
+  if (!staff || staff.status !== "active") return null;
   const [business] = await businessesWhere(q, q`b.id = ${staff.businessId}`);
   if (!business || business.status === "rejected") return null;
   // Home branch first (the portal opens on it), then the rest.
@@ -48,7 +48,7 @@ export async function toVendorAccount(q: Q, actor: VendorActor): Promise<VendorA
     branches: branches.map((b) => ({ id: b.id, name: b.name, area: b.area, active: b.active, capacity: b.capacity })),
     permissions: actor.staff.permissions,
     maxDiscountPct: actor.staff.maxDiscountPct,
-    canEditServices: actor.role === "owner" || settings.managerCanEditServices,
+    canEditServices: actor.role === "owner" || (actor.role === "manager" && settings.managerCanEditServices),
     lastLoginAt: null,
   };
 }

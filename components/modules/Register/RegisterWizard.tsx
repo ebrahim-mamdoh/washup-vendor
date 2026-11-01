@@ -504,7 +504,7 @@ export default function RegisterWizard() {
       if (typeof window !== "undefined") {
         localStorage.setItem("carzen_application_id", res.id);
       }
-      toast.success("تم إرسال طلب الانضمام بنجاح إلى قاعدة بيانات كارزن!");
+      toast.success("تم إرسال طلب الانضمام بنجاح إلى قاعدة بيانات Wash Up!");
       router.replace(`/register?id=${res.id}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "حدث خطأ أثناء إرسال الطلب";
@@ -558,12 +558,12 @@ export default function RegisterWizard() {
 
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             {isApproved
-              ? "تم اعتماد حسابك وفرعك على منصة كارزن بنجاح. يمكنك الآن الدخول لبوابة الشركاء لبدء التشغيل."
+              ? "تم اعتماد حسابك وفرعك على منصة Wash Up بنجاح. يمكنك الآن الدخول لبوابة الشركاء لبدء التشغيل."
               : isNeedsChanges
               ? "راجع ملاحظات فريق المراجعة الموضحة أدناه لتعديل البيانات وإعادة تفعيل الطلب."
               : isRejected
               ? "تمت مراجعة بيانات المغسلة من قبل إدارة المنصة ولم يتم قبول الطلب وفقاً للأسباب الموضحة أدناه."
-              : "يقوم فريق مراجعة شركاء كارزن بفحص المستندات ومعاينة الموقع وسيتم إشعارك فور اتخاذ القرار."}
+              : "يقوم فريق مراجعة شركاء Wash Up بفحص المستندات ومعاينة الموقع وسيتم إشعارك فور اتخاذ القرار."}
           </p>
         </div>
 
@@ -576,7 +576,7 @@ export default function RegisterWizard() {
               </div>
               <div className="space-y-1.5 text-right flex-1">
                 <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200">
-                  سبب الرفض الموضح من إدارة كارزن:
+                  سبب الرفض الموضح من إدارة Wash Up:
                 </h4>
                 <p className="text-sm font-semibold leading-relaxed text-rose-800 dark:text-rose-300 bg-white/70 dark:bg-black/20 p-2.5 rounded-lg border border-rose-200/50">
                   {activeApp.reviewNote || "البيانات أو المستندات المرفقة لا تتوافق مع شروط الانضمام للمنصة حالياً."}
@@ -811,7 +811,7 @@ export default function RegisterWizard() {
         <BrandLogo subtitle="بوابة الشركاء" className="mb-4" />
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">طلب انضمام مغسلة شريكة</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          انضم إلى شبكة كارزن واجعل مغسلتك رقمية بالكامل لاستقبال آلاف حجوزات العملاء.
+          انضم إلى شبكة Wash Up واجعل مغسلتك رقمية بالكامل لاستقبال آلاف حجوزات العملاء.
         </p>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
           <span>

@@ -44,6 +44,7 @@ export const queryKeys = {
   staff: (params: VendorStaffListParams) => ["staff", params] as const,
   shiftsRoot: ["shifts"] as const,
   shifts: (params: ShiftListParams) => ["shifts", "list", params] as const,
+  currentShift: ["shifts", "current"] as const,
   shift: (id: string) => ["shifts", "detail", id] as const,
   dayClosing: (branchId: string, date: string) => ["shifts", "day", branchId, date] as const,
 

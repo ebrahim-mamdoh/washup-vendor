@@ -160,7 +160,7 @@ function ReasonForm({
 
           <DialogFooter className="-mx-4 -mb-4 mt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-              إلغاء
+              رجوع
             </Button>
             <Button
               type="submit"

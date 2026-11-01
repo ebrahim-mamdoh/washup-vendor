@@ -5,8 +5,11 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useVendorMutation } from "@/hooks/use-vendor-mutation";
 import { queryKeys } from "@/lib/query-keys";
 import {
+  clockIn,
+  clockOut,
   closeDay,
   createStaff,
+  fetchCurrentShift,
   fetchDayClosing,
   fetchShift,
   fetchShifts,
@@ -53,6 +56,18 @@ export function useUpdateSchedule(onDone?: () => void) {
     invalidate: [queryKeys.staffRoot],
     onSuccess: () => onDone?.(),
   });
+}
+
+export function useCurrentShift() {
+  return useQuery({ queryKey: queryKeys.currentShift, queryFn: fetchCurrentShift, refetchInterval: 30_000 });
+}
+
+export function useClockIn() {
+  return useVendorMutation((_: void) => clockIn(), { invalidate: [queryKeys.shiftsRoot] });
+}
+
+export function useClockOut() {
+  return useVendorMutation((payload: { actualCash: number; reason?: string }) => clockOut(payload), { invalidate: [queryKeys.shiftsRoot] });
 }
 
 export function useShifts(params: ShiftListParams) {

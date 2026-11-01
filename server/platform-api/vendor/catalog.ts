@@ -20,7 +20,7 @@ function audit(db: MockDatabase, actor: VendorActor, action: string, entity: str
 }
 
 function canEditServices(db: MockDatabase, actor: VendorActor) {
-  return actor.role === "owner" || vendorSettingsFor(db, actor.business.id).managerCanEditServices;
+  return actor.role === "owner" || (actor.role === "manager" && vendorSettingsFor(db, actor.business.id).managerCanEditServices);
 }
 
 function deriveOfferStatus(o: Offer): Offer["status"] {

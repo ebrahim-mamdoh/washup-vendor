@@ -848,10 +848,10 @@ export function buildSeed(now: Date): MockDatabase {
     transactions, payouts, reviews, offers, complaints, applications, admins, notifications, auditLogs,
     settings: {
       general: {
-        platformName: "Carzen",
+        platformName: "Wash Up",
         currency: "EGP",
         supportPhone: "+20 150 000 1111",
-        supportEmail: "hello@carzen.demo",
+        supportEmail: "support@washup.app",
         supportHours: { ar: "يومياً ٩:٠٠ ص – ٩:٠٠ م", en: "Daily 9:00 AM – 9:00 PM" },
       },
       bookingDefaults: {

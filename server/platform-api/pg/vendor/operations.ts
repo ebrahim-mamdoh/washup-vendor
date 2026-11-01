@@ -13,7 +13,7 @@ import type postgres from "postgres";
 import { isSameDay, now } from "../../db";
 import { MockApiError, ok, requireText } from "../../http";
 import { serviceName } from "../../lookups";
-import { cleanOrderPayload, clockToMin, dayKey, hoursFor, nextActionFor, parseDay } from "../../vendor/engine";
+import { atMinutes, cleanOrderPayload, clockToMin, dayKey, hoursFor, nextActionFor, parseDay } from "../../vendor/engine";
 import {
   PHONE,
   auditWhere,
@@ -168,7 +168,14 @@ export const vendorOperationRoutes = [
         sql`sv.branch_id = ${order.branchId} and sv.type = 'addon' and sv.active and not (sv.id = any(${itemIds}))`,
         sql`order by sv.id`,
       ),
-      staffWhere(sql, sql`st.branch_id = ${order.branchId} and st.status = 'active' and st.role <> 'owner'`, sql`order by st.id`),
+      staffWhere(
+        sql,
+        sql`st.status = 'active' and (
+          (st.role = 'owner' and st.business_id = ${order.businessId})
+          or (st.role <> 'owner' and st.branch_id = ${order.branchId})
+        )`,
+        sql`order by (st.role = 'employee') desc, (st.role = 'manager') desc, st.id`,
+      ),
     ]);
     const staffName = order.assignedStaffId ? staff.get(order.assignedStaffId) : undefined;
 
@@ -316,12 +323,7 @@ export const vendorOperationRoutes = [
     const step = branch.settings.slotIntervalMin || 30;
     const slots: ScheduleDay["slots"] = [];
     if (!hours.closed) {
-      const slotStart = (m: number) => {
-        const start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-        start.setMinutes(m);
-        return start;
-      };
+      const slotStart = (m: number) => atMinutes(date, m);
       const open = clockToMin(hours.open);
       const close = clockToMin(hours.close, true);
       // One query for the day's occupying orders, then the same per-slot overlap as the mock.

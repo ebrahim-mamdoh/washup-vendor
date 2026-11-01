@@ -86,8 +86,13 @@ export const VENDOR_NAV: VendorNavGroup[] = [
   },
 ];
 
+const EMPLOYEE_HREFS = new Set(["/live", "/bookings", "/orders", "/schedule", "/shifts", "/notifications", "/settings"]);
+
 export function navFor(role: VendorRole | undefined): VendorNavGroup[] {
   if (role === "owner") return VENDOR_NAV;
+  if (role === "employee") {
+    return VENDOR_NAV.map((g) => ({ ...g, items: g.items.filter((i) => EMPLOYEE_HREFS.has(i.href)) })).filter((g) => g.items.length);
+  }
   return VENDOR_NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.ownerOnly) })).filter((g) => g.items.length);
 }
 

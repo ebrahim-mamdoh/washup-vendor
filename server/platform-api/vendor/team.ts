@@ -11,7 +11,10 @@ import type { MockDatabase } from "../schema";
 import { defaultPermissions } from "../seed";
 import {
   assertClosableDay,
+  atMinutes,
+  cairoDateParts,
   cleanShiftPatterns,
+  clockToMin,
   dayKey,
   hasManualDiscount,
   isPlausibleDuration,
@@ -203,6 +206,73 @@ export const vendorTeamRoutes = [
   }),
 
   // ── Shift closings (D11 / MG-07 / OW-15) ─────────────────
+  vroute("GET", "/vendor/shifts/current", ({ db, actor }) => {
+    const shift = db.shifts.find((s) => s.staffId === actor.staff.id && s.reviewStatus === "open" && !s.actualEnd);
+    return ok(shift ? toClosing(db, shift) : null);
+  }),
+
+  vroute("POST", "/vendor/shifts/clock-in", ({ db, actor }) => {
+    const existing = db.shifts.find((s) => s.staffId === actor.staff.id && s.reviewStatus === "open" && !s.actualEnd);
+    if (existing) throw new MockApiError("لديك وردية مفتوحة بالفعل", 409);
+    const at = now();
+    const weekday = cairoDateParts(at).weekday;
+    const pat = actor.staff.scheduledShifts.find((p) => p.days.includes(weekday));
+    const scheduledStart = pat ? atMinutes(at, clockToMin(pat.start)) : at;
+    const scheduledEnd = pat ? atMinutes(at, clockToMin(pat.end, true)) : new Date(at.getTime() + 8 * 3600000);
+    const shift: (typeof db.shifts)[number] = {
+      id: nid("sh"),
+      staffId: actor.staff.id,
+      branchId: actor.staff.branchId,
+      scheduledStart: scheduledStart.toISOString(),
+      scheduledEnd: scheduledEnd.toISOString(),
+      actualStart: at.toISOString(),
+      actualEnd: null,
+      ordersCompleted: 0,
+      cashPayments: 0,
+      cardPayments: 0,
+      expectedCash: 0,
+      actualCash: null,
+      difference: null,
+      reason: null,
+      reviewStatus: "open",
+      reviewNote: null,
+      reviewedBy: null,
+    };
+    db.shifts.unshift(shift);
+    audit(db, actor, "shift.clock_in", "shifts", shift.id, shift.branchId, null, "open");
+    return ok(toClosing(db, shift), "تم بدء الوردية");
+  }),
+
+  vroute("POST", "/vendor/shifts/clock-out", ({ db, body, actor }) => {
+    const shift = db.shifts.find((s) => s.staffId === actor.staff.id && s.reviewStatus === "open" && !s.actualEnd);
+    if (!shift) throw new MockApiError("لا توجد وردية مفتوحة لإنهائها", 409);
+    const actualCash = Number(body.actualCash ?? 0);
+    if (Number.isNaN(actualCash) || actualCash < 0) throw new MockApiError("أدخل النقدية الفعلية في الصندوق", 422, { actualCash: ["مطلوب"] });
+    const ended = now();
+    const start = new Date(shift.actualStart ?? shift.scheduledStart).getTime();
+    const orders = db.orders.filter((o) => {
+      const t = new Date(o.scheduledAt).getTime();
+      return o.assignedStaffId === shift.staffId && o.status === "completed" && t >= start - 3600000 && t <= ended.getTime();
+    });
+    const paid = orders.filter((o) => o.paymentStatus === "paid");
+    const cash = paid.filter((o) => o.paymentMethod === "cash").reduce((s, o) => s + o.total, 0);
+    const card = paid.filter((o) => o.paymentMethod === "card").reduce((s, o) => s + o.total, 0);
+    const difference = round2(actualCash - cash);
+    const reasonText = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (difference !== 0 && reasonText.length < 3) throw new MockApiError("يوجد فرق في الصندوق — اكتب السبب", 422, { reason: ["مطلوب عند وجود فرق"] });
+    shift.actualEnd = ended.toISOString();
+    shift.ordersCompleted = orders.length;
+    shift.cashPayments = cash;
+    shift.cardPayments = card;
+    shift.expectedCash = cash;
+    shift.actualCash = actualCash;
+    shift.difference = difference;
+    shift.reason = reasonText ? { ar: reasonText, en: reasonText } : null;
+    shift.reviewStatus = "submitted";
+    audit(db, actor, "shift.clock_out", "shifts", shift.id, shift.branchId, "open", "submitted", reasonText || null);
+    return ok(toClosing(db, shift), "تم إنهاء الوردية وبانتظار المراجعة");
+  }),
+
   vroute("GET", "/vendor/shifts", ({ db, query, actor }) => {
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const filter = query.get("filter") ?? "all";

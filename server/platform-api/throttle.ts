@@ -17,7 +17,7 @@ function attempts(): Map<string, number[]> {
 }
 
 export function isLoginPath(segments: string[]): boolean {
-  return segments.length === 3 && segments[1] === "auth" && segments[2] === "login";
+  return segments.length === 3 && segments[1] === "auth" && (segments[2] === "login" || segments[2] === "forgot-password");
 }
 
 /** Records an attempt; returns 0 when allowed, else the seconds to wait. */

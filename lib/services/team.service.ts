@@ -55,6 +55,18 @@ export function fetchShifts(params: ShiftListParams) {
   return getPaginated<ShiftClosing, ShiftListMeta>("/vendor/shifts", params, "تعذر تحميل الورديات");
 }
 
+export function fetchCurrentShift() {
+  return getData<ShiftClosing | null>("/vendor/shifts/current", undefined, "تعذر تحميل الوردية الحالية");
+}
+
+export function clockIn() {
+  return send<ShiftClosing>("post", "/vendor/shifts/clock-in");
+}
+
+export function clockOut(payload: { actualCash: number; reason?: string }) {
+  return send<ShiftClosing>("post", "/vendor/shifts/clock-out", payload);
+}
+
 export type ShiftDetails = {
   shift: ShiftClosing;
   orders: { id: string; number: string; plate: string; total: number; method: PaymentMethod | null; paid: boolean; at: string }[];

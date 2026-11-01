@@ -61,7 +61,7 @@ interface DayTotals {
  */
 function orderTotals(q: Q, starts: string[], ends: string[], pct: number) {
   return q<DayTotals[]>`
-    select count(o.id)::int as created,
+    select (count(o.id) filter (where o.status not in ('cancelled', 'no_show')))::int as created,
            (count(o.id) filter (where o.status = 'completed'))::int as completed,
            (count(o.id) filter (where o.status = 'cancelled'))::int as cancelled,
            coalesce(sum(o.total) filter (where o.status = 'completed' and o.payment_status = 'paid'), 0) as gmv,
@@ -141,14 +141,17 @@ function buildKpis(week: DayTotals[], history: Counts[], current: Counts): Dashb
 
 async function buildFunnel(q: Q, from: string, end: string): Promise<DashboardFunnel> {
   const [f] = await q<{ created: number; confirmed: number; waiting: number; inService: number; completed: number; cancelled: number; noShow: number }[]>`
+    with scoped as (
+      select id, status from public.orders where scheduled_at >= ${from} and scheduled_at < ${end}
+    )
     select count(*)::int as created,
-           (count(*) filter (where status in ('confirmed', 'waiting', 'in_service', 'completed')))::int as confirmed,
-           (count(*) filter (where status in ('waiting', 'in_service', 'completed')))::int as waiting,
-           (count(*) filter (where status in ('in_service', 'completed')))::int as "inService",
-           (count(*) filter (where status = 'completed'))::int as completed,
+           (select count(distinct e.order_id)::int from public.order_events e join scoped s on s.id = e.order_id where e.status = 'confirmed') as confirmed,
+           (select count(distinct e.order_id)::int from public.order_events e join scoped s on s.id = e.order_id where e.status = 'waiting') as waiting,
+           (select count(distinct e.order_id)::int from public.order_events e join scoped s on s.id = e.order_id where e.status = 'in_service') as "inService",
+           (select count(distinct e.order_id)::int from public.order_events e join scoped s on s.id = e.order_id where e.status = 'completed') as completed,
            (count(*) filter (where status = 'cancelled'))::int as cancelled,
            (count(*) filter (where status = 'no_show'))::int as "noShow"
-    from public.orders where scheduled_at >= ${from} and scheduled_at < ${end}`;
+    from scoped`;
   return {
     steps: [
       { key: "created", value: f.created },
@@ -300,8 +303,9 @@ function buildTopWashes(q: Q, from: string, end: string) {
 
 /** Active washes with open complaints (≥2), a low rating (<4.2) or a high 30-day cancellation rate (≥15%). */
 async function buildAttention(q: Q, from30: string, end: string): Promise<AttentionWash[]> {
-  const rows = await q<{ id: string; name: Localized; rating: number; openComplaints: number; orders: number; cancelled: number }[]>`
+  const rows = await q<{ id: string; name: Localized; rating: number; reviewCount: number; openComplaints: number; orders: number; cancelled: number }[]>`
     select b.id, b.name, b.rating,
+           (select coalesce(sum(br.review_count), 0)::int from public.branches br where br.business_id = b.id) as "reviewCount",
            (select count(*)::int from public.complaints c where c.business_id = b.id and c.status not in ('resolved', 'closed')) as "openComplaints",
            os.orders, os.cancelled
     from public.businesses b
@@ -314,7 +318,7 @@ async function buildAttention(q: Q, from30: string, end: string): Promise<Attent
   const out: AttentionWash[] = [];
   for (const b of rows) {
     if (b.openComplaints >= 2) out.push({ id: b.id, name: b.name, issue: "complaints", value: b.openComplaints });
-    else if (b.rating > 0 && b.rating < 4.2) out.push({ id: b.id, name: b.name, issue: "rating", value: b.rating });
+    else if (b.reviewCount >= 5 && b.rating > 0 && b.rating < 4.2) out.push({ id: b.id, name: b.name, issue: "rating", value: b.rating });
     else {
       const rate = b.orders >= 8 ? (b.cancelled / b.orders) * 100 : 0;
       if (rate >= 15) out.push({ id: b.id, name: b.name, issue: "cancellations", value: round2(rate) });

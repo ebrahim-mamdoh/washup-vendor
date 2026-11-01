@@ -70,7 +70,8 @@ export const orderRoutes = [
     const [countRows, [{ total, totalAmount }]] = await Promise.all([
       sql<{ k: string; n: number }[]>`with w as (${base}) select w.status as k, count(*)::int as n from w group by w.status`,
       sql<{ total: number; totalAmount: number }[]>`
-        with w as (${base}) select count(*)::int as total, coalesce(sum(w.total), 0) as "totalAmount" from w ${filter}`,
+        with w as (${base}) select count(*)::int as total,
+          coalesce(sum(w.total) filter (where w.status not in ('cancelled', 'no_show')), 0) as "totalAmount" from w ${filter}`,
     ]);
     // Text sorts use the C collation: same code-point order as the mock's JS comparisons.
     const sort = orderBy(

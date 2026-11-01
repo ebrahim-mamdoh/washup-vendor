@@ -31,7 +31,7 @@ function audit(q: Q, actor: VendorActor, action: string, entity: string, entityI
 }
 
 async function canEditServices(q: Q, actor: VendorActor) {
-  return actor.role === "owner" || (await vendorSettingsFor(q, actor.business.id)).managerCanEditServices;
+  return actor.role === "owner" || (actor.role === "manager" && (await vendorSettingsFor(q, actor.business.id)).managerCanEditServices);
 }
 
 function deriveOfferStatus(o: Pick<Offer, "status" | "startAt" | "endAt">): Offer["status"] {

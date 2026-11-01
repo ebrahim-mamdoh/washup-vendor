@@ -2,8 +2,8 @@ import type { SessionTokens } from "../auth";
 import type { Localized } from "../common";
 import type { BusinessStatus, StaffPermissions } from "../washes";
 
-/** Roles that can sign in to the vendor portal (employees use the employee app). */
-export type VendorRole = "owner" | "manager";
+/** Roles that can sign in to the vendor web portal (owner, branch manager, floor staff). */
+export type VendorRole = "owner" | "manager" | "employee";
 
 export interface VendorBranchRef {
   id: string;

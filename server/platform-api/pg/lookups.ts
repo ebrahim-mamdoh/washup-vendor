@@ -7,7 +7,7 @@ import type { Staff } from "@/types/washes";
 
 import { now } from "../db";
 import { serviceName } from "../lookups";
-import { clockToMin, minutesOfDay, nextActionFor, overdueMinutes } from "../vendor/engine";
+import { cairoDateParts, clockToMin, minutesOfDay, nextActionFor, overdueMinutes } from "../vendor/engine";
 import { staffWhere } from "./entities";
 import type { Q } from "./sql";
 
@@ -81,11 +81,19 @@ export async function toVendorItems(q: Q, orders: Order[], at: Date = now()): Pr
   }));
 }
 
-/** Employees/managers of a branch whose scheduled shift covers `at` (spec MG-04: on-shift staff). */
+/** Staff clocked in on the branch, plus those whose weekly pattern covers `at`. */
 export async function onShiftAt(q: Q, branchId: string, at: Date = now()): Promise<Staff[]> {
   const m = minutesOfDay(at);
-  const staff = await staffWhere(q, q`st.branch_id = ${branchId} and st.status = 'active' and st.role <> 'owner'`, q`order by st.id`);
-  return staff.filter((s) =>
-    s.scheduledShifts.some((p) => p.days.includes(at.getDay()) && m >= clockToMin(p.start) && m < clockToMin(p.end, true)),
-  );
+  const weekday = cairoDateParts(at).weekday;
+  const [staff, open] = await Promise.all([
+    staffWhere(q, q`st.branch_id = ${branchId} and st.status = 'active'`, q`order by st.id`),
+    q<{ staffId: string }[]>`
+      select staff_id as "staffId" from public.staff_shifts
+      where branch_id = ${branchId} and review_status = 'open' and actual_end is null`,
+  ]);
+  const openIds = new Set(open.map((r) => r.staffId));
+  return staff.filter((s) => {
+    if (openIds.has(s.id)) return true;
+    return s.role !== "owner" && s.scheduledShifts.some((p) => p.days.includes(weekday) && m >= clockToMin(p.start) && m < clockToMin(p.end, true));
+  });
 }

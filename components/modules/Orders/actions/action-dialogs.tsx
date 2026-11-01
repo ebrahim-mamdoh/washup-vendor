@@ -61,7 +61,9 @@ function Shell({ title, description, children, footer, open, onOpenChange, isPen
 
 function StaffPicker({ branchId, value, onChange }: { branchId: string; value: string | null; onChange: (id: string) => void }) {
   const { data, isLoading } = useStaff({ branchId, role: "all", period: "today" });
-  const staff = (data?.items ?? []).filter((s) => s.role !== "owner" && s.status === "active").sort((a, b) => Number(b.onShiftNow) - Number(a.onShiftNow));
+  const staff = (data?.items ?? [])
+    .filter((s) => s.status === "active")
+    .sort((a, b) => Number(b.onShiftNow) - Number(a.onShiftNow) || Number(a.role !== "employee") - Number(b.role !== "employee"));
   if (isLoading) return <Skeleton className="h-32 rounded-xl" />;
   return (
     <div role="radiogroup" aria-label="الموظف" className="grid max-h-72 gap-2 overflow-y-auto">
@@ -88,7 +90,14 @@ function StaffPicker({ branchId, value, onChange }: { branchId: string; value: s
           {value === s.id ? <Check className="size-4 text-primary" /> : null}
         </button>
       ))}
-      {!staff.length ? <p className="py-6 text-center text-xs text-muted-foreground">لا يوجد موظفون نشطون في هذا الفرع</p> : null}
+      {!staff.length ? (
+        <p className="py-6 text-center text-xs text-muted-foreground">
+          لا يوجد حساب نشط لتعيينه.{" "}
+          <a href="/staff" className="text-primary underline">
+            إضافة موظف
+          </a>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -266,9 +275,13 @@ export function DiscountDialog({ order, open, onOpenChange, isPending, onSubmit,
       </div>
       <input
         aria-label="قيمة الخصم"
-        inputMode="numeric"
+        inputMode="decimal"
         value={value}
-        onChange={(e) => setValue(e.target.value.replace(/[^\d]/g, ""))}
+        onChange={(e) => {
+          const cleaned = e.target.value.replace(/[^\d.]/g, "");
+          const [whole, ...frac] = cleaned.split(".");
+          setValue(frac.length ? `${whole}.${frac.join("").replace(/\./g, "")}` : whole);
+        }}
         className="num h-11 w-full rounded-xl border border-input bg-card px-3 text-center text-lg font-semibold outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25"
       />
       <div className={cn("flex items-center justify-between rounded-xl px-3 py-2.5 text-sm", overLimit ? "bg-destructive/10 text-destructive" : "bg-muted/60")}>

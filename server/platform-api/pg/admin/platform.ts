@@ -57,8 +57,18 @@ async function loadSettings(q: Q): Promise<PlatformSettings> {
     catalog(q, "amenities"),
   ]);
   const byKey = new Map(rows.map((r) => [r.key, r.value]));
+  const WASHUP_GENERAL = {
+    platformName: "Wash Up",
+    currency: "EGP",
+    supportPhone: "+20 150 000 1111",
+    supportEmail: "support@washup.app",
+    supportHours: { ar: "يومياً ٩:٠٠ ص – ٩:٠٠ م", en: "Daily 9:00 AM – 9:00 PM" },
+  };
+  const rawGeneral = { ...WASHUP_GENERAL, ...((byKey.get("general") as Record<string, unknown>) ?? {}) };
+  if (!rawGeneral.platformName || rawGeneral.platformName === "Carzen") rawGeneral.platformName = "Wash Up";
+  if (!rawGeneral.supportEmail || String(rawGeneral.supportEmail).includes("carzen.demo")) rawGeneral.supportEmail = "support@washup.app";
   return {
-    general: ordered(byKey.get("general") ?? {}, KEY_ORDER.general) as PlatformSettings["general"],
+    general: ordered(rawGeneral, KEY_ORDER.general) as PlatformSettings["general"],
     bookingDefaults: ordered(byKey.get("booking_defaults") ?? {}, KEY_ORDER.bookingDefaults) as PlatformSettings["bookingDefaults"],
     legal: ordered(byKey.get("legal") ?? {}, KEY_ORDER.legal) as PlatformSettings["legal"],
     catalogs: { areas, serviceCategories, amenities },

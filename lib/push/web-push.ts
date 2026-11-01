@@ -64,7 +64,7 @@ async function registerToken(ns: PushNamespace): Promise<string> {
   const token = await getToken(await messaging(), { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
   if (!token) throw new Error("no token");
   if (token !== storedToken(ns)) {
-    await send<null>("post", `/${ns}/push/register`, { token, appVersion: "web" }, "تعذر تفعيل الإشعارات");
+    await send<null>("post", `/${ns}/push/register`, { token, platform: "web", appVersion: "web" }, "تعذر تفعيل الإشعارات");
     storeToken(ns, token);
   }
   return token;

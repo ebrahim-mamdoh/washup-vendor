@@ -122,7 +122,7 @@ export default function FinancePageContent() {
   const header = (
     <PageHeader
       title="المالية"
-      description={`${scopeLabel} — الإيراد المحصّل وعمولة كارزن وصافي المغسلة والمدفوعات المعلّقة والتحويلات.`}
+      description={`${scopeLabel} — الإيراد المحصّل وعمولة Wash Up وصافي المغسلة والمدفوعات المعلّقة والتحويلات.`}
       actions={
         <>
           <FilterTabs items={PERIODS} value={period} onChange={(p) => setState({ period: p })} aria-label="الفترة" />
@@ -166,12 +166,12 @@ export default function FinancePageContent() {
         },
         {
           key: "commission",
-          label: "عمولة كارزن",
+          label: "عمولة Wash Up",
           icon: <Percent />,
           tone: TONES.violet,
           value: formatMoney(d.commission, { decimals: true }),
           hint: `${formatPercent(rate)} من الإيراد`,
-          definition: `نسبة كارزن (${formatPercent(rate)}) من إيراد الطلبات المدفوعة فقط — لا عمولة على الطلبات غير المدفوعة أو الملغاة.`,
+          definition: `نسبة Wash Up (${formatPercent(rate)}) من إيراد الطلبات المدفوعة فقط — لا عمولة على الطلبات غير المدفوعة أو الملغاة.`,
           emphasis: true,
         },
         {
@@ -180,8 +180,8 @@ export default function FinancePageContent() {
           icon: <Scale />,
           tone: TONES.success,
           value: formatMoney(d.net, { decimals: true }),
-          hint: "الإيراد ناقص عمولة كارزن",
-          definition: "ما يخص المغسلة من الإيراد بعد خصم عمولة كارزن.",
+          hint: "الإيراد ناقص عمولة Wash Up",
+          definition: "ما يخص المغسلة من الإيراد بعد خصم عمولة Wash Up.",
           emphasis: true,
         },
         {
@@ -486,10 +486,10 @@ export default function FinancePageContent() {
           <dl className="space-y-3 text-sm">
             {[
               {
-                term: "عمولة كارزن",
+                term: "عمولة Wash Up",
                 desc: `تُحسب على الطلبات المدفوعة فقط بنسبة ${d ? formatPercent(rate) : "—"} من قيمة الطلب بعد الخصم — لا عمولة على الطلبات غير المدفوعة أو الملغاة أو المستردة.`,
               },
-              { term: "صافي المغسلة", desc: "الإيراد المحصّل ناقص عمولة كارزن، وهو أساس التحويلات المستحقة لك." },
+              { term: "صافي المغسلة", desc: "الإيراد المحصّل ناقص عمولة Wash Up، وهو أساس التحويلات المستحقة لك." },
               { term: "المدفوعات المعلّقة", desc: "طلبات مكتملة لم يُسجَّل تحصيلها بعد — تدخل الإيراد بعد التحصيل وتمنع إغلاق اليوم." },
               { term: "الخصومات", desc: "الخصومات اليدوية من الموظفين في حدود صلاحياتهم، منفصلة عن عروض التطبيق." },
             ].map((x) => (
@@ -506,8 +506,8 @@ export default function FinancePageContent() {
       <SectionCard
         flush
         icon={<Landmark />}
-        title="التحويلات من كارزن"
-        description="تتم التسوية والتحويل بواسطة فريق مالية كارزن — للاستفسار تواصل مع الدعم. التحويلات على مستوى المغسلة (كل الفروع)."
+        title="التحويلات من Wash Up"
+        description="تتم التسوية والتحويل بواسطة فريق مالية Wash Up — للاستفسار تواصل مع الدعم. التحويلات على مستوى المغسلة (كل الفروع)."
       >
         {!d ? (
           <ListSkeleton rows={3} className="px-5 pb-5" />

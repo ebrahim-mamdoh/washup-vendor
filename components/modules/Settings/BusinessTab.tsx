@@ -87,7 +87,7 @@ export function BusinessTab({ value, readOnly, onDirtyChange }: BusinessTabProps
           className="lg:col-span-2"
           icon={<Building2 />}
           title="بيانات المغسلة"
-          description="الاسم يظهر للعملاء في تطبيق كارزن، والهاتف والبريد لتواصل كارزن والعملاء معك."
+          description="الاسم يظهر للعملاء في تطبيق Wash Up، والهاتف والبريد لتواصل Wash Up والعملاء معك."
         >
           <fieldset disabled={readOnly} className="grid gap-4 sm:grid-cols-2">
             <legend className="sr-only">بيانات المغسلة</legend>
@@ -110,7 +110,7 @@ export function BusinessTab({ value, readOnly, onDirtyChange }: BusinessTabProps
                 {...register("nameEn")}
               />
             </FormField>
-            <FormField id="biz-phone" label="هاتف المغسلة" hint="رقم التواصل الرئيسي لدى كارزن." error={errors.phone?.message}>
+            <FormField id="biz-phone" label="هاتف المغسلة" hint="رقم التواصل الرئيسي لدى Wash Up." error={errors.phone?.message}>
               <Input
                 id="biz-phone"
                 type="tel"
@@ -136,7 +136,7 @@ export function BusinessTab({ value, readOnly, onDirtyChange }: BusinessTabProps
           </fieldset>
         </SectionCard>
 
-        <SectionCard icon={<ShieldCheck />} title="حسابك لدى كارزن" description="بيانات تديرها كارزن ولا تُعدل من هنا.">
+        <SectionCard icon={<ShieldCheck />} title="حسابك لدى Wash Up" description="بيانات تديرها Wash Up ولا تُعدل من هنا.">
           <InfoList
             columns={1}
             items={[
@@ -148,7 +148,7 @@ export function BusinessTab({ value, readOnly, onDirtyChange }: BusinessTabProps
                   <span className="flex items-center gap-2">
                     <span className="num text-base font-bold">{formatPercent(value.commissionRate)}</span>
                     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
-                      <Lock className="size-3" /> تحددها كارزن
+                      <Lock className="size-3" /> تحددها Wash Up
                     </span>
                   </span>
                 ),
@@ -156,7 +156,7 @@ export function BusinessTab({ value, readOnly, onDirtyChange }: BusinessTabProps
             ]}
           />
           <p className="mt-4 rounded-xl bg-muted/60 px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
-            تُخصم العمولة من قيمة الطلبات المدفوعة. لأي استفسار عن العمولة أو حالة الحساب تواصل مع فريق كارزن.
+            تُخصم العمولة من قيمة الطلبات المدفوعة. لأي استفسار عن العمولة أو حالة الحساب تواصل مع فريق Wash Up.
           </p>
         </SectionCard>
 

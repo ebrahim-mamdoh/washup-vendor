@@ -295,7 +295,7 @@ export default function ReportsPageContent() {
         description={`${scopeLabel} — اختر نوع التقرير والمدى الزمني، وكل تقرير له مخطط وجدول وتصدير CSV.`}
         actions={
           <>
-            <ExportCsvButton filename={`carzen-report-${cfg.value}-${range.from}_${range.to}`} columns={csvColumns} rows={report?.rows} />
+            <ExportCsvButton filename={`washup-report-${cfg.value}-${range.from}_${range.to}`} columns={csvColumns} rows={report?.rows} />
             <Button variant="outline" size="icon-lg" onClick={() => refetch()} disabled={isFetching} aria-label="تحديث">
               <RefreshCw className={cn(isFetching && "animate-spin")} />
             </Button>

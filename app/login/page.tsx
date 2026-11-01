@@ -45,7 +45,7 @@ export default function LoginPage() {
           </ul>
         </div>
 
-        <p className="num relative text-xs text-white/60">© 2026 Carzen · Cairo</p>
+        <p className="num relative text-xs text-white/60">© 2026 Wash Up · Cairo</p>
       </section>
 
       <section className="flex flex-col items-center justify-center px-5 py-10 sm:px-10">
@@ -53,7 +53,7 @@ export default function LoginPage() {
           <BrandLogo subtitle="بوابة الشركاء" className="lg:hidden" />
           <div className="space-y-1.5">
             <h2 className="text-2xl font-bold tracking-tight">أهلًا بيك 👋</h2>
-            <p className="text-sm text-muted-foreground">دخول ملاك ومديري المغاسل الشريكة لكارزن.</p>
+            <p className="text-sm text-muted-foreground">دخول ملاك ومديري المغاسل الشريكة لـ Wash Up.</p>
           </div>
           <Suspense>
             <LoginForm />

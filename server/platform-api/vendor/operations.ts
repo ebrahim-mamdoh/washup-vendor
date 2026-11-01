@@ -14,12 +14,14 @@ import { serviceName } from "../lookups";
 import { vroute } from "../router";
 import {
   allowedActions,
+  atMinutes,
   availability,
   cleanOrderPayload,
   clockToMin,
   createOrder,
   dayKey,
   hoursFor,
+  isStaffAssignable,
   nextActionFor,
   occupiedAt,
   onShiftAt,
@@ -108,7 +110,10 @@ export const vendorOperationRoutes = [
         order.notes.filter((n) => n.authorId).map((n) => [n.authorId!, db.staff.find((s) => s.id === n.authorId)?.name ?? db.admins.find((a) => a.id === n.authorId)?.name ?? "—"]),
       ),
       availableAddons: db.services.filter((s) => s.branchId === order.branchId && s.type === "addon" && s.active && !order.items.some((i) => i.serviceId === s.id)),
-      assignableStaff: db.staff.filter((s) => s.branchId === order.branchId && s.status === "active" && s.role !== "owner").map((s) => ({ id: s.id, name: s.name })),
+      assignableStaff: db.staff
+        .filter((s) => isStaffAssignable(s, order.branchId, order.businessId))
+        .sort((a, b) => Number(a.role !== "employee") - Number(b.role !== "employee"))
+        .map((s) => ({ id: s.id, name: s.name })),
       allowedActions: allowedActions(db, actor, order),
       nextAction: nextActionFor(order),
       maxDiscountPct: actor.staff.maxDiscountPct,
@@ -202,9 +207,7 @@ export const vendorOperationRoutes = [
     const slots: ScheduleDay["slots"] = [];
     if (!hours.closed) {
       for (let m = clockToMin(hours.open); m < clockToMin(hours.close, true); m += step) {
-        const start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-        start.setMinutes(m);
+        const start = atMinutes(date, m);
         const end = new Date(start.getTime() + step * 60000);
         const orders = occupiedAt(db, branchId, start, end);
         slots.push({

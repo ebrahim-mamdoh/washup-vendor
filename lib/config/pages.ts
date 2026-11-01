@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
-export const SITE_NAME = "Carzen Partners";
+export const SITE_NAME = "Wash Up Partners";
 
 /** Central page metadata (Arabic titles), mirroring aroma's `lib/config/pages.ts`. */
 export const pagesConfig = {
-  "/login": { title: "تسجيل الدخول", description: "دخول بوابة شركاء كارزن لملاك ومديري المغاسل" },
-  "/register": { title: "طلب انضمام مغسلة", description: "انضم إلى شبكة شركاء كارزن وافتح باب الحجوزات الرقمية" },
+  "/login": { title: "تسجيل الدخول", description: "دخول بوابة شركاء Wash Up لملاك ومديري وموظفي المغاسل" },
+  "/register": { title: "طلب انضمام مغسلة", description: "انضم إلى شبكة شركاء Wash Up وافتح باب الحجوزات الرقمية" },
   "/dashboard": { title: "الرئيسية", description: "أرقام اليوم والفروع المباشرة والتنبيهات" },
   "/live": { title: "التشغيل المباشر", description: "لوحة السيارات داخل الفرع الآن" },
   "/bookings": { title: "الحجوزات", description: "حجوزات التطبيق والهاتف" },

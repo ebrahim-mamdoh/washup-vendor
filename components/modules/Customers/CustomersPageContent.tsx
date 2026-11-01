@@ -114,7 +114,7 @@ export default function CustomersPageContent() {
       <PageHeader
         title="العملاء"
         description={`كل من زار ${isAll ? "فروعك" : branchName(branchId)} — الزيارات والإنفاق والخدمة المفضلة. اعرف عملاءك المتكررين وتابع المنقطعين.`}
-        actions={<ExportCsvButton filename="carzen-customers" columns={CSV} rows={data?.items} />}
+        actions={<ExportCsvButton filename="washup-customers" columns={CSV} rows={data?.items} />}
       />
 
       <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-soft">

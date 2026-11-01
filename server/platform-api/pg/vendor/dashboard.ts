@@ -185,7 +185,7 @@ async function alerts(
       id: "suspended",
       type: "suspended",
       severity: "danger",
-      title: "المغسلة معلّقة من إدارة كارزن",
+      title: "المغسلة معلّقة من إدارة Wash Up",
       description: actor.business.statusReason ?? "لا تظهر للعملاء حاليًا ولا تستقبل حجوزات جديدة.",
       href: "/notifications",
     });
@@ -198,6 +198,17 @@ async function alerts(
       title: `فرق نقدية ${s.difference! > 0 ? "+" : ""}${s.difference} ج.م`,
       description: `وردية ${shiftStaff.get(s.staffId) ?? null} — ${(branches.get(s.branchId)?.name ?? EMPTY).ar}`,
       href: `/shifts?filter=difference`,
+    });
+  }
+  const stuckWaiting = scoped.filter((o) => o.status === "waiting" && overdueMinutes(o, at) >= 120);
+  if (stuckWaiting.length) {
+    out.push({
+      id: "waiting_stuck",
+      type: "waiting_stuck",
+      severity: "warning",
+      title: `${stuckWaiting.length} سيارة في الانتظار لأكثر من ساعتين`,
+      description: stuckWaiting.map((o) => o.number).slice(0, 3).join("، "),
+      href: "/orders?tab=waiting",
     });
   }
   const late = scoped.filter((o) => o.status === "completed" && o.paymentStatus === "pending" && overdueMinutes(o, at) > 30);
@@ -255,8 +266,9 @@ async function setupChecklist(q: Q, actor: VendorActor): Promise<SetupChecklist 
       coalesce(bool_or(br.active), false) as "anyActive",
       (select count(*)::int from public.services sv join public.branches b2 on b2.id = sv.branch_id
         where b2.business_id = ${actor.business.id} and sv.active) as services,
-      exists (select 1 from public.audit_logs al join public.branches b3 on b3.id = al.branch_id
-        where al.action = 'branch.update' and b3.business_id = ${actor.business.id}) as hours,
+      exists (select 1 from public.branch_working_hours h
+        join public.branches b3 on b3.id = h.branch_id
+        where b3.business_id = ${actor.business.id} and not h.closed) as hours,
       exists (select 1 from public.staff st where st.business_id = ${actor.business.id} and st.role <> 'owner') as staff
     from public.branches br where br.business_id = ${actor.business.id}`;
   const steps = [

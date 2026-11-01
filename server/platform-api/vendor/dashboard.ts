@@ -136,7 +136,7 @@ function alerts(db: MockDatabase, actor: VendorActor, branchIds: string[], scope
       id: "suspended",
       type: "suspended",
       severity: "danger",
-      title: "المغسلة معلّقة من إدارة كارزن",
+      title: "المغسلة معلّقة من إدارة Wash Up",
       description: actor.business.statusReason ?? "لا تظهر للعملاء حاليًا ولا تستقبل حجوزات جديدة.",
       href: "/notifications",
     });
@@ -149,6 +149,17 @@ function alerts(db: MockDatabase, actor: VendorActor, branchIds: string[], scope
       title: `فرق نقدية ${s.difference! > 0 ? "+" : ""}${s.difference} ج.م`,
       description: `وردية ${staffName(db, s.staffId)} — ${branchName(db, s.branchId).ar}`,
       href: `/shifts?filter=difference`,
+    });
+  }
+  const stuckWaiting = scoped.filter((o) => o.status === "waiting" && overdueMinutes(o) >= 120);
+  if (stuckWaiting.length) {
+    out.push({
+      id: "waiting_stuck",
+      type: "waiting_stuck",
+      severity: "warning",
+      title: `${stuckWaiting.length} سيارة في الانتظار لأكثر من ساعتين`,
+      description: stuckWaiting.map((o) => o.number).slice(0, 3).join("، "),
+      href: "/orders?tab=waiting",
     });
   }
   const late = scoped.filter((o) => o.status === "completed" && o.paymentStatus === "pending" && overdueMinutes(o) > 30);
@@ -206,7 +217,7 @@ function setupChecklist(db: MockDatabase, actor: VendorActor): SetupChecklist | 
   const steps = [
     { key: "branch" as const, label: "راجع بيانات الفرع والعنوان", done: branches.every((b) => Boolean(b.phone && b.address.ar)), href: "/branches" },
     { key: "services" as const, label: "راجع الخدمات والأسعار", done: db.services.filter((s) => branchIds.includes(s.branchId) && s.active).length >= 2, href: "/services" },
-    { key: "hours" as const, label: "اضبط ساعات العمل والسعة", done: db.auditLogs.some((a) => a.action === "branch.update" && a.branchId && branchIds.includes(a.branchId)), href: "/branches" },
+    { key: "hours" as const, label: "اضبط ساعات العمل والسعة", done: branches.some((b) => b.workingHours.some((d) => !d.closed && Boolean(d.open && d.close))), href: "/branches" },
     { key: "staff" as const, label: "أضف أول موظف", done: db.staff.some((s) => s.businessId === actor.business.id && s.role !== "owner"), href: "/staff" },
     { key: "live" as const, label: "فعّل المغسلة للعملاء", done: actor.business.status === "active" && branches.some((b) => b.active), href: "/settings" },
   ];

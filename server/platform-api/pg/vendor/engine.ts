@@ -19,13 +19,17 @@ import { MockApiError } from "../../http";
 import type { VendorActor } from "../../router";
 import {
   OCCUPYING,
+  atMinutes,
   bookingHorizon,
+  cairoDayKey,
   clockToMin,
   discountAfterItemsChange,
   hoursFor,
+  isStaffAssignable,
   normalizePhone,
   normalizePlate,
   offerAmount,
+  parseDiscountValue,
   primaryPrice,
   recognitionForWash,
   withManualDiscount,
@@ -49,13 +53,6 @@ type Tx = postgres.TransactionSql;
 
 /** SQL predicate for `OCCUPYING` statuses (alias o). */
 export const OCCUPYING_SQL = `o.status in (${OCCUPYING.map((s) => `'${s}'`).join(", ")})`;
-
-function atMinutes(date: Date, minutes: number): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setMinutes(minutes);
-  return d;
-}
 
 // ── Pricing (spec A8.1: price always computed, never typed) ──
 
@@ -139,26 +136,39 @@ export function overlapping<T extends Occupancy>(rows: T[], start: Date, end: Da
 export async function availability(q: Q, branch: Branch, date: Date, durationMin: number): Promise<AvailabilitySlot[]> {
   const h = hoursFor(branch, date);
   if (h.closed || !branch.active || atMinutes(date, 0) > bookingHorizon(branch)) return [];
-  const step = branch.settings.slotIntervalMin || 30;
-  const open = clockToMin(h.open);
-  const close = clockToMin(h.close, true);
-  const earliest = now().getTime() + branch.settings.leadTimeMin * 60000;
-  const occupancy = await occupancyBetween(q, branch.id, atMinutes(date, open), atMinutes(date, close));
-  const slots: AvailabilitySlot[] = [];
-  for (let m = open; m + durationMin <= close; m += step) {
-    const start = atMinutes(date, m);
-    const end = new Date(start.getTime() + durationMin * 60000);
-    const occupied = overlapping(occupancy, start, end).length;
-    const blocked = branch.blockedSlots.some((b) => new Date(b.start) < end && new Date(b.end) > start);
-    slots.push({
-      start: start.toISOString(),
-      free: Math.max(0, branch.capacity - occupied),
+  try {
+    const rows = await q<{ start: Date; free: number }[]>`
+      select start_at as start, free_capacity as free
+      from public.get_branch_slots(${branch.id}, ${cairoDayKey(date)}::date, ${durationMin}, null, true)`;
+    return rows.map((r) => ({
+      start: new Date(r.start).toISOString(),
+      free: Math.max(0, r.free),
       capacity: branch.capacity,
-      blocked,
-      past: start.getTime() < earliest,
-    });
+      blocked: false,
+      past: false,
+    }));
+  } catch {
+    const step = branch.settings.slotIntervalMin || 30;
+    const open = clockToMin(h.open);
+    const close = clockToMin(h.close, true);
+    const earliest = now().getTime() + branch.settings.leadTimeMin * 60000;
+    const occupancy = await occupancyBetween(q, branch.id, atMinutes(date, open), atMinutes(date, close));
+    const slots: AvailabilitySlot[] = [];
+    for (let m = open; m + durationMin <= close; m += step) {
+      const start = atMinutes(date, m);
+      const end = new Date(start.getTime() + durationMin * 60000);
+      const occupied = overlapping(occupancy, start, end).length;
+      const blocked = branch.blockedSlots.some((b) => new Date(b.start) < end && new Date(b.end) > start);
+      slots.push({
+        start: start.toISOString(),
+        free: Math.max(0, branch.capacity - occupied),
+        capacity: branch.capacity,
+        blocked,
+        past: start.getTime() < earliest,
+      });
+    }
+    return slots.filter((s) => !s.past && !s.blocked && s.free > 0);
   }
-  return slots;
 }
 
 /** Orders in service right now at a branch (bays busy). */
@@ -193,7 +203,7 @@ export function allowedActions(actor: VendorActor, o: Order, graceMin: number): 
     case "waiting":
       add(p.runService, "start");
       add(p.cancelOrder, "cancel");
-      add(true, "assign", "add_service", "discount");
+      add(true, "no_show", "assign", "add_service", "discount");
       break;
     case "in_service":
       add(p.runService, "complete");
@@ -249,6 +259,20 @@ async function dropPendingTransaction(t: Tx, o: Order) {
   await t`delete from public.transactions where order_id = ${o.id} and status = 'pending'`;
 }
 
+/** Ledger row is created when the service completes (still pending until collect_payment). */
+async function ensurePendingTransaction(t: Tx, o: Order) {
+  const [existing] = await t<{ id: string }[]>`select id from public.transactions where order_id = ${o.id} limit 1`;
+  if (existing) return;
+  const [biz] = await t<{ rate: number | null }[]>`select commission_rate as rate from public.businesses where id = ${o.businessId}`;
+  const rate = biz?.rate ?? (await defaultCommissionPct(t));
+  const commission = round2((o.total * rate) / 100);
+  await t`
+    insert into public.transactions (id, order_id, business_id, gross, commission_rate, commission, net_to_wash, date, status)
+    values (${`txn_${o.id}`}, ${o.id}, ${o.businessId}, ${o.total}, ${rate}, ${commission},
+            ${round2(o.total - commission)}, ${o.scheduledAt}, 'pending')
+    on conflict (order_id) do nothing`;
+}
+
 /** Recomputes subtotal/duration/discount/total like the mock `recomputeTotals` and writes them (plus a pending transaction). */
 async function writeTotals(t: Tx, o: Order, items: OrderItem[], discount: Order["discount"]) {
   const subtotal = items.reduce((s, it) => s + it.price, 0);
@@ -277,9 +301,13 @@ function requireReason(value: unknown, label = "السبب"): string {
 }
 
 async function assertAssignable(q: Q, branchId: string, staffId: string) {
-  const rows = await q`
-    select 1 from public.staff where id = ${staffId} and branch_id = ${branchId} and status = 'active' and role <> 'owner'`;
-  if (!rows.length) throw new MockApiError("الموظف غير متاح في هذا الفرع", 422);
+  const [s] = await q<{ status: string; role: string; branchId: string; businessId: string }[]>`
+    select status, role, branch_id as "branchId", business_id as "businessId"
+    from public.staff where id = ${staffId}`;
+  const [branch] = await q<{ businessId: string }[]>`select business_id as "businessId" from public.branches where id = ${branchId}`;
+  if (!s || !branch || !isStaffAssignable(s, branchId, branch.businessId)) {
+    throw new MockApiError("الموظف غير متاح في هذا الفرع", 422);
+  }
 }
 
 async function staffName(q: Q, id: string | null): Promise<string | null> {
@@ -326,7 +354,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       return `تم تسجيل وصول ${o.plate || o.number}`;
     }
     case "start": {
-      const staffId = payload.staffId ?? o.assignedStaffId;
+      const staffId = payload.staffId ?? o.assignedStaffId ?? actor.staff.id;
       if (!staffId) throw new MockApiError("اختر الموظف المسؤول عن الخدمة", 422, { staffId: ["مطلوب"] });
       await assertAssignable(t, o.branchId, staffId);
       const busy = await busyBays(t, o.branchId);
@@ -340,6 +368,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
     case "complete": {
       await moveStatus(t, o, "completed");
       await pushTimeline(t, o, "completed", actor);
+      await ensurePendingTransaction(t, o);
       await audit(t, actor, o, "order.complete", from, "completed");
       return `اكتملت الخدمة — بانتظار الدفع ${o.total} ج.م`;
     }
@@ -357,6 +386,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await t`
         insert into public.payments (order_id, amount, method, collected_by, status)
         values (${o.id}, ${o.total}, ${method}, ${actor.staff.id}, 'paid')`;
+      await ensurePendingTransaction(t, { ...o, status: "completed" });
       await t`update public.transactions set status = 'paid' where order_id = ${o.id}`;
       await audit(t, actor, o, "order.payment", "pending", `paid · ${PAYMENT_LABEL[method]} · ${o.total}`);
       const change = method === "cash" ? Number(payload.amountReceived ?? o.total) - o.total : 0;
@@ -414,14 +444,8 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
     }
     case "discount": {
       const reason = requireReason(payload.reason, "سبب الخصم");
-      const value = Number(payload.discountValue);
-      if (Number.isNaN(value) || value <= 0) throw new MockApiError("قيمة الخصم غير صالحة", 422);
-      const pct = payload.discountType === "fixed" ? (value / o.subtotal) * 100 : value;
-      if (pct > actor.staff.maxDiscountPct) {
-        throw new MockApiError(`الحد الأقصى لخصمك ${actor.staff.maxDiscountPct}٪ — هذا الخصم ${Math.round(pct)}٪`, 403);
-      }
+      const { value, manual } = parseDiscountValue(payload.discountType, payload.discountValue, o.subtotal, actor.staff.maxDiscountPct);
       const old = o.total;
-      const manual = payload.discountType === "fixed" ? Math.min(value, o.subtotal) : Math.round((o.subtotal * value) / 100);
       const [offer] = o.offerId ? await offersWhere(t, t`of.id = ${o.offerId}`) : [];
       const discount = withManualDiscount(o, offer ? offerAmount(offer, primaryPrice(o.items)) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       const total = await writeTotals(t, o, o.items, discount);
@@ -467,6 +491,9 @@ export async function recognize(q: Q, businessId: string, plate?: string | null,
     if (customer && !vehicle) {
       [vehicle = null] = await vehiclesWhere(q, q`v.customer_id = ${customer.id} and v.is_default`, q`order by v.created_at, v.id limit 1`);
     }
+  }
+  if (vehicle && plate && normalizePlate(plate).length >= 3 && normalizePlate(vehicle.plate) !== normalizePlate(plate)) {
+    vehicle = null;
   }
   if (!customer) return { customer: null, vehicle, visits: 0, lastVisitAt: null, usualServiceId: null, usualServiceName: null };
 
@@ -531,7 +558,7 @@ export async function createOrder(t: Tx, actor: VendorActor, payload: CreateOrde
     customerId = row.id;
   }
   if (isPhone && !customerId) throw new MockApiError("رقم موبايل العميل مطلوب للحجز الهاتفي", 422, { customerPhone: ["مطلوب"] });
-  let vehicleId = rec.vehicle?.id ?? null;
+  let vehicleId = rec.vehicle && normalizePlate(rec.vehicle.plate) === plate ? rec.vehicle.id : null;
   if (!vehicleId && customerId) {
     const [row] = await t<{ id: string }[]>`
       insert into public.vehicles (customer_id, make, model, year, color, plate, is_default)
@@ -561,14 +588,6 @@ export async function createOrder(t: Tx, actor: VendorActor, payload: CreateOrde
     await t`insert into public.order_notes (order_id, author_staff_id, text) values (${order.id}, ${actor.staff.id}, ${payload.notes.trim()})`;
   }
 
-  // Commission ledger row (pending until paid), same id scheme as the mock.
-  const [biz] = await t<{ rate: number | null }[]>`select commission_rate as rate from public.businesses where id = ${actor.business.id}`;
-  const rate = biz?.rate ?? (await defaultCommissionPct(t));
-  const commission = round2((price.total * rate) / 100);
-  await t`
-    insert into public.transactions (id, order_id, business_id, gross, commission_rate, commission, net_to_wash, date, status)
-    values (${`txn_${order.id}`}, ${order.id}, ${actor.business.id}, ${price.total}, ${rate}, ${commission},
-            ${round2(price.total - commission)}, ${scheduledAt.toISOString()}, 'pending')`;
   if (customerId) await t`update public.customers set last_active_at = now() where id = ${customerId}`;
   await logAudit(t, {
     actorType: "staff",

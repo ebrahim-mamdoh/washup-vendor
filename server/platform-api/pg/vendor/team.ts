@@ -4,12 +4,12 @@ import type { Order, PaymentMethod } from "@/types/orders";
 import type { DayClosingSummary, MethodTotals, ShiftClosing, StaffPerformance, VendorStaffMember } from "@/types/vendor/team";
 import type { ShiftPattern, Staff, StaffPermissions, StaffRole } from "@/types/washes";
 
-import { daysAgo, now, round2 } from "../../db";
+import { daysAgo, nid, now, round2 } from "../../db";
 import { MockApiError, ok, requireText, sortBy } from "../../http";
 import type { VendorActor } from "../../router";
 import type { Shift } from "../../schema";
 import { defaultPermissions } from "../../seed";
-import { assertClosableDay, cleanShiftPatterns, dayKey, hasManualDiscount, isPlausibleDuration, normalizePhone } from "../../vendor/engine";
+import { assertClosableDay, atMinutes, cairoDateParts, cleanShiftPatterns, clockToMin, dayKey, hasManualDiscount, isPlausibleDuration, normalizePhone } from "../../vendor/engine";
 import { createLogin, isLocalAuth, loginNotice } from "../auth";
 import { PHONE, auditWhere, dayClosingsWhere, e164, shiftsWhere, staffById, staffWhere } from "../entities";
 import { dayBounds, paged, searchPattern } from "../list";
@@ -316,6 +316,77 @@ export const vendorTeamRoutes = [
   }),
 
   // ── Shift closings (D11 / MG-07 / OW-15) ─────────────────
+  vroute("GET", "/vendor/shifts/current", async ({ actor }) => {
+    const sql = db();
+    const [row] = await shiftsWhere(sql, sql`sh.staff_id = ${actor.staff.id} and sh.review_status = 'open' and sh.actual_end is null`);
+    if (!row) return ok(null);
+    const [closing] = await toClosings(sql, [row]);
+    return ok(closing);
+  }),
+
+  vroute("POST", "/vendor/shifts/clock-in", async ({ actor }) => {
+    const closing = await tx(async (t) => {
+      const [existing] = await shiftsWhere(t, t`sh.staff_id = ${actor.staff.id} and sh.review_status = 'open' and sh.actual_end is null`);
+      if (existing) throw new MockApiError("لديك وردية مفتوحة بالفعل", 409);
+      const at = now();
+      const weekday = cairoDateParts(at).weekday;
+      const pat = actor.staff.scheduledShifts.find((p) => p.days.includes(weekday));
+      const scheduledStart = pat ? atMinutes(at, clockToMin(pat.start)) : at;
+      const scheduledEnd = pat ? atMinutes(at, clockToMin(pat.end, true)) : new Date(at.getTime() + 8 * 3600000);
+      const id = nid("sh");
+      await t`
+        insert into public.staff_shifts (
+          id, staff_id, branch_id, scheduled_start, scheduled_end, actual_start,
+          orders_completed, cash_payments, card_payments, expected_cash, review_status
+        ) values (
+          ${id}, ${actor.staff.id}, ${actor.staff.branchId}, ${scheduledStart.toISOString()}, ${scheduledEnd.toISOString()}, ${at.toISOString()},
+          0, 0, 0, 0, 'open'
+        )`;
+      await audit(t, actor, "shift.clock_in", "shifts", id, actor.staff.branchId, null, "open");
+      const [row] = await shiftsWhere(t, t`sh.id = ${id}`);
+      const [out] = await toClosings(t, [row]);
+      return out;
+    });
+    return ok(closing, "تم بدء الوردية");
+  }),
+
+  vroute("POST", "/vendor/shifts/clock-out", async ({ body, actor }) => {
+    const actualCash = Number(body.actualCash ?? 0);
+    if (Number.isNaN(actualCash) || actualCash < 0) throw new MockApiError("أدخل النقدية الفعلية في الصندوق", 422, { actualCash: ["مطلوب"] });
+    const closing = await tx(async (t) => {
+      const [current] = await shiftsWhere(t, t`sh.staff_id = ${actor.staff.id} and sh.review_status = 'open' and sh.actual_end is null`);
+      if (!current) throw new MockApiError("لا توجد وردية مفتوحة لإنهائها", 409);
+      const ended = now();
+      const start = new Date(current.actualStart ?? current.scheduledStart).toISOString();
+      const stats = await t<{ n: number; cash: number; card: number }[]>`
+        select count(*)::int as n,
+               coalesce(sum(o.total) filter (where o.payment_status = 'paid' and o.payment_method = 'cash'), 0) as cash,
+               coalesce(sum(o.total) filter (where o.payment_status = 'paid' and o.payment_method = 'card'), 0) as card
+        from public.orders o
+        where o.assigned_staff_id = ${current.staffId} and o.status = 'completed'
+          and o.scheduled_at >= ${start}::timestamptz - interval '1 hour' and o.scheduled_at <= ${ended.toISOString()}::timestamptz`;
+      const cash = stats[0]?.cash ?? 0;
+      const card = stats[0]?.card ?? 0;
+      const n = stats[0]?.n ?? 0;
+      const difference = round2(actualCash - cash);
+      const reasonText = typeof body.reason === "string" ? body.reason.trim() : "";
+      if (difference !== 0 && reasonText.length < 3) throw new MockApiError("يوجد فرق في الصندوق — اكتب السبب", 422, { reason: ["مطلوب عند وجود فرق"] });
+      const reasonJson = reasonText ? JSON.stringify({ ar: reasonText, en: reasonText }) : null;
+      const updated = await t`
+        update public.staff_shifts
+        set actual_end = ${ended.toISOString()}, orders_completed = ${n}, cash_payments = ${cash}, card_payments = ${card},
+            expected_cash = ${cash}, actual_cash = ${actualCash}, difference_reason = ${reasonJson}::jsonb, review_status = 'submitted'
+        where id = ${current.id} and review_status = 'open'
+        returning id`;
+      if (!updated.length) throw new MockApiError("لا توجد وردية مفتوحة لإنهائها", 409);
+      await audit(t, actor, "shift.clock_out", "shifts", current.id, current.branchId, "open", "submitted", reasonText || null);
+      const [row] = await shiftsWhere(t, t`sh.id = ${current.id}`);
+      const [out] = await toClosings(t, [row]);
+      return out;
+    });
+    return ok(closing, "تم إنهاء الوردية وبانتظار المراجعة");
+  }),
+
   vroute("GET", "/vendor/shifts", async ({ query, actor }) => {
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));

@@ -22,7 +22,8 @@ export const apiClient = axios.create({
   withCredentials: false,
 });
 
-const isAuthCall = (url: string) => url.includes("/auth/login") || url.includes("/auth/refresh");
+const isAuthCall = (url: string) =>
+  url.includes("/auth/login") || url.includes("/auth/refresh") || url.includes("/auth/forgot-password") || url.includes("/auth/reset-password");
 
 let refreshing: Promise<string | null> | null = null;
 

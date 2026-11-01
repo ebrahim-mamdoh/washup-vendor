@@ -38,12 +38,64 @@ export function clockToMin(hhmm: string, isClose = false): number {
   return isClose && v === 0 ? 1440 : v;
 }
 
+const CAIRO = "Africa/Cairo";
+
+/** Calendar / clock parts in Africa/Cairo (wash hours are wall-clock Egypt, not the server TZ). */
+export function cairoDateParts(d: Date): { y: number; m: number; day: number; weekday: number; hour: number; minute: number } {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: CAIRO,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  const p = Object.fromEntries(fmt.formatToParts(d).map((x) => [x.type, x.value]));
+  const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    y: Number(p.year),
+    m: Number(p.month),
+    day: Number(p.day),
+    weekday: weekdayMap[p.weekday] ?? 0,
+    hour: Number(p.hour),
+    minute: Number(p.minute),
+  };
+}
+
+export function cairoDayKey(d: Date | string): string {
+  const p = cairoDateParts(new Date(d));
+  return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
+/** Instant whose Cairo wall-clock equals the given Y-M-D H:M. */
+export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0, minute = 0): Date {
+  const utc = Date.UTC(y, month - 1, day, hour, minute, 0);
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: CAIRO,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const wallAsUtc = (instant: Date) => {
+    const p = Object.fromEntries(dtf.formatToParts(instant).filter((x) => x.type !== "literal").map((x) => [x.type, x.value]));
+    return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
+  };
+  return new Date(utc - (wallAsUtc(new Date(utc)) - utc));
+}
+
 export function minutesOfDay(d: Date): number {
-  return d.getHours() * 60 + d.getMinutes();
+  const p = cairoDateParts(d);
+  return p.hour * 60 + p.minute;
 }
 
 export function hoursFor(branch: Branch, date: Date): WorkingDay {
-  return branch.workingHours[date.getDay()] ?? { open: "09:00", close: "21:00", closed: false };
+  return branch.workingHours[cairoDateParts(date).weekday] ?? { open: "09:00", close: "21:00", closed: false };
 }
 
 export function isOpenAt(branch: Branch, at: Date = now()): boolean {
@@ -54,25 +106,40 @@ export function isOpenAt(branch: Branch, at: Date = now()): boolean {
   return m >= clockToMin(h.open) && m < clockToMin(h.close, true);
 }
 
-function atMinutes(date: Date, minutes: number): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setMinutes(minutes);
-  return d;
+export function atMinutes(date: Date, minutes: number): Date {
+  const p = cairoDateParts(date);
+  const dayShift = Math.floor(minutes / 1440);
+  const mins = minutes - dayShift * 1440;
+  const noon = cairoLocalToUtc(p.y, p.m, p.day, 12, 0);
+  const shifted = cairoDateParts(new Date(noon.getTime() + dayShift * 86400000));
+  return cairoLocalToUtc(shifted.y, shifted.m, shifted.day, Math.floor(mins / 60), mins % 60);
+}
+
+/** Owner of this wash, or an active manager/employee of the branch. */
+export function isStaffAssignable(
+  s: { status: string; role: string; branchId: string; businessId: string },
+  branchId: string,
+  businessId: string,
+): boolean {
+  if (s.status !== "active") return false;
+  if (s.role === "owner") return s.businessId === businessId;
+  return s.branchId === branchId;
 }
 
 // ── People ──────────────────────────────────────────────────
 
-/** Employees/managers of a branch whose scheduled shift covers `at` (spec MG-04: on-shift staff). */
+/** Staff of a branch who are clocked in, or whose weekly pattern covers `at`. */
 export function onShiftAt(db: MockDatabase, branchId: string, at: Date = now()): Staff[] {
   const m = minutesOfDay(at);
-  return db.staff.filter(
-    (s) =>
-      s.branchId === branchId &&
-      s.status === "active" &&
-      s.role !== "owner" &&
-      s.scheduledShifts.some((p) => p.days.includes(at.getDay()) && m >= clockToMin(p.start) && m < clockToMin(p.end, true)),
+  const weekday = cairoDateParts(at).weekday;
+  const openIds = new Set(
+    db.shifts.filter((sh) => sh.branchId === branchId && sh.reviewStatus === "open" && !sh.actualEnd).map((sh) => sh.staffId),
   );
+  return db.staff.filter((s) => {
+    if (s.branchId !== branchId || s.status !== "active") return false;
+    if (openIds.has(s.id)) return true;
+    return s.role !== "owner" && s.scheduledShifts.some((p) => p.days.includes(weekday) && m >= clockToMin(p.start) && m < clockToMin(p.end, true));
+  });
 }
 
 export function staffName(db: MockDatabase, id: string | null): string | null {
@@ -185,6 +252,11 @@ export function overdueMinutes(o: Order, at: Date = now()): number {
     const startedAt = started ? new Date(started.at).getTime() : new Date(o.scheduledAt).getTime();
     return Math.max(0, Math.round((t - startedAt) / 60000 - o.durationMin));
   }
+  if (o.status === "waiting") {
+    const arrived = [...o.timeline].reverse().find((e) => e.status === "waiting");
+    const arrivedAt = arrived ? new Date(arrived.at).getTime() : new Date(o.scheduledAt).getTime();
+    return Math.max(0, Math.round((t - arrivedAt) / 60000));
+  }
   if (o.status === "confirmed" || o.status === "pending") {
     return Math.max(0, Math.round((t - new Date(o.scheduledAt).getTime()) / 60000));
   }
@@ -233,7 +305,7 @@ export function allowedActions(db: MockDatabase, actor: VendorActor, o: Order): 
     case "waiting":
       add(p.runService, "start");
       add(p.cancelOrder, "cancel");
-      add(true, "assign", "add_service", "discount");
+      add(true, "no_show", "assign", "add_service", "discount");
       break;
     case "in_service":
       add(p.runService, "complete");
@@ -339,7 +411,7 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       return `تم تسجيل وصول ${o.plate || o.number}`;
     }
     case "start": {
-      const staffId = payload.staffId ?? o.assignedStaffId;
+      const staffId = payload.staffId ?? o.assignedStaffId ?? actor.staff.id;
       if (!staffId) throw new MockApiError("اختر الموظف المسؤول عن الخدمة", 422, { staffId: ["مطلوب"] });
       assertAssignable(db, o.branchId, staffId);
       const busy = db.orders.filter((x) => x.branchId === o.branchId && x.status === "in_service").length;
@@ -353,6 +425,7 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
     case "complete": {
       o.status = "completed";
       pushTimeline(o, "completed", actor);
+      if (!db.transactions.some((t) => t.orderId === o.id)) addTransaction(db, o);
       audit(db, actor, o, "order.complete", from, "completed");
       return `اكتملت الخدمة — بانتظار الدفع ${o.total} ج.م`;
     }
@@ -376,6 +449,11 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       });
       const txn = db.transactions.find((t) => t.orderId === o.id);
       if (txn) txn.status = "paid";
+      else {
+        addTransaction(db, o);
+        const created = db.transactions.find((t) => t.orderId === o.id);
+        if (created) created.status = "paid";
+      }
       audit(db, actor, o, "order.payment", "pending", `paid · ${PAYMENT_LABEL[method]} · ${o.total}`);
       const change = method === "cash" ? Number(payload.amountReceived ?? o.total) - o.total : 0;
       return change > 0 ? `تم التحصيل — الباقي للعميل ${change} ج.م` : "تم تحصيل المبلغ بنجاح";
@@ -416,14 +494,8 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
     }
     case "discount": {
       const reason = requireReason(payload.reason, "سبب الخصم");
-      const value = Number(payload.discountValue);
-      if (Number.isNaN(value) || value <= 0) throw new MockApiError("قيمة الخصم غير صالحة", 422);
-      const pct = payload.discountType === "fixed" ? (value / o.subtotal) * 100 : value;
-      if (pct > actor.staff.maxDiscountPct) {
-        throw new MockApiError(`الحد الأقصى لخصمك ${actor.staff.maxDiscountPct}٪ — هذا الخصم ${Math.round(pct)}٪`, 403);
-      }
+      const { value, manual } = parseDiscountValue(payload.discountType, payload.discountValue, o.subtotal, actor.staff.maxDiscountPct);
       const old = o.total;
-      const manual = payload.discountType === "fixed" ? Math.min(value, o.subtotal) : Math.round((o.subtotal * value) / 100);
       const offer = o.offerId ? db.offers.find((x) => x.id === o.offerId) : undefined;
       o.discount = withManualDiscount(o, offer ? offerAmount(offer, primaryPrice(o.items)) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       recomputeTotals(db, o);
@@ -450,9 +522,28 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
   }
 }
 
+export function parseDiscountValue(
+  discountType: unknown,
+  discountValue: unknown,
+  subtotal: number,
+  maxPct: number,
+): { value: number; manual: number } {
+  const value = Number(discountValue);
+  if (!Number.isFinite(value) || value <= 0) throw new MockApiError("قيمة الخصم غير صالحة", 422);
+  if (discountType !== "fixed" && value > 100) throw new MockApiError("نسبة الخصم لا تتجاوز 100٪", 422);
+  const capped = discountType === "fixed" ? Math.min(value, subtotal) : value;
+  const pct = discountType === "fixed" ? (subtotal > 0 ? (capped / subtotal) * 100 : 0) : value;
+  if (pct > maxPct) {
+    throw new MockApiError(`الحد الأقصى لخصمك ${maxPct}٪ — هذا الخصم ${Math.round(pct)}٪`, 403);
+  }
+  const manual = discountType === "fixed" ? capped : Math.round((subtotal * value) / 100);
+  return { value, manual };
+}
+
 function assertAssignable(db: MockDatabase, branchId: string, staffId: string) {
   const s = db.staff.find((x) => x.id === staffId);
-  if (!s || s.branchId !== branchId || s.status !== "active" || s.role === "owner") {
+  const businessId = db.branches.find((b) => b.id === branchId)?.businessId ?? "";
+  if (!s || !isStaffAssignable(s, branchId, businessId)) {
     throw new MockApiError("الموظف غير متاح في هذا الفرع", 422);
   }
 }
@@ -521,6 +612,9 @@ export function recognize(db: MockDatabase, businessId: string, plate?: string |
     customer = db.customers.find((c) => normalizePhone(c.phone) === normalizePhone(phone)) ?? null;
     if (customer && !vehicle) vehicle = db.vehicles.find((v) => v.customerId === customer!.id && v.isDefault) ?? null;
   }
+  if (vehicle && plate && normalizePlate(plate).length >= 3 && vehicle.plateNormalized !== normalizePlate(plate)) {
+    vehicle = null;
+  }
   if (!customer) return { customer: null, vehicle, visits: 0, lastVisitAt: null, usualServiceId: null, usualServiceName: null };
 
   const visits = db.orders
@@ -576,7 +670,7 @@ export function createOrder(db: MockDatabase, actor: VendorActor, payload: Creat
     db.customers.push(customer);
   }
   if (isPhone && !customer) throw new MockApiError("رقم موبايل العميل مطلوب للحجز الهاتفي", 422, { customerPhone: ["مطلوب"] });
-  let vehicle = rec.vehicle;
+  let vehicle = rec.vehicle && rec.vehicle.plateNormalized === plate ? rec.vehicle : null;
   if (!vehicle && customer) {
     vehicle = {
       id: nid("ve"),
@@ -623,7 +717,6 @@ export function createOrder(db: MockDatabase, actor: VendorActor, payload: Creat
     closedInDayId: null,
   };
   db.orders.push(order);
-  addTransaction(db, order);
   if (customer) customer.lastActiveAt = now().toISOString();
   logAudit(db, {
     actorType: "staff",

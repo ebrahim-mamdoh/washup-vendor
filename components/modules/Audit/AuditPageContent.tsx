@@ -21,7 +21,7 @@ import { useBranchScope } from "@/hooks/use-branch-scope";
 import { useAudit } from "@/hooks/use-insights";
 import type { VendorAuditItem } from "@/types/vendor/insights";
 
-const CARZEN_ADMIN = "إدارة كارزن";
+const CARZEN_ADMIN = "إدارة Wash Up";
 
 function actorLabel(l: VendorAuditItem) {
   if (l.actorType === "admin") return CARZEN_ADMIN;
@@ -32,7 +32,7 @@ function actorLabel(l: VendorAuditItem) {
 function actorRole(l: VendorAuditItem) {
   switch (l.actorType) {
     case "admin":
-      return "فريق منصة كارزن";
+      return "فريق منصة Wash Up";
     case "system":
       return "إجراء تلقائي";
     case "customer":
@@ -119,7 +119,7 @@ export default function AuditPageContent() {
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 truncate text-sm font-medium">
               {actorLabel(l)}
-              {l.actorType === "admin" ? <StatusBadge label="كارزن" tone={TONES.primary} size="sm" /> : null}
+              {l.actorType === "admin" ? <StatusBadge label="Wash Up" tone={TONES.primary} size="sm" /> : null}
             </p>
             <p className="text-[11px] text-muted-foreground">{actorRole(l)}</p>
           </div>
@@ -195,14 +195,14 @@ export default function AuditPageContent() {
       <PageHeader
         title="سجل التدقيق"
         description="كل إجراء على الطلبات والأسعار والخصومات والإلغاءات والتحصيل والورديات — من نفّذه، متى، في أي فرع، القيمة قبل وبعد، والسبب."
-        actions={<ExportCsvButton filename="carzen-wash-audit" columns={CSV} rows={data?.items} />}
+        actions={<ExportCsvButton filename="washup-wash-audit" columns={CSV} rows={data?.items} />}
       />
 
       <div className="flex items-start gap-3 rounded-2xl border border-info/30 bg-info/5 p-4" role="note">
         <Lock className="mt-0.5 size-5 shrink-0 text-info" />
         <div className="text-sm">
           <p className="font-semibold">سجل للقراءة فقط — لا يمكن تعديله أو حذفه</p>
-          <p className="mt-0.5 text-muted-foreground">تُكتب الإدخالات تلقائيًا عند كل إجراء، ولا يملك أي مستخدم — بما فيهم المالك وإدارة كارزن — صلاحية تعديلها.</p>
+          <p className="mt-0.5 text-muted-foreground">تُكتب الإدخالات تلقائيًا عند كل إجراء، ولا يملك أي مستخدم — بما فيهم المالك وإدارة Wash Up — صلاحية تعديلها.</p>
         </div>
       </div>
 

@@ -13,7 +13,7 @@ import { DetailSkeleton, EmptyState, ErrorState } from "@/components/shared/stat
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
-import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, VEHICLE_COLOR, discountReasonLabel } from "@/lib/constants/labels";
+import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, VEHICLE_COLOR, cancelReasonLabel, discountReasonLabel, paymentStatusMeta } from "@/lib/constants/labels";
 import { formatDateTime, formatDuration, formatMoney, formatRelative } from "@/lib/format";
 import { OrderActions } from "@/components/modules/Orders/actions/OrderActions";
 import { useOrder } from "@/hooks/use-operations";
@@ -44,7 +44,7 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
         meta={
           <div className="flex flex-wrap items-center gap-1.5">
             <StatusBadge meta={ORDER_STATUS[order.status]} live={order.status === "in_service"} />
-            <StatusBadge meta={PAYMENT_STATUS[order.paymentStatus]} />
+            <StatusBadge meta={paymentStatusMeta(order.paymentStatus, order.status)} />
             <StatusBadge meta={ORDER_SOURCE[order.source]} />
           </div>
         }
@@ -77,9 +77,9 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
           <Ban className="mt-0.5 size-5 shrink-0 text-destructive" />
           <div>
             <p className="font-semibold text-destructive">
-              {order.cancel.byType === "admin" ? "ألغته إدارة كارزن" : order.cancel.byType === "customer" ? "ألغاه العميل" : "ألغاه طاقم المغسلة"} — {formatRelative(order.cancel.at)}
+              {order.cancel.byType === "admin" ? "ألغته إدارة Wash Up" : order.cancel.byType === "customer" ? "ألغاه العميل" : "ألغاه طاقم المغسلة"} — {formatRelative(order.cancel.at)}
             </p>
-            <p className="mt-0.5 text-muted-foreground">السبب: {order.cancel.reason}</p>
+            <p className="mt-0.5 text-muted-foreground">السبب: {cancelReasonLabel(order.cancel.reason)}</p>
           </div>
         </div>
       ) : null}
@@ -214,7 +214,7 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
             <InfoList
               columns={1}
               items={[
-                { label: "الحالة", value: <StatusBadge meta={PAYMENT_STATUS[order.paymentStatus]} size="sm" /> },
+                { label: "الحالة", value: <StatusBadge meta={paymentStatusMeta(order.paymentStatus, order.status)} size="sm" /> },
                 { label: "الطريقة", value: order.paymentMethod ? PAYMENT_METHOD[order.paymentMethod] : "—" },
                 { label: "المبلغ المحصّل", value: payment ? <span className="num">{formatMoney(payment.amount)}</span> : "—" },
                 { label: "وقت التحصيل", value: payment ? <span className="num">{formatDateTime(payment.collectedAt)}</span> : "—" },

@@ -21,9 +21,6 @@ export const vendorAuthRoutes = [
         throw new MockApiError("رقم الموبايل أو كلمة المرور غير صحيحة", 401);
       }
       if (staff.status !== "active") throw new MockApiError("هذا الحساب موقوف. تواصل مع مالك المغسلة.", 403);
-      if (staff.role === "employee") {
-        throw new MockApiError("بوابة الشركاء مخصصة للمالك ومديري الفروع. الموظفون يستخدمون تطبيق الموظف.", 403);
-      }
       const business = db.businesses.find((b) => b.id === staff.businessId);
       if (!business || business.status === "rejected") {
         throw new MockApiError("لا توجد مغسلة معتمدة مرتبطة بهذا الحساب", 403);
@@ -59,4 +56,31 @@ export const vendorAuthRoutes = [
     if (token) delete db.vendorSessions[token];
     return ok(null, "تم تسجيل الخروج");
   }),
+
+  vroute("POST", "/vendor/auth/change-password", ({ db, body, actor }) => {
+    const currentPassword = String(body.currentPassword ?? "");
+    const newPassword = String(body.newPassword ?? "");
+    if (newPassword.length < 8) throw new MockApiError("كلمة المرور الجديدة 8 أحرف على الأقل", 422);
+    if (db.staffPasswords[actor.staff.id] !== currentPassword) throw new MockApiError("كلمة المرور الحالية غير صحيحة", 401);
+    db.staffPasswords[actor.staff.id] = newPassword;
+    return ok(null, "تم تغيير كلمة المرور");
+  }),
+
+  vroute(
+    "POST",
+    "/vendor/auth/forgot-password",
+    () => {
+      throw new MockApiError("استرجاع كلمة المرور متاح على بيئة الإنتاج (Supabase) فقط", 422);
+    },
+    true,
+  ),
+
+  vroute(
+    "POST",
+    "/vendor/auth/reset-password",
+    () => {
+      throw new MockApiError("استرجاع كلمة المرور متاح على بيئة الإنتاج (Supabase) فقط", 422);
+    },
+    true,
+  ),
 ];

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BellRing, Building2, KeyRound, Lock, SlidersHorizontal } from "lucide-react";
 
 import { BusinessTab } from "@/components/modules/Settings/BusinessTab";
+import { PasswordCard } from "@/components/modules/Settings/PasswordCard";
 import { NotificationsTab } from "@/components/modules/Settings/NotificationsTab";
 import { PermissionsTab } from "@/components/modules/Settings/PermissionsTab";
 import { PageHeader } from "@/components/shared/page-header";
@@ -158,6 +159,8 @@ export default function SettingsPageContent() {
           <NotificationsTab key={JSON.stringify(data.notificationPrefs)} value={data.notificationPrefs} readOnly={readOnly} onDirtyChange={onDirty.notifications} />
         </TabsContent>
       </Tabs>
+
+      <PasswordCard />
     </div>
   );
 }

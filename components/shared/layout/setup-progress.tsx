@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { ArrowLeft, Check, Clock, Rocket, Sparkles, Store, UserPlus } from "lucide-react";
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -52,7 +52,7 @@ function SetupDialog({ setup, open, onOpenChange }: { setup: SetupChecklist; ope
   const value = pct(setup);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="grid-cols-[minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-md" showCloseButton={false}>
+      <DialogContent className="grid-cols-[minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-md" showCloseButton>
         <div className="bg-[linear-gradient(135deg,#2aa4ff_0%,#1463ff_45%,#0f3a9e_100%)] px-5 pt-5 pb-4 text-white">
           <DialogTitle className="text-lg leading-snug font-bold">أهلاً بك في بوابة الشركاء 👋</DialogTitle>
           <DialogDescription className="mt-1.5 text-[13px] leading-relaxed text-white/85">
@@ -138,10 +138,6 @@ export function SetupWelcome() {
   const { setup, businessId } = usePendingSetup();
   const open = useUIStore((s) => s.setupOpen);
   const setOpen = useUIStore((s) => s.setSetupOpen);
-
-  useEffect(() => {
-    if (setup && businessId && !seenFor(businessId)) setOpen(true);
-  }, [setup, businessId, setOpen]);
 
   if (!setup) return null;
   return (

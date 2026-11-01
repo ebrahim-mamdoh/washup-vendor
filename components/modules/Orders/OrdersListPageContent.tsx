@@ -79,6 +79,7 @@ const CSV: CsvColumn<VendorOrderListItem>[] = [
 export default function OrdersListPageContent({ view }: { view: View }) {
   const { branchId, isAll } = useBranchScope();
   const setNewOrderOpen = useUIStore((s) => s.setNewOrderOpen);
+  const openNewOrder = useUIStore((s) => s.openNewOrder);
   const [state, setState] = useUrlState({
     tab: TABS[view][0].value,
     source: "all",
@@ -201,8 +202,8 @@ export default function OrdersListPageContent({ view }: { view: View }) {
         description={COPY[view].description}
         actions={
           <>
-            <ExportCsvButton filename={`carzen-${view}`} columns={CSV} rows={data?.items} />
-            <Button size="lg" onClick={() => setNewOrderOpen(true)}>
+            <ExportCsvButton filename={`washup-${view}`} columns={CSV} rows={data?.items} />
+            <Button size="lg" onClick={() => (view === "orders" ? setNewOrderOpen(true) : openNewOrder(undefined, "phone"))}>
               {view === "orders" ? <Footprints /> : <CalendarDays />}
               {view === "orders" ? "طلب جديد" : "حجز هاتفي"}
             </Button>

@@ -176,7 +176,7 @@ export function loginNotice(login: NewLogin | null): string {
   if (!login) return "كلمة المرور المؤقتة demo1234";
   if ("userId" in login) return `كلمة المرور المؤقتة: ${login.password} (أرسلها لصاحب الحساب، تظهر مرة واحدة فقط)`;
   return login.skipped === "taken"
-    ? "هذا الرقم/البريد له حساب دخول آخر على كارزن — تواصل مع الدعم لربطه"
+    ? "هذا الرقم/البريد له حساب دخول آخر على Wash Up — تواصل مع الدعم لربطه"
     : "لم يُنشأ حساب الدخول (مفتاح Supabase السري غير مضبوط على الخادم)";
 }
 
@@ -190,4 +190,80 @@ export async function signOut(token: string): Promise<void> {
   await fetch(`${url}/auth/v1/logout`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${token}` } }).catch(
     () => undefined,
   );
+}
+
+function adminSecret() {
+  return process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+}
+
+export function portalOrigin(): string {
+  const env = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL;
+  if (env) return env.replace(/\/$/, "");
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  return "https://washup-vendor.vercel.app";
+}
+
+function assertNewPassword(password: string) {
+  if (password.length < 8) throw new MockApiError("كلمة المرور الجديدة 8 أحرف على الأقل", 422, { newPassword: ["8 أحرف على الأقل"] });
+}
+
+export async function changePassword(accessToken: string, phoneE164: string, currentPassword: string, newPassword: string) {
+  assertNewPassword(newPassword);
+  const check = await signInWithPassword({ phone: phoneE164 }, currentPassword, null);
+  if (!check) throw new MockApiError("كلمة المرور الحالية غير صحيحة", 401);
+  if (isLocalAuth()) return;
+  const { url, key } = supabaseEnv();
+  const res = await fetch(`${url}/auth/v1/user`, {
+    method: "PUT",
+    headers: { apikey: key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ password: newPassword }),
+  });
+  if (!res.ok) throw new MockApiError("تعذر تغيير كلمة المرور", 422);
+}
+
+export async function adminUserEmail(userId: string): Promise<string | null> {
+  const secret = adminSecret();
+  if (!secret) return null;
+  const { url } = supabaseEnv();
+  const res = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
+    headers: { apikey: secret, Authorization: `Bearer ${secret}` },
+  });
+  if (!res.ok) return null;
+  const user = (await res.json()) as { email?: string | null };
+  return user.email?.includes("@") ? user.email : null;
+}
+
+export async function adminAttachEmail(userId: string, email: string): Promise<boolean> {
+  const secret = adminSecret();
+  if (!secret) return false;
+  const { url } = supabaseEnv();
+  const res = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
+    method: "PUT",
+    headers: { apikey: secret, Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, email_confirm: true }),
+  });
+  return res.ok;
+}
+
+export async function sendRecoveryEmail(email: string, redirectTo: string) {
+  const { url, key } = supabaseEnv();
+  const res = await fetch(`${url}/auth/v1/recover`, {
+    method: "POST",
+    headers: { apikey: key, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, redirect_to: redirectTo }),
+  });
+  if (res.status === 429) throw new MockApiError("محاولات كثيرة، حاول بعد قليل", 429);
+  if (!res.ok) throw new MockApiError("تعذر إرسال رابط الاسترجاع", 422);
+}
+
+export async function setPasswordWithAccessToken(accessToken: string, newPassword: string) {
+  assertNewPassword(newPassword);
+  if (isLocalAuth()) return;
+  const { url, key } = supabaseEnv();
+  const res = await fetch(`${url}/auth/v1/user`, {
+    method: "PUT",
+    headers: { apikey: key, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ password: newPassword }),
+  });
+  if (!res.ok) throw new MockApiError("رابط الاسترجاع غير صالح أو منتهٍ", 401);
 }

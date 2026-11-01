@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     default: SITE_NAME,
     template: `%s | ${SITE_NAME}`,
   },
-  description: "بوابة شركاء كارزن — نظام التشغيل اليومي لمغاسل السيارات",
+  description: "بوابة شركاء Wash Up — نظام التشغيل اليومي لمغاسل السيارات",
   // Private back-office: never index.
   robots: { index: false, follow: false },
   icons: { icon: "/brand/icon.png", apple: "/brand/icon.png" },

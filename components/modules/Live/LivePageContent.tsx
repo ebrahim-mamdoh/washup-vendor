@@ -14,6 +14,7 @@ import { TONES } from "@/lib/constants/labels";
 import { formatMoney, formatTime, minutesSince } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { OrderActions } from "@/components/modules/Orders/actions/OrderActions";
+import { ShiftClockBar } from "@/components/modules/Shifts/ShiftClockBar";
 import { useBranchScope } from "@/hooks/use-branch-scope";
 import { useLive } from "@/hooks/use-operations";
 import { useAuthStore } from "@/lib/store/auth-store";
@@ -107,9 +108,11 @@ export default function LivePageContent() {
 
   return (
     <div className="space-y-6">
+      <ShiftClockBar />
+
       <PageHeader
         title="التشغيل المباشر"
-        description="كل سيارة في الفرع ومرحلتها — الأزرار تنفذ نفس قواعد تطبيق الموظف."
+        description="كل سيارة في الفرع ومرحلتها — الأزرار تتبع صلاحيات حسابك على اللوحة."
         meta={
           <span className="num inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className={cn("size-1.5 rounded-full bg-success", isFetching ? "animate-pulse" : "animate-pulse-ring [--tone:var(--success)]")} />

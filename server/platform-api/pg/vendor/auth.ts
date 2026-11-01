@@ -2,7 +2,18 @@ import "server-only";
 
 import { MockApiError, ok } from "../../http";
 import { normalizePhone } from "../../vendor/engine";
-import { refreshSession, sessionTokens, signInWithPassword, signOut } from "../auth";
+import {
+  adminAttachEmail,
+  adminUserEmail,
+  changePassword,
+  portalOrigin,
+  refreshSession,
+  sendRecoveryEmail,
+  sessionTokens,
+  setPasswordWithAccessToken,
+  signInWithPassword,
+  signOut,
+} from "../auth";
 import { e164 } from "../entities";
 import { logAudit } from "../platform";
 import { vroute } from "../router";
@@ -29,9 +40,6 @@ export const vendorAuthRoutes = [
         where ${session.identity.kind === "supabase" ? sql`user_id = ${session.identity.userId}` : sql`id = ${session.identity.profileId}`}`;
       if (!staff) throw new MockApiError("هذا الحساب غير مرتبط بموظف في أي مغسلة", 403);
       if (staff.status !== "active") throw new MockApiError("هذا الحساب موقوف. تواصل مع مالك المغسلة.", 403);
-      if (staff.role === "employee") {
-        throw new MockApiError("بوابة الشركاء مخصصة للمالك ومديري الفروع. الموظفون يستخدمون تطبيق الموظف.", 403);
-      }
       const actor = await resolveVendorActor(sql, session.identity);
       if (!actor) throw new MockApiError("لا توجد مغسلة معتمدة مرتبطة بهذا الحساب", 403);
 
@@ -60,4 +68,57 @@ export const vendorAuthRoutes = [
     if (token) await signOut(token);
     return ok(null, "تم تسجيل الخروج");
   }),
+
+  vroute("POST", "/vendor/auth/change-password", async ({ body, token, actor }) => {
+    const currentPassword = String(body.currentPassword ?? "");
+    const newPassword = String(body.newPassword ?? "");
+    if (!currentPassword || !newPassword) throw new MockApiError("كلمة المرور الحالية والجديدة مطلوبتان", 422);
+    const sql = db();
+    const [row] = await sql<{ phone: string }[]>`select phone from public.staff where id = ${actor.staff.id}`;
+    if (!token || !row) throw new MockApiError("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
+    await changePassword(token, row.phone, currentPassword, newPassword);
+    return ok(null, "تم تغيير كلمة المرور");
+  }),
+
+  vroute(
+    "POST",
+    "/vendor/auth/forgot-password",
+    async ({ body }) => {
+      const phone = normalizePhone(String(body.phone ?? ""));
+      if (phone.length !== 10) throw new MockApiError("رقم الموبايل مطلوب", 422, { phone: ["مطلوب"] });
+      const sql = db();
+      const [staff] = await sql<{ userId: string | null; businessId: string }[]>`
+        select user_id as "userId", business_id as "businessId" from public.staff where phone = ${e164(phone)}`;
+      if (!staff?.userId) {
+        throw new MockApiError("لا يمكن استرجاع كلمة المرور لهذا الحساب. تواصل مع الدعم.", 422);
+      }
+      let email = await adminUserEmail(staff.userId);
+      if (!email || email.endsWith("@partner.washup.app") || email.endsWith("@carzen.demo")) {
+        const [settings] = await sql<{ email: string | null }[]>`
+          select contact_email as email from public.business_settings where business_id = ${staff.businessId}`;
+        const fallback = settings?.email?.trim() ?? "";
+        if (fallback.includes("@")) {
+          const attached = await adminAttachEmail(staff.userId, fallback);
+          if (attached) email = fallback;
+        }
+      }
+      if (!email) throw new MockApiError("لا يوجد بريد إلكتروني مرتبط بهذا الحساب. أضف بريد المغسلة من الإعدادات أو تواصل مع الدعم.", 422);
+      await sendRecoveryEmail(email, `${portalOrigin()}/reset-password`);
+      return ok(null, "أرسلنا رابط استرجاع كلمة المرور إلى البريد المرتبط بالحساب");
+    },
+    true,
+  ),
+
+  vroute(
+    "POST",
+    "/vendor/auth/reset-password",
+    async ({ body }) => {
+      const accessToken = String(body.access_token ?? body.accessToken ?? "");
+      const newPassword = String(body.newPassword ?? "");
+      if (!accessToken) throw new MockApiError("رابط الاسترجاع غير صالح أو منتهٍ", 401);
+      await setPasswordWithAccessToken(accessToken, newPassword);
+      return ok(null, "تم تعيين كلمة المرور الجديدة — سجّل الدخول");
+    },
+    true,
+  ),
 ];
