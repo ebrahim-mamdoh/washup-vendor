@@ -36,7 +36,7 @@ import { type Q, db, tx } from "../sql";
 import { scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
-/** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة كارزن" actor (admin names stay internal). */
+/** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة Wash Up" actor (admin names stay internal). */
 const CARZEN_ACTOR = "carzen";
 const PERIOD_DAYS: Record<VendorPeriod, number> = { today: 1, "7d": 7, "30d": 30 };
 const EMPTY_SQL = `'{"ar":"—","en":"—"}'::jsonb`;
@@ -309,12 +309,12 @@ function buildReport({ orders, rate, staff, reviews, branchName }: ReportInput, 
 
 // ── Audit (alias w over vendor-facing audit rows) ────────────────────────────
 
-/** Audit rows the actor may see, with the actor shown the way washes see it (admins → "إدارة كارزن"). */
+/** Audit rows the actor may see, with the actor shown the way washes see it (admins → "إدارة Wash Up"). */
 function auditBase(q: Q, branchIds: string[], businessId: string, isOwner: boolean) {
   return q`
     select al.id, al.actor_type as "actorType", al.actor_id as "rawActorId",
       case when al.actor_type = 'admin' then ${CARZEN_ACTOR} else al.actor_id end as "actorId",
-      case when al.actor_type = 'admin' then 'إدارة كارزن'
+      case when al.actor_type = 'admin' then 'إدارة Wash Up'
            when al.actor_type = 'system' then 'النظام'
            else coalesce(al.actor_name, (select s.name from public.staff s where s.id = al.actor_id), al.actor_id) end as "actorName",
       al.action, al.entity, al.entity_id as "entityId", al.branch_id as "branchId", al.old_value as "oldValue",
@@ -472,12 +472,12 @@ export const vendorInsightRoutes = [
     const review = await tx(async (t) => {
       const [current] = await reviewsWhere(t, t`r.id = ${params.id} and r.branch_id = any(${actor.branchIds}) and r.status = 'visible'`);
       if (!current) throw new MockApiError("التقييم غير موجود", 404);
-      if (current.reportedByWash) throw new MockApiError("تم إبلاغ كارزن عن هذا التقييم مسبقًا", 409);
+      if (current.reportedByWash) throw new MockApiError("تم إبلاغ Wash Up عن هذا التقييم مسبقًا", 409);
       const reason = requireText(body.reason, "reason", "سبب الإبلاغ", 5);
       const updated = await t`
         update public.reviews set reported_by_wash = true, report_reason = ${reason}
         where id = ${current.id} and not reported_by_wash and status = 'visible' returning id`;
-      if (!updated.length) throw new MockApiError("تم إبلاغ كارزن عن هذا التقييم مسبقًا", 409);
+      if (!updated.length) throw new MockApiError("تم إبلاغ Wash Up عن هذا التقييم مسبقًا", 409);
       await logAudit(t, {
         actorType: "staff",
         actorId: actor.staff.id,
@@ -499,7 +499,7 @@ export const vendorInsightRoutes = [
       const [after] = await reviewsWhere(t, t`r.id = ${current.id}`);
       return after;
     });
-    return ok(review, "تم إبلاغ فريق كارزن للمراجعة");
+    return ok(review, "تم إبلاغ فريق Wash Up للمراجعة");
   }),
 
   // ── Reports (D14 / OW-18) ────────────────────────────────

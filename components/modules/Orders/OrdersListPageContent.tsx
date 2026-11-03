@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CalendarDays, CheckCheck, ClipboardList, Footprints, UserRound, X } from "lucide-react";
 
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
@@ -32,7 +33,7 @@ type View = "orders" | "bookings";
 const TABS: Record<View, { value: string; label: string; tone?: string }[]> = {
   orders: [
     { value: "active", label: "داخل الفرع" },
-    { value: "waiting", label: "في الانتظار", tone: "var(--st-waiting)" },
+    { value: "waiting", label: "تم الوصول", tone: "var(--st-waiting)" },
     { value: "in_service", label: "جارٍ التنفيذ", tone: "var(--st-in_service)" },
     { value: "payment_pending", label: "بانتظار الدفع", tone: TONES.warning },
     { value: "paid", label: "مكتملة", tone: "var(--st-completed)" },
@@ -62,7 +63,6 @@ const COPY: Record<View, { title: string; description: string; empty: string }> 
 
 const CSV: CsvColumn<VendorOrderListItem>[] = [
   { header: "رقم الطلب", value: (o) => o.number },
-  { header: "الكود", value: (o) => o.code },
   { header: "المصدر", value: (o) => ORDER_SOURCE[o.source].label },
   { header: "اللوحة", value: (o) => o.plate },
   { header: "العميل", value: (o) => o.customerName ?? "عميل مباشر" },
@@ -76,7 +76,11 @@ const CSV: CsvColumn<VendorOrderListItem>[] = [
   { header: "الإجمالي", value: (o) => o.total },
 ];
 
+const HISTORY_TABS = new Set(["completed", "cancelled", "no_show"]);
+
 export default function OrdersListPageContent({ view }: { view: View }) {
+  const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab") ?? TABS[view][0].value;
   const { branchId, isAll } = useBranchScope();
   const setNewOrderOpen = useUIStore((s) => s.setNewOrderOpen);
   const openNewOrder = useUIStore((s) => s.openNewOrder);
@@ -86,8 +90,8 @@ export default function OrdersListPageContent({ view }: { view: View }) {
     staffId: "all",
     date: "",
     search: "",
-    sort: "scheduledAt",
-    order: view === "orders" ? "desc" : "asc",
+    sort: rawTab === "cancelled" ? "cancelledAt" : "scheduledAt",
+    order: view === "orders" || HISTORY_TABS.has(rawTab) ? "desc" : "asc",
     page: 1,
   });
   const [selected, setSelected] = useState<string[]>([]);
@@ -218,7 +222,12 @@ export default function OrdersListPageContent({ view }: { view: View }) {
               aria-label="التبويب"
               value={state.tab}
               onChange={(tab) => {
-                setState({ tab });
+                const newest = HISTORY_TABS.has(tab);
+                setState({
+                  tab,
+                  sort: tab === "cancelled" ? "cancelledAt" : "scheduledAt",
+                  order: view === "orders" || newest ? "desc" : "asc",
+                });
                 setSelected([]);
               }}
               items={TABS[view].map((t) => ({ ...t, count: data?.meta.counts[t.value] }))}

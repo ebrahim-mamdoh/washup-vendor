@@ -28,9 +28,11 @@ import {
   isStaffAssignable,
   normalizePhone,
   normalizePlate,
+  assertCheckInCode,
   offerAmount,
   parseDiscountValue,
   primaryPrice,
+  readableCancelReason,
   recognitionForWash,
   withManualDiscount,
 } from "../../vendor/engine";
@@ -348,9 +350,10 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       return `تم تأكيد الحجز ${o.number} وإبلاغ العميل`;
     }
     case "check_in": {
+      const waiver = assertCheckInCode(actor, o.code, payload);
       await moveStatus(t, o, "waiting");
       await pushTimeline(t, o, "waiting", actor);
-      await audit(t, actor, o, "order.check_in", from, "waiting");
+      await audit(t, actor, o, "order.check_in", from, waiver ? "waiting · waived" : "waiting", waiver);
       return `تم تسجيل وصول ${o.plate || o.number}`;
     }
     case "start": {
@@ -393,7 +396,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       return change > 0 ? `تم التحصيل — الباقي للعميل ${change} ج.م` : "تم تحصيل المبلغ بنجاح";
     }
     case "cancel": {
-      const reason = requireReason(payload.reason, "سبب الإلغاء");
+      const reason = readableCancelReason(requireReason(payload.reason, "سبب الإلغاء"));
       await moveStatus(
         t,
         o,

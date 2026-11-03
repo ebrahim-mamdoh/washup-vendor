@@ -29,7 +29,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ORDER_ACTION } from "@/lib/constants/labels";
 import { cn } from "@/lib/utils";
-import { AddServiceDialog, DiscountDialog, NoteDialog, PaymentDialog, StaffDialog, type ActionTarget } from "@/components/modules/Orders/actions/action-dialogs";
+import { AddServiceDialog, CheckInDialog, DiscountDialog, NoteDialog, PaymentDialog, StaffDialog, type ActionTarget } from "@/components/modules/Orders/actions/action-dialogs";
+import { formatDate, formatTime } from "@/lib/format";
 import { useOrderAction } from "@/hooks/use-operations";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { OrderStatus, PaymentStatus } from "@/types/orders";
@@ -40,6 +41,8 @@ export type ActionableOrder = ActionTarget & {
   paymentStatus: PaymentStatus;
   nextAction: PrimaryAction | null;
   locked?: boolean;
+  scheduledAt?: string;
+  noShowGraceMin?: number;
 };
 
 const ICONS: Record<OrderAction, typeof CheckCircle2> = {
@@ -66,7 +69,7 @@ function deriveAllowed(o: ActionableOrder, p: { cancelOrder: boolean; refund: bo
   if (o.status === "waiting" || o.status === "in_service") out.push("add_service");
   if (o.status === "completed" && o.paymentStatus === "pending") out.push("discount");
   out.push("note");
-  if (o.status === "confirmed") out.push("no_show");
+  if (o.status === "confirmed" && noShowReady(o)) out.push("no_show");
   if (["pending", "confirmed", "waiting"].includes(o.status) && p.cancelOrder) out.push("cancel");
   if (o.status === "completed" && o.paymentStatus === "paid" && p.refund) out.push("refund");
   return out;
@@ -83,7 +86,21 @@ type OrderActionsProps = {
   className?: string;
 };
 
-type OpenDialog = Exclude<OrderAction, "confirm" | "check_in" | "complete"> | null;
+type OpenDialog = Exclude<OrderAction, "confirm" | "complete"> | null;
+
+/** "لم يحضر" opens only after the slot plus the branch wait. */
+function noShowReady(o: ActionableOrder): boolean {
+  if (!o.scheduledAt) return false;
+  const at = new Date(o.scheduledAt).getTime() + (o.noShowGraceMin ?? 15) * 60000;
+  return Date.now() >= at;
+}
+
+function noShowHint(o: ActionableOrder): string | null {
+  if (o.status !== "confirmed" || !o.scheduledAt || noShowReady(o)) return null;
+  const at = new Date(new Date(o.scheduledAt).getTime() + (o.noShowGraceMin ?? 15) * 60000);
+  const sameDay = at.toDateString() === new Date().toDateString();
+  return `متاح بعد ${sameDay ? formatTime(at) : `${formatDate(at)} ${formatTime(at)}`}`;
+}
 
 /**
  * One obvious primary action per order (spec EM-06) + a menu for the rest.
@@ -99,9 +116,11 @@ export function OrderActions({ order, allowed, size = "sm", block, showMenu = tr
 
   const run = (a: OrderAction, payload: Omit<OrderActionPayload, "action"> = {}) => action.mutate({ id: order.id, action: a, ...payload });
   const trigger = (a: OrderAction) => {
-    if (a === "confirm" || a === "check_in" || a === "complete") run(a);
+    if (a === "confirm" || a === "complete") run(a);
     else setDialog(a);
   };
+  const noShowLocked = order.status === "confirmed" && !actions.includes("no_show") ? noShowHint(order) : null;
+  const canWaiveCheckIn = account?.role === "owner" || account?.role === "manager";
   const busy = (a: OrderAction) => action.isPending && action.variables?.action === a;
   const common = { order, isPending: action.isPending, onOpenChange: (o: boolean) => !o && setDialog(null), open: true };
 
@@ -132,14 +151,14 @@ export function OrderActions({ order, allowed, size = "sm", block, showMenu = tr
         })()
       ) : null}
 
-      {showMenu && secondary.length ? (
+      {showMenu && (secondary.length || noShowLocked) ? (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<Button variant="outline" size={size === "lg" ? "icon-lg" : size === "default" ? "icon" : "icon-sm"} aria-label="إجراءات أخرى" />}
           >
             <MoreHorizontal />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-56">
             {secondary.map((a, i) => {
               const Icon = ICONS[a];
               const destructive = a === "cancel" || a === "refund" || a === "no_show";
@@ -154,11 +173,26 @@ export function OrderActions({ order, allowed, size = "sm", block, showMenu = tr
                 </div>
               );
             })}
+            {noShowLocked ? (
+              <>
+                {secondary.some((a) => !["cancel", "refund", "no_show"].includes(a)) ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem variant="destructive" disabled>
+                  <UserX />
+                  <span className="flex flex-col items-start gap-0.5">
+                    <span>لم يحضر</span>
+                    <span className="text-[11px] font-normal text-muted-foreground">{noShowLocked}</span>
+                  </span>
+                </DropdownMenuItem>
+              </>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
 
       {/* Mounted only while open so each dialog starts fresh. */}
+      {dialog === "check_in" ? (
+        <CheckInDialog {...common} canWaive={canWaiveCheckIn} onSubmit={(p) => run("check_in", p)} />
+      ) : null}
       {dialog === "start" || dialog === "assign" ? (
         <StaffDialog {...common} mode={dialog} onSubmit={(p) => run(dialog, p)} />
       ) : null}

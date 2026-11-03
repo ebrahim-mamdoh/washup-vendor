@@ -154,7 +154,7 @@ try {
       from public.vehicles v where v.id = ${c2.vehicle} returning id`;
     await t`select public.close_stale_orders()`;
     const [s7] = await t`select status, cancel_reason from public.orders where id = ${stale.id}`;
-    check(s7.status === "cancelled" && s7.cancel_reason === "expired_unconfirmed", "unconfirmed booking auto-cancelled after its time", `${s7.status} ${s7.cancel_reason}`);
+    check(s7.status === "cancelled" && String(s7.cancel_reason).includes("ما أكدتش"), "unconfirmed booking auto-cancelled after its time", `${s7.status} ${s7.cancel_reason}`);
     const n7 = await custNotifs(t, stale.id);
     check(n7.some((n) => /لم تؤكد/.test(n.body)), "customer told the wash did not confirm in time", show(n7));
     const w7 = await washNotifs(t, br.business_id, started);

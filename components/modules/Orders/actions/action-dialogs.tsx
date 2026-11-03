@@ -7,6 +7,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDuration, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -391,6 +392,61 @@ export function NoteDialog({ order, open, onOpenChange, isPending, onSubmit }: B
         ))}
       </div>
       <Textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="اكتب الملاحظة…" className="resize-none" aria-label="الملاحظة" />
+    </Shell>
+  );
+}
+
+/** Check-in asks for the 5-character code on the customer's phone. A manager can waive it. */
+export function CheckInDialog({ order, open, onOpenChange, isPending, canWaive, onSubmit }: BaseProps & { canWaive: boolean }) {
+  const [code, setCode] = useState("");
+  const [waive, setWaive] = useState(false);
+  const normalized = code.replace(/\s/g, "").toUpperCase();
+  const ready = waive || normalized.length === 5;
+
+  return (
+    <Shell
+      open={open}
+      onOpenChange={onOpenChange}
+      isPending={isPending}
+      title={`تسجيل وصول ${order.number}`}
+      description="اكتب كود الوصول الظاهر للعميل في التطبيق أو على شاشة القفل. الماسح يكتبه في الخانة."
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            إلغاء
+          </Button>
+          <Button disabled={!ready} loading={isPending} onClick={() => onSubmit(waive ? { waiveCheckIn: true } : { code: normalized })}>
+            تسجيل الوصول
+          </Button>
+        </>
+      }
+    >
+      {waive ? (
+        <p className="rounded-xl bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground">
+          هيتسجل في سجل التدقيق إن الوصول تم بدون كود لأن العميل مش معاه التليفون.
+        </p>
+      ) : (
+        <Input
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+          inputMode="text"
+          maxLength={8}
+          value={code}
+          placeholder="TDLWX"
+          aria-label="كود الوصول"
+          className="num h-12 text-center text-lg font-bold tracking-[0.35em] uppercase"
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && ready) onSubmit({ code: normalized });
+          }}
+        />
+      )}
+      {canWaive ? (
+        <button type="button" className="cursor-pointer text-start text-sm text-primary hover:underline" onClick={() => setWaive((v) => !v)}>
+          {waive ? "إدخال كود الوصول" : "العميل بدون هاتف — تسجيل بصلاحية مدير"}
+        </button>
+      ) : null}
     </Shell>
   );
 }

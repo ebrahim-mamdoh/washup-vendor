@@ -81,7 +81,7 @@ export function capPermissions(actor: VendorActor, permissions: StaffPermissions
 
 export function assertNotSuspended(actor: VendorActor): void {
   if (actor.business.status === "suspended") {
-    throw new MockApiError("المغسلة معلّقة من إدارة كارزن — لا يمكن استقبال حجوزات جديدة حاليًا", 423);
+    throw new MockApiError("المغسلة معلّقة من إدارة Wash Up — لا يمكن استقبال حجوزات جديدة حاليًا", 423);
   }
 }
 

@@ -165,7 +165,7 @@ export default function DashboardPageContent() {
                     </div>
                     <dl className="mt-4 grid grid-cols-4 gap-2 text-center">
                       {[
-                        ["في الانتظار", b.waiting],
+                        ["تم الوصول", b.waiting],
                         ["جارٍ التنفيذ", b.inService],
                         ["بانتظار الدفع", b.paymentPending],
                         ["إيراد اليوم", formatMoney(b.revenueToday)],

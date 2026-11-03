@@ -85,7 +85,7 @@ export default function NotificationsPageContent() {
     <div className="space-y-6">
       <PageHeader
         title="الإشعارات"
-        description="الحجوزات الجديدة والإلغاءات، فروق النقدية، تنبيهات الفروع، الملخص اليومي، التقييمات ورسائل كارزن — اضغط على الإشعار للانتقال مباشرة."
+        description="الحجوزات الجديدة والإلغاءات، فروق النقدية، تنبيهات الفروع، الملخص اليومي، التقييمات ورسائل Wash Up — اضغط على الإشعار للانتقال مباشرة."
         meta={unread ? <StatusBadge label={`${formatNumber(unread)} غير مقروءة`} tone={TONES.danger} /> : null}
         actions={
           <>

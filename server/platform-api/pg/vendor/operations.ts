@@ -134,8 +134,11 @@ export const vendorOperationRoutes = [
     const sort = orderBy(
       sql,
       query,
-      { scheduledAt: "o.scheduled_at", total: "o.total", number: "o.number", status: "o.status::text" },
-      { key: "scheduledAt", order: chronological ? "asc" : "desc" },
+      { scheduledAt: "o.scheduled_at", total: "o.total", number: "o.number", status: "o.status::text", cancelledAt: "o.cancelled_at" },
+      {
+        key: tab === "cancelled" ? "cancelledAt" : "scheduledAt",
+        order: chronological ? "asc" : "desc",
+      },
       "o.id",
     );
     const { items, pagination } = await paged(query, total, 15, async (limit, offset) =>

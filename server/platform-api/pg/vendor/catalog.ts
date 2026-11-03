@@ -139,7 +139,7 @@ export const vendorCatalogRoutes = [
         select ${sql.unsafe(SERVICE_COLS)}, br.name as "branchName",
           coalesce(sv.description, case when sv.type = 'addon'
             then '{"ar": "إضافة اختيارية على الخدمة الأساسية.", "en": ""}'::jsonb
-            else '{"ar": "خدمة غسيل بمعايير كارزن.", "en": ""}'::jsonb end) as description,
+            else '{"ar": "خدمة غسيل بمعايير Wash Up.", "en": ""}'::jsonb end) as description,
           us."ordersCount", us."revenue30d"
         from public.services sv
         join public.branches br on br.id = sv.branch_id

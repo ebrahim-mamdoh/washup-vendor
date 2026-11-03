@@ -63,20 +63,26 @@ export async function toOrderListItems(q: Q, orders: Order[]): Promise<OrderList
 /** Orders → vendor list items (adds staff name, vehicle label, next action, overdue minutes, lock). */
 export async function toVendorItems(q: Q, orders: Order[], at: Date = now()): Promise<VendorOrderListItem[]> {
   const vehicleIds = [...new Set(orders.map((o) => o.vehicleId).filter((x): x is string => Boolean(x)))];
-  const [items, staff, vehicles] = await Promise.all([
+  const branchIds = [...new Set(orders.map((o) => o.branchId))];
+  const [items, staff, vehicles, graces] = await Promise.all([
     toOrderListItems(q, orders),
     staffNames(q, orders.map((o) => o.assignedStaffId)),
     vehicleIds.length
       ? q<{ id: string; label: string }[]>`select id, make || ' ' || model as label from public.vehicles where id = any(${vehicleIds})`
       : Promise.resolve([]),
+    branchIds.length
+      ? q<{ id: string; grace: number }[]>`select id, no_show_grace_min as grace from public.branches where id = any(${branchIds})`
+      : Promise.resolve([]),
   ]);
   const labels = new Map(vehicles.map((v) => [v.id, v.label]));
+  const graceOf = new Map(graces.map((g) => [g.id, g.grace]));
   return items.map((o) => ({
     ...o,
     staffName: (o.assignedStaffId && staff.get(o.assignedStaffId)) || null,
     vehicleLabel: (o.vehicleId && labels.get(o.vehicleId)) || null,
     nextAction: nextActionFor(o),
     overdueMin: overdueMinutes(o, at),
+    noShowGraceMin: graceOf.get(o.branchId) ?? 15,
     locked: Boolean(o.closedInDayId),
   }));
 }

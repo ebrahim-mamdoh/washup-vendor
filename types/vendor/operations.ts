@@ -31,6 +31,8 @@ export interface VendorOrderListItem extends OrderListItem {
   nextAction: PrimaryAction | null;
   /** Minutes past the expected end (in service) or past the slot (confirmed). */
   overdueMin: number;
+  /** Branch wait after `scheduledAt` before "لم يحضر" can be recorded. */
+  noShowGraceMin: number;
   /** True when the order is locked by a day closing. */
   locked: boolean;
 }
@@ -81,6 +83,10 @@ export interface OrderActionPayload {
   discountValue?: number;
   reason?: string;
   text?: string;
+  /** Check-in code the customer shows (5 characters). */
+  code?: string;
+  /** Manager/owner only: customer arrived without a phone to show the code. */
+  waiveCheckIn?: boolean;
   method?: PaymentMethod;
   amountReceived?: number;
 }

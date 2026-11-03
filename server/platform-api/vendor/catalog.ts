@@ -78,7 +78,7 @@ export const vendorCatalogRoutes = [
         return {
           ...s,
           branchName: branchName(db, s.branchId),
-          description: db.serviceDescriptions[s.id] ?? { ar: s.type === "addon" ? "إضافة اختيارية على الخدمة الأساسية." : "خدمة غسيل بمعايير كارزن.", en: "" },
+          description: db.serviceDescriptions[s.id] ?? { ar: s.type === "addon" ? "إضافة اختيارية على الخدمة الأساسية." : "خدمة غسيل بمعايير Wash Up.", en: "" },
           ordersCount: orders.length,
           revenue30d: orders
             .filter((o) => o.paymentStatus === "paid" && new Date(o.scheduledAt) >= from)

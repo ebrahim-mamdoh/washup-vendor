@@ -85,8 +85,14 @@ export const vendorOperationRoutes = [
     const items = sortBy(
       filtered.map((o) => toVendorItem(db, o)),
       query,
-      { scheduledAt: (o) => o.scheduledAt, total: (o) => o.total, number: (o) => o.number, status: (o) => o.status },
-      { key: "scheduledAt", order: chronological ? "asc" : "desc" },
+      {
+        scheduledAt: (o) => o.scheduledAt,
+        total: (o) => o.total,
+        number: (o) => o.number,
+        status: (o) => o.status,
+        cancelledAt: (o) => o.cancel?.at ?? "",
+      },
+      { key: tab === "cancelled" ? "cancelledAt" : "scheduledAt", order: chronological ? "asc" : "desc" },
     );
     const { items: page, pagination } = paginate(items, query, 15);
     return ok(page, "OK", { pagination, meta: { counts, totalAmount: filtered.reduce((s, o) => s + o.total, 0) } });
