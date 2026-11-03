@@ -18,23 +18,24 @@ type ChartProps = {
   valueFormat: ValueFormat;
   /** Series name, shown in the tooltip and announced by screen readers. */
   seriesLabel: string;
+  money?: { symbol?: string; fractionDigits?: number };
 };
 
 const AXIS_TICK = { fill: "var(--muted-foreground)", fontSize: 11, fontFamily: "var(--font-numeric)" };
 const SERIES_COLOR = "var(--chart-1)";
 
-function fmt(value: number, format: ValueFormat) {
-  return format === "money" ? formatMoney(value) : formatNumber(value);
+function fmt(value: number, format: ValueFormat, money?: { symbol?: string; fractionDigits?: number }) {
+  return format === "money" ? formatMoney(value, money?.symbol ? { symbol: money.symbol, fractionDigits: money.fractionDigits ?? 2 } : undefined) : formatNumber(value);
 }
 
-function TooltipBox({ label, series, value, color, format }: { label: string; series: string; value: number; color: string; format: ValueFormat }) {
+function TooltipBox({ label, series, value, color, format, money }: { label: string; series: string; value: number; color: string; format: ValueFormat; money?: ChartProps["money"] }) {
   return (
     <div dir="rtl" className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-floating">
       <p className="num mb-1 text-muted-foreground">{label}</p>
       <p className="flex items-center gap-2">
         <span className="size-2 rounded-full" style={{ backgroundColor: color }} />
         <span className="text-muted-foreground">{series}</span>
-        <span className="num font-semibold text-foreground">{fmt(value, format)}</span>
+        <span className="num font-semibold text-foreground">{fmt(value, format, money)}</span>
       </p>
     </div>
   );
@@ -45,7 +46,7 @@ function truncate(label: string, max = 18) {
 }
 
 /** Daily columns (orders per day). */
-export function ReportColumns({ data, valueFormat, seriesLabel }: ChartProps) {
+export function ReportColumns({ data, valueFormat, seriesLabel, money }: ChartProps) {
   return (
     <div className="h-[260px] w-full" dir="ltr" role="img" aria-label={`مخطط أعمدة: ${seriesLabel}`}>
       <ResponsiveContainer width="100%" height="100%">
@@ -56,7 +57,7 @@ export function ReportColumns({ data, valueFormat, seriesLabel }: ChartProps) {
           <Tooltip
             cursor={{ fill: "var(--muted)", opacity: 0.6 }}
             content={({ active, payload, label }) =>
-              active && payload?.length ? <TooltipBox label={String(label)} series={seriesLabel} value={Number(payload[0].value)} color={SERIES_COLOR} format={valueFormat} /> : null
+              active && payload?.length ? <TooltipBox label={String(label)} series={seriesLabel} value={Number(payload[0].value)} color={SERIES_COLOR} format={valueFormat} money={money} /> : null
             }
           />
           <Bar dataKey="value" fill={SERIES_COLOR} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
@@ -67,7 +68,7 @@ export function ReportColumns({ data, valueFormat, seriesLabel }: ChartProps) {
 }
 
 /** Ranked horizontal bars for long category labels (services, employees). Bars grow from the right. */
-export function ReportBars({ data, valueFormat, seriesLabel }: ChartProps) {
+export function ReportBars({ data, valueFormat, seriesLabel, money }: ChartProps) {
   const height = Math.max(160, data.length * 38 + 16);
   return (
     <div className="w-full" style={{ height }} dir="ltr" role="img" aria-label={`مخطط أشرطة: ${seriesLabel}`}>
@@ -88,7 +89,7 @@ export function ReportBars({ data, valueFormat, seriesLabel }: ChartProps) {
           <Tooltip
             cursor={{ fill: "var(--muted)", opacity: 0.6 }}
             content={({ active, payload, label }) =>
-              active && payload?.length ? <TooltipBox label={String(label)} series={seriesLabel} value={Number(payload[0].value)} color={SERIES_COLOR} format={valueFormat} /> : null
+              active && payload?.length ? <TooltipBox label={String(label)} series={seriesLabel} value={Number(payload[0].value)} color={SERIES_COLOR} format={valueFormat} money={money} /> : null
             }
           />
           <Bar dataKey="value" fill={SERIES_COLOR} radius={[4, 0, 0, 4]} maxBarSize={24} isAnimationActive={false} />
@@ -99,7 +100,7 @@ export function ReportBars({ data, valueFormat, seriesLabel }: ChartProps) {
 }
 
 /** Single-series trend line with a 10% area wash (revenue per day). */
-export function ReportLine({ data, valueFormat, seriesLabel }: ChartProps) {
+export function ReportLine({ data, valueFormat, seriesLabel, money }: ChartProps) {
   return (
     <div className="h-[260px] w-full" dir="ltr" role="img" aria-label={`مخطط خطي: ${seriesLabel}`}>
       <ResponsiveContainer width="100%" height="100%">
@@ -110,7 +111,7 @@ export function ReportLine({ data, valueFormat, seriesLabel }: ChartProps) {
           <Tooltip
             cursor={{ stroke: "var(--border)" }}
             content={({ active, payload, label }) =>
-              active && payload?.length ? <TooltipBox label={String(label)} series={seriesLabel} value={Number(payload[0].value)} color={SERIES_COLOR} format={valueFormat} /> : null
+              active && payload?.length ? <TooltipBox label={String(label)} series={seriesLabel} value={Number(payload[0].value)} color={SERIES_COLOR} format={valueFormat} money={money} /> : null
             }
           />
           <Area
@@ -133,7 +134,7 @@ export function ReportLine({ data, valueFormat, seriesLabel }: ChartProps) {
 export type DonutSlice = ReportPoint & { color: string };
 
 /** Share donut — the caller renders the legend with values and percentages. */
-export function ReportDonut({ data, valueFormat, seriesLabel }: Omit<ChartProps, "data"> & { data: DonutSlice[] }) {
+export function ReportDonut({ data, valueFormat, seriesLabel, money }: Omit<ChartProps, "data"> & { data: DonutSlice[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   return (
     <div className="relative mx-auto size-[188px]" role="img" aria-label={`مخطط دائري: ${seriesLabel}`}>
@@ -148,13 +149,13 @@ export function ReportDonut({ data, valueFormat, seriesLabel }: Omit<ChartProps,
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
               const d = payload[0].payload as DonutSlice;
-              return <TooltipBox label={d.label} series={seriesLabel} value={d.value} color={d.color} format={valueFormat} />;
+              return <TooltipBox label={d.label} series={seriesLabel} value={d.value} color={d.color} format={valueFormat} money={money} />;
             }}
           />
         </PieChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="num text-2xl font-bold">{fmt(total, valueFormat)}</span>
+        <span className="num text-2xl font-bold">{fmt(total, valueFormat, money)}</span>
         <span className="text-[11px] text-muted-foreground">{seriesLabel}</span>
       </div>
     </div>

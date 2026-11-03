@@ -11,6 +11,9 @@ export interface VendorBranchRef {
   area: string;
   active: boolean;
   capacity: number;
+  currencySymbol?: string;
+  currencyDecimals?: number;
+  timezone?: string;
 }
 
 /**

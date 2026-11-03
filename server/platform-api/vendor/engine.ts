@@ -40,10 +40,10 @@ export function clockToMin(hhmm: string, isClose = false): number {
 
 const CAIRO = "Africa/Cairo";
 
-/** Calendar / clock parts in Africa/Cairo (wash hours are wall-clock Egypt, not the server TZ). */
-export function cairoDateParts(d: Date): { y: number; m: number; day: number; weekday: number; hour: number; minute: number } {
+/** Calendar / clock parts in a branch timezone (wash hours are wall-clock, not the server TZ). */
+export function zoneDateParts(d: Date, timeZone = CAIRO): { y: number; m: number; day: number; weekday: number; hour: number; minute: number } {
   const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: CAIRO,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -64,16 +64,20 @@ export function cairoDateParts(d: Date): { y: number; m: number; day: number; we
   };
 }
 
+export function cairoDateParts(d: Date) {
+  return zoneDateParts(d, CAIRO);
+}
+
 export function cairoDayKey(d: Date | string): string {
   const p = cairoDateParts(new Date(d));
   return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
 }
 
-/** Instant whose Cairo wall-clock equals the given Y-M-D H:M. */
-export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0, minute = 0): Date {
+/** Instant whose wall-clock in `timeZone` equals the given Y-M-D H:M. */
+export function zoneLocalToUtc(timeZone: string, y: number, month: number, day: number, hour = 0, minute = 0): Date {
   const utc = Date.UTC(y, month - 1, day, hour, minute, 0);
   const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone: CAIRO,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -87,6 +91,11 @@ export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0,
     return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
   };
   return new Date(utc - (wallAsUtc(new Date(utc)) - utc));
+}
+
+/** Instant whose Cairo wall-clock equals the given Y-M-D H:M. */
+export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0, minute = 0): Date {
+  return zoneLocalToUtc(CAIRO, y, month, day, hour, minute);
 }
 
 export function minutesOfDay(d: Date): number {
@@ -610,8 +619,18 @@ function nextCode(db: MockDatabase): string {
   return c;
 }
 
+const PLATE_FOLD: Record<string, string> = {
+  "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+  "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9",
+  "أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي", "ة": "ه",
+};
+
+/** Same folding as public.normalize_plate: spaces, Arabic digits, alef/ya/ta marbuta. */
 export function normalizePlate(p: string): string {
-  return p.replace(/[\s-]/g, "").toUpperCase();
+  return p
+    .replace(/[\s\-_.]/g, "")
+    .replace(/[٠-٩۰-۹أإآىة]/g, (ch) => PLATE_FOLD[ch] ?? ch)
+    .toUpperCase();
 }
 
 export function normalizePhone(p: string): string {

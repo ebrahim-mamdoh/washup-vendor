@@ -35,6 +35,13 @@ export async function toVendorAccount(q: Q, actor: VendorActor): Promise<VendorA
     vendorSettingsFor(q, actor.business.id),
     branchesWhere(q, q`br.id = any(${actor.branchIds})`, q`order by array_position(${actor.branchIds}::text[], br.id)`),
   ]);
+  const locs = branches.length
+    ? await q<{ area: string; symbol: string; decimals: number; timezone: string }[]>`
+        select a.id as area, c.currency_symbol ->> 'ar' as symbol, c.currency_decimals::int as decimals, c.timezone
+        from public.areas a join public.countries c on c.code = a.country_code
+        where a.id = any(${branches.map((b) => b.area)})`
+    : [];
+  const localeOf = new Map(locs.map((l) => [l.area, l]));
   return {
     id: actor.staff.id,
     name: actor.staff.name,
@@ -45,7 +52,19 @@ export async function toVendorAccount(q: Q, actor: VendorActor): Promise<VendorA
     businessStatus: actor.business.status,
     businessStatusReason: actor.business.statusReason,
     homeBranchId: actor.staff.branchId,
-    branches: branches.map((b) => ({ id: b.id, name: b.name, area: b.area, active: b.active, capacity: b.capacity })),
+    branches: branches.map((b) => {
+      const loc = localeOf.get(b.area);
+      return {
+        id: b.id,
+        name: b.name,
+        area: b.area,
+        active: b.active,
+        capacity: b.capacity,
+        currencySymbol: loc?.symbol ?? "ج.م",
+        currencyDecimals: loc?.decimals ?? 2,
+        timezone: loc?.timezone ?? "Africa/Cairo",
+      };
+    }),
     permissions: actor.staff.permissions,
     maxDiscountPct: actor.staff.maxDiscountPct,
     canEditServices: actor.role === "owner" || (actor.role === "manager" && settings.managerCanEditServices),

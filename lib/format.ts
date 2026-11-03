@@ -21,9 +21,18 @@ export function formatCompact(value: number): string {
   return compactFmt.format(value);
 }
 
-export function formatMoney(value: number | null | undefined, { decimals = false } = {}): string {
+export function formatMoney(
+  value: number | null | undefined,
+  { decimals = false, symbol = "ج.م", fractionDigits }: { decimals?: boolean; symbol?: string; fractionDigits?: number } = {},
+): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
-  return `${(decimals ? decFmt : intFmt).format(value)} ج.م`;
+  const digits = fractionDigits ?? (decimals ? 2 : 0);
+  const fmt = new Intl.NumberFormat("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return `${fmt.format(value)} ${symbol}`;
+}
+
+export function moneyOf(locale?: { symbol?: string; decimals?: number } | null) {
+  return { symbol: locale?.symbol || "ج.م", fractionDigits: locale?.decimals ?? 2 };
 }
 
 export function formatPercent(value: number | null | undefined, digits = 1): string {
@@ -31,23 +40,48 @@ export function formatPercent(value: number | null | undefined, digits = 1): str
   return `${value.toFixed(digits).replace(/\.0+$/, "")}٪`;
 }
 
-export function formatTime(input: string | Date): string {
+const WEEKDAY: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function zonedClock(input: string | Date, timeZone?: string) {
   const d = new Date(input);
-  const h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, "0");
+  if (!timeZone) return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate(), weekday: d.getDay(), hour: d.getHours(), minute: d.getMinutes() };
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  const p = Object.fromEntries(fmt.formatToParts(d).map((x) => [x.type, x.value]));
+  return {
+    year: Number(p.year),
+    month: Number(p.month) - 1,
+    day: Number(p.day),
+    weekday: WEEKDAY[p.weekday] ?? 0,
+    hour: Number(p.hour),
+    minute: Number(p.minute),
+  };
+}
+
+export function formatTime(input: string | Date, timeZone?: string): string {
+  const { hour: h, minute } = zonedClock(input, timeZone);
+  const m = String(minute).padStart(2, "0");
   return `${h % 12 || 12}:${m} ${h >= 12 ? "م" : "ص"}`;
 }
 
-export function formatDate(input: string | Date, { withDay = false, withYear = false } = {}): string {
-  const d = new Date(input);
-  const parts = [`${d.getDate()} ${AR_MONTHS[d.getMonth()]}`];
-  if (withYear) parts.push(String(d.getFullYear()));
+export function formatDate(input: string | Date, { withDay = false, withYear = false, timeZone }: { withDay?: boolean; withYear?: boolean; timeZone?: string } = {}): string {
+  const d = zonedClock(input, timeZone);
+  const parts = [`${d.day} ${AR_MONTHS[d.month]}`];
+  if (withYear) parts.push(String(d.year));
   const base = parts.join(" ");
-  return withDay ? `${AR_DAYS[d.getDay()]} ${base}` : base;
+  return withDay ? `${AR_DAYS[d.weekday]} ${base}` : base;
 }
 
-export function formatDateTime(input: string | Date): string {
-  return `${formatDate(input)} · ${formatTime(input)}`;
+export function formatDateTime(input: string | Date, timeZone?: string): string {
+  return `${formatDate(input, { timeZone })} · ${formatTime(input, timeZone)}`;
 }
 
 /** "منذ 3 أيام" / "بعد ساعتين" style relative labels. */

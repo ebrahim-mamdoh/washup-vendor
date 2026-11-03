@@ -134,7 +134,12 @@ export const ORDER_COLS = `o.id, o.number, o.code, o.source, o.customer_id as "c
             from public.order_notes n where n.order_id = o.id), '[]') as notes,
   case when o.cancelled_at is null then null
        else json_build_object('reason', o.cancel_reason, 'byType', o.cancelled_by_type, 'byId', coalesce(o.cancelled_by_id, ''), 'at', ${ISO("o.cancelled_at")}) end as cancel,
-  o.flag, o.created_at as "createdAt", o.closed_in_day_id as "closedInDayId"`;
+  o.flag, o.created_at as "createdAt", o.closed_in_day_id as "closedInDayId",
+  (select json_build_object('symbol', c.currency_symbol ->> 'ar', 'decimals', c.currency_decimals, 'timezone', c.timezone)
+     from public.branches br
+     join public.areas a on a.id = br.area_id
+     join public.countries c on c.code = a.country_code
+     where br.id = o.branch_id) as "branchLocale"`;
 export const ordersWhere = (q: Q, cond: Frag, tail?: Frag) => select<Order>(q, ORDER_COLS, "public.orders o", cond, tail);
 export const orderById = (q: Q, id: string, label: string | null = "الطلب") => one(ordersWhere(q, q`o.id = ${id}`), label);
 

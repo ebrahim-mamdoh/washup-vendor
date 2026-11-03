@@ -14,7 +14,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, VEHICLE_COLOR, cancelReasonLabel, discountReasonLabel, paymentStatusMeta } from "@/lib/constants/labels";
-import { formatDateTime, formatDuration, formatMoney, formatRelative } from "@/lib/format";
+import { formatDateTime, formatDuration, formatMoney, formatRelative, moneyOf } from "@/lib/format";
 import { OrderActions } from "@/components/modules/Orders/actions/OrderActions";
 import { useOrder } from "@/hooks/use-operations";
 
@@ -37,7 +37,7 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
         back={{ href: "/orders", label: "الطلبات" }}
         eyebrow={
           <span className="num">
-            {formatDateTime(order.scheduledAt)}
+            {formatDateTime(order.scheduledAt, order.branchLocale?.timezone)}
           </span>
         }
         title={<span className="num">{order.number}</span>}
@@ -101,7 +101,7 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
                   </span>
                   <span className="flex items-center gap-4">
                     <span className="num text-xs text-muted-foreground">{formatDuration(it.durationMin)}</span>
-                    <span className="num font-medium">{formatMoney(it.price)}</span>
+                    <span className="num font-medium">{formatMoney(it.price, moneyOf(order.branchLocale))}</span>
                   </span>
                 </li>
               ))}
@@ -109,17 +109,17 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
             <dl className="space-y-1.5 border-t border-border/60 bg-muted/30 px-5 py-4 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <dt>المجموع</dt>
-                <dd className="num">{formatMoney(order.subtotal)}</dd>
+                <dd className="num">{formatMoney(order.subtotal, moneyOf(order.branchLocale))}</dd>
               </div>
               {order.discount ? (
                 <div className="flex justify-between text-success">
                   <dt>خصم — {discountReasonLabel(order.discount.reason)}</dt>
-                  <dd className="num">-{formatMoney(order.discount.amount)}</dd>
+                  <dd className="num">-{formatMoney(order.discount.amount, moneyOf(order.branchLocale))}</dd>
                 </div>
               ) : null}
               <div className="flex justify-between pt-1 text-base font-bold">
                 <dt>الإجمالي</dt>
-                <dd className="num">{formatMoney(order.total)}</dd>
+                <dd className="num">{formatMoney(order.total, moneyOf(order.branchLocale))}</dd>
               </div>
             </dl>
           </SectionCard>
@@ -205,7 +205,7 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
               items={[
                 { label: "الفرع", value: branch.name.ar },
                 { label: "الموظف المسؤول", value: staff ? <span className="flex items-center gap-2"><UserAvatar name={staff.name} size="xs" />{staff.name}</span> : <span className="text-muted-foreground">لم يُعيّن بعد</span> },
-                { label: "تاريخ الإنشاء", value: <span className="num">{formatDateTime(order.createdAt)}</span> },
+                { label: "تاريخ الإنشاء", value: <span className="num">{formatDateTime(order.createdAt, order.branchLocale?.timezone)}</span> },
               ]}
             />
           </SectionCard>
