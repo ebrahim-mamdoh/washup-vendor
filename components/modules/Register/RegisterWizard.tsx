@@ -70,6 +70,14 @@ type GeoArea = { id: string; name: { ar: string; en: string }; countryCode: stri
 const LEGACY_PIN = { lat: 30.0131, lng: 31.4395 };
 const isLegacyPin = (lat: number, lng: number) => Math.abs(lat - LEGACY_PIN.lat) < 0.00005 && Math.abs(lng - LEGACY_PIN.lng) < 0.00005;
 
+function kmBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const rad = Math.PI / 180;
+  const dLat = (bLat - aLat) * rad;
+  const dLng = (bLng - aLng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 const WEEKDAYS = [
   "الأحد",
   "الإثنين",
@@ -327,6 +335,17 @@ export default function RegisterWizard() {
   const currencyDecimals = country?.currencyDecimals ?? 2;
   const priceStep = currencyDecimals > 0 ? 1 / 10 ** currencyDecimals : 1;
 
+  const applyCountryPrices = (code: string) => {
+    setServices((prev) =>
+      prev.map((service) => {
+        const preset = DEFAULT_SERVICES.find((item) => item.name === service.name);
+        if (!preset) return service;
+        return { ...service, price: code === "EG" ? preset.price : 0 };
+      }),
+    );
+    setNewServicePrice(code === "EG" ? 150 : "");
+  };
+
   const handleAreaChange = (newArea: string) => {
     setPinSet(false);
     setFormData((prev) => ({ ...prev, area: newArea, lat: 0, lng: 0 }));
@@ -372,6 +391,16 @@ export default function RegisterWizard() {
         toast.error("حدد موقع الفرع على الخريطة — لا يمكن إرسال الطلب والدبوس على الموقع الافتراضي");
         return;
       }
+      const chosenArea = countryAreas.find((a) => a.id === formData.area);
+      const anchor = chosenArea?.lat != null && chosenArea.lng != null
+        ? { lat: chosenArea.lat, lng: chosenArea.lng, maxKm: 50 }
+        : country ? { lat: country.lat, lng: country.lng, maxKm: 1500 } : null;
+      if (anchor && kmBetween(formData.lat, formData.lng, anchor.lat, anchor.lng) > anchor.maxKm) {
+        toast.error(anchor.maxKm === 50
+          ? "الدبوس بعيد عن المنطقة المختارة. يجب أن يكون خلال 50 كم من مركزها."
+          : "الدبوس بعيد عن الدولة المختارة.");
+        return;
+      }
     }
 
     if (step === 3) {
@@ -405,6 +434,10 @@ export default function RegisterWizard() {
       const selected = services.filter((s) => s.selected);
       if (selected.length === 0) {
         toast.error("يرجى اختيار خدمة واحدة على الأقل لتقديمها للعملاء");
+        return;
+      }
+      if (selected.some((service) => !(Number(service.price) > 0))) {
+        toast.error(`اكتب سعر كل خدمة مختارة بـ ${currencySymbol}`);
         return;
       }
     }
@@ -1013,7 +1046,9 @@ export default function RegisterWizard() {
                       onChange={(e) => {
                         const dial = e.target.value;
                         const match = countries.find((c) => c.dialCode === dial);
-                        setFormData({ ...formData, dialCode: dial, countryCode: match?.code ?? formData.countryCode, area: "", customArea: "" });
+                        const code = match?.code ?? formData.countryCode;
+                        if (code !== formData.countryCode) applyCountryPrices(code);
+                        setFormData({ ...formData, dialCode: dial, countryCode: code, area: "", customArea: "" });
                         setPinSet(false);
                       }}
                       className="h-10 w-28 shrink-0 rounded-md border border-input bg-background px-2 text-sm"
@@ -1085,6 +1120,7 @@ export default function RegisterWizard() {
                         const code = e.target.value;
                         const match = countries.find((c) => c.code === code);
                         setPinSet(false);
+                        applyCountryPrices(code);
                         setFormData({
                           ...formData,
                           countryCode: code,
@@ -1340,7 +1376,8 @@ export default function RegisterWizard() {
                             type="number"
                             min={priceStep}
                             step={priceStep}
-                            value={svc.price}
+                            value={svc.price || ""}
+                            placeholder="السعر"
                             disabled={!svc.selected}
                             onChange={(e) => {
                               const copy = [...services];
