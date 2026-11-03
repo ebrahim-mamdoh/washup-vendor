@@ -13,7 +13,24 @@ type CountryPick = {
   dialCode: string;
   currencyDecimals: number;
   active: boolean;
+  lat: number | null;
+  lng: number | null;
 };
+
+function kmBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const rad = Math.PI / 180;
+  const dLat = (bLat - aLat) * rad;
+  const dLng = (bLng - aLng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function assertPinNear(lat: number, lng: number, anchorLat: number | null, anchorLng: number | null, maxKm: number, message: string) {
+  if (anchorLat == null || anchorLng == null) return;
+  if (kmBetween(lat, lng, Number(anchorLat), Number(anchorLng)) > maxKm) {
+    throw new MockApiError(message, 422, { lat: ["الدبوس بعيد"] });
+  }
+}
 
 function clockMinutes(hhmm: string, isClose = false): number | null {
   const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
@@ -91,7 +108,7 @@ export const vendorApplicationRoutes = [
       const email = rawEmail.includes("@") ? rawEmail : `${phoneE164.replace(/\D/g, "")}@partner.washup.app`;
       const countryCode = requireText(data.countryCode, "countryCode", "الدولة", 2).toUpperCase();
       const [country] = await sql<CountryPick[]>`
-        select code, dial_code as "dialCode", currency_decimals as "currencyDecimals", active
+        select code, dial_code as "dialCode", currency_decimals as "currencyDecimals", active, lat, lng
         from public.countries where code = ${countryCode}`;
       if (!country?.active) throw new MockApiError("هذه الدولة غير متاحة للتسجيل", 422, { countryCode: ["دولة غير مفعّلة"] });
       const address = requireText(data.address, "address", "عنوان المغسلة", 5);
@@ -125,14 +142,16 @@ export const vendorApplicationRoutes = [
       let area = String(data.area ?? "").trim();
       if (area === "other" || !area) {
         if (customArea.length < 2) throw new MockApiError("اكتب اسم المنطقة", 422, { area: ["المنطقة مطلوبة"] });
+        assertPinNear(lat, lng, country.lat, country.lng, 1500, "الدبوس بعيد عن الدولة المختارة");
         area = `area_${Date.now().toString(36)}`;
         await sql`
           insert into public.areas (id, name, country_code, lat, lng, active, sort_order)
           values (${area}, ${sql.json({ ar: customArea, en: customArea })}, ${countryCode}, ${lat}, ${lng}, false, 99)`;
       } else {
-        const [known] = await sql<{ id: string }[]>`
-          select id from public.areas where id = ${area} and country_code = ${countryCode} and active`;
+        const [known] = await sql<{ id: string; lat: number | null; lng: number | null }[]>`
+          select id, lat, lng from public.areas where id = ${area} and country_code = ${countryCode} and active`;
         if (!known) throw new MockApiError("المنطقة لا تتبع الدولة المختارة", 422, { area: ["منطقة غير صالحة"] });
+        assertPinNear(lat, lng, known.lat, known.lng, 50, "الدبوس بعيد عن المنطقة المختارة. يجب أن يكون خلال 50 كم من مركزها");
       }
       const id = `app_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 

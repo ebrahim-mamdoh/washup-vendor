@@ -288,8 +288,12 @@ export function LocationPicker({ value, onChange, onPlace, fallbackCenter = CAIR
   const point = isSet(value) ? value : null;
 
   if (!API_KEY) {
+    // Remount when the empty map should jump to a new country or area. A placed
+    // pin keeps a stable key so dragging does not rebuild the map.
+    const viewKey = point ? "pin" : `${fallbackCenter.lat},${fallbackCenter.lng}`;
     return (
       <OsmLocationPicker
+        key={viewKey}
         value={point}
         onChange={onChange}
         fallbackCenter={fallbackCenter}
@@ -316,7 +320,7 @@ export function LocationPicker({ value, onChange, onPlace, fallbackCenter = CAIR
         />
         <div className={cn("overflow-hidden rounded-xl border border-border", className)}>
           <Map
-            key={scheme}
+            key={point ? scheme : `${scheme}:${fallbackCenter.lat},${fallbackCenter.lng}`}
             mapId={MAP_ID}
             colorScheme={scheme}
             defaultCenter={point ?? fallbackCenter}
