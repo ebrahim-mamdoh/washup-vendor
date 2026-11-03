@@ -18,7 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useUrlState } from "@/hooks/use-url-state";
 import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, TONES } from "@/lib/constants/labels";
 import type { CsvColumn } from "@/lib/export-csv";
-import { formatDate, formatMoney, formatTime } from "@/lib/format";
+import { formatDate, formatMoney, formatTime, moneyOf } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { OrderActions } from "@/components/modules/Orders/actions/OrderActions";
 import { useBranchScope } from "@/hooks/use-branch-scope";
@@ -176,8 +176,8 @@ export default function OrdersListPageContent({ view }: { view: View }) {
       sortKey: "scheduledAt",
       cell: (o) => (
         <div className="num text-xs">
-          <span className="block font-medium">{formatTime(o.scheduledAt)}</span>
-          <span className="text-muted-foreground">{formatDate(o.scheduledAt)}</span>
+          <span className="block font-medium">{formatTime(o.scheduledAt, o.branchLocale?.timezone)}</span>
+          <span className="text-muted-foreground">{formatDate(o.scheduledAt, { timeZone: o.branchLocale?.timezone })}</span>
           {o.overdueMin > 0 && ["pending", "confirmed", "in_service"].includes(o.status) ? <span className="ms-1 text-destructive">· متأخر {o.overdueMin} د</span> : null}
         </div>
       ),
@@ -195,7 +195,7 @@ export default function OrdersListPageContent({ view }: { view: View }) {
         </div>
       ),
     },
-    { key: "total", header: "الإجمالي", sortKey: "total", align: "end", cell: (o) => <span className="num font-semibold">{formatMoney(o.total)}</span> },
+    { key: "total", header: "الإجمالي", sortKey: "total", align: "end", cell: (o) => <span className="num font-semibold">{formatMoney(o.total, moneyOf(o.branchLocale))}</span> },
     { key: "actions", header: <span className="sr-only">إجراءات</span>, align: "end", cell: (o) => <OrderActions order={o} className="justify-end" /> },
   ];
 

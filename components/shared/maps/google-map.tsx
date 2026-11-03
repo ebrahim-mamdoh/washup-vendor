@@ -189,6 +189,86 @@ function FollowValue({ value, fromMap }: { value: LatLng | null; fromMap: RefObj
   return null;
 }
 
+function loadOnce(tag: "script" | "link", attr: string, value: string) {
+  return new Promise<void>((resolve, reject) => {
+    const selector = tag === "script" ? `script[src="${value}"]` : `link[href="${value}"]`;
+    if (document.querySelector(selector)) {
+      resolve();
+      return;
+    }
+    const el = document.createElement(tag);
+    el.setAttribute(attr, value);
+    if (tag === "link") el.setAttribute("rel", "stylesheet");
+    el.onload = () => resolve();
+    el.onerror = () => reject(new Error(value));
+    document.head.appendChild(el);
+  });
+}
+
+/** Click-and-drag pin on OpenStreetMap when the Google Maps key is not configured. */
+function OsmLocationPicker({ value, onChange, fallbackCenter, className }: Pick<LocationPickerProps, "value" | "onChange" | "fallbackCenter" | "className">) {
+  const host = useRef<HTMLDivElement>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    const node = host.current;
+    if (!node) return;
+    let map: any = null;
+    let cancelled = false;
+    (async () => {
+      await loadOnce("link", "href", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
+      await loadOnce("script", "src", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js");
+      const L = (window as unknown as { L?: any }).L;
+      if (cancelled || !L || !host.current) return;
+      const center = value ?? fallbackCenter ?? CAIRO;
+      map = L.map(host.current, { zoomControl: true }).setView([center.lat, center.lng], value ? 16 : 12);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map);
+      const icon = L.divIcon({
+        className: "",
+        html: '<div style="width:18px;height:18px;border-radius:99px;background:#1463ff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div>',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      });
+      const marker = value ? L.marker([value.lat, value.lng], { icon, draggable: true }).addTo(map) : null;
+      const place = (lat: number, lng: number, existing: { setLatLng: (p: [number, number]) => void } | null) => {
+        const p = { lat: round6(lat), lng: round6(lng) };
+        if (existing) existing.setLatLng([p.lat, p.lng]);
+        onChangeRef.current(p);
+      };
+      marker?.on("dragend", () => {
+        const p = marker.getLatLng();
+        place(p.lat, p.lng, marker);
+      });
+      map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
+        if (!marker) {
+          const created = L.marker([e.latlng.lat, e.latlng.lng], { icon, draggable: true }).addTo(map);
+          created.on("dragend", () => {
+            const p = created.getLatLng();
+            place(p.lat, p.lng, created);
+          });
+        } else {
+          marker.setLatLng(e.latlng);
+        }
+        place(e.latlng.lat, e.latlng.lng, marker);
+      });
+    })().catch(() => undefined);
+    return () => {
+      cancelled = true;
+      map?.remove();
+    };
+    // Mount once; later picks come from the map itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="space-y-2">
+      <div ref={host} className={cn("h-[280px] w-full overflow-hidden rounded-xl border border-border", className)} />
+      <p className="text-[11px] text-muted-foreground">الخريطة عبر OpenStreetMap. انقر لتحديد الدبوس أو اسحبه. لخرائط Google اضبط مفتاح الخرائط.</p>
+    </div>
+  );
+}
+
 type LocationPickerProps = {
   value: LatLng | null;
   onChange: (p: LatLng) => void;
@@ -207,7 +287,16 @@ export function LocationPicker({ value, onChange, onPlace, fallbackCenter = CAIR
   const fromMap = useRef("");
   const point = isSet(value) ? value : null;
 
-  if (!API_KEY) return <Unavailable className={className} point={point} />;
+  if (!API_KEY) {
+    return (
+      <OsmLocationPicker
+        value={point}
+        onChange={onChange}
+        fallbackCenter={fallbackCenter}
+        className={className}
+      />
+    );
+  }
 
   const set = (lat: number, lng: number) => {
     const p = { lat: round6(lat), lng: round6(lng) };

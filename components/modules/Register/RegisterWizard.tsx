@@ -56,16 +56,19 @@ const MapLocationPicker = dynamic(
   }
 );
 
-const AREAS = [
-  { id: "nasr", name: "مدينة نصر", defaultCoords: [30.0561, 31.3412] as [number, number] },
-  { id: "helio", name: "مصر الجديدة", defaultCoords: [30.112, 31.345] as [number, number] },
-  { id: "nc", name: "التجمع والقاهرة الجديدة", defaultCoords: [30.0131, 31.4395] as [number, number] },
-  { id: "maadi", name: "المعادي", defaultCoords: [29.9602, 31.2569] as [number, number] },
-  { id: "zamalek", name: "الزمالك", defaultCoords: [30.0631, 31.2185] as [number, number] },
-  { id: "moh", name: "المهندسين والدقي", defaultCoords: [30.0524, 31.2003] as [number, number] },
-  { id: "zayed", name: "الشيخ زايد", defaultCoords: [30.045, 30.985] as [number, number] },
-  { id: "oct", name: "٦ أكتوبر", defaultCoords: [29.972, 30.94] as [number, number] },
-];
+type GeoCountry = {
+  code: string;
+  name: { ar: string; en: string };
+  currencySymbol: { ar: string; en: string };
+  currencyDecimals: number;
+  dialCode: string;
+  lat: number;
+  lng: number;
+};
+type GeoArea = { id: string; name: { ar: string; en: string }; countryCode: string; lat: number | null; lng: number | null };
+
+const LEGACY_PIN = { lat: 30.0131, lng: 31.4395 };
+const isLegacyPin = (lat: number, lng: number) => Math.abs(lat - LEGACY_PIN.lat) < 0.00005 && Math.abs(lng - LEGACY_PIN.lng) < 0.00005;
 
 const WEEKDAYS = [
   "الأحد",
@@ -134,12 +137,15 @@ export default function RegisterWizard() {
     businessName: "",
     ownerName: "",
     phone: "",
+    dialCode: "+20",
     email: "",
     branchName: "",
-    area: "nc",
+    countryCode: "EG",
+    area: "",
+    customArea: "",
     address: "",
-    lat: 30.0131,
-    lng: 31.4395,
+    lat: 0,
+    lng: 0,
     capacity: 4,
   });
 
@@ -153,21 +159,26 @@ export default function RegisterWizard() {
   const [workingHours, setWorkingHours] = useState<WorkingDay[]>(INITIAL_HOURS);
 
   // Uploaded Documents State
-  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocItem[]>([
-    {
-      id: "doc_default_1",
-      name: "السجل_التجاري_المعتمد.pdf",
-      path: "commercial_reg.pdf",
-      size: 485000,
-      type: "application/pdf",
-      category: "commercial_reg",
-    },
-  ]);
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocItem[]>([]);
+  const [countries, setCountries] = useState<GeoCountry[]>([]);
+  const [areas, setAreas] = useState<GeoArea[]>([]);
+  const [pinSet, setPinSet] = useState(false);
 
   // Quick lookup state
   const [lookupQuery, setLookupQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showLookupBox, setShowLookupBox] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/v1/vendor/geo")
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json?.status) return;
+        setCountries(json.data.countries ?? []);
+        setAreas(json.data.areas ?? []);
+      })
+      .catch(() => undefined);
+  }, []);
 
   // Check query param for existing application id or status check
   useEffect(() => {
@@ -238,16 +249,22 @@ export default function RegisterWizard() {
       ? rawDigits
       : "0" + rawDigits;
 
+    const dial = countries.find((c) => app.phone.replace(/\D/g, "").startsWith(c.dialCode.replace(/\D/g, "")))?.dialCode ?? "+20";
+    const national = app.phone.replace(/\D/g, "").replace(new RegExp("^" + dial.replace(/\D/g, "")), "");
+    setPinSet(Number.isFinite(Number(app.lat)) && !isLegacyPin(Number(app.lat), Number(app.lng)));
     setFormData({
       businessName: app.businessName || "",
       ownerName: app.ownerName || "",
-      phone: cleanPhone || "",
+      phone: national || cleanPhone || "",
+      dialCode: dial,
       email: app.email?.includes("@partner.washup.app") ? "" : app.email || "",
       branchName: app.businessName ? `الفرع الرئيسي - ${app.businessName}` : "الفرع الرئيسي",
-      area: app.area || "nasr",
+      countryCode: areas.find((a) => a.id === app.area)?.countryCode ?? "EG",
+      area: app.area || "",
+      customArea: "",
       address: app.address || "",
-      lat: Number(app.lat) || 30.0561,
-      lng: Number(app.lng) || 31.3412,
+      lat: Number(app.lat) || 0,
+      lng: Number(app.lng) || 0,
       capacity: Number(app.capacity) || 4,
     });
 
@@ -304,14 +321,15 @@ export default function RegisterWizard() {
   };
 
   // Handle area change: update area and optionally center map to area default coords
+  const country = countries.find((c) => c.code === formData.countryCode) ?? countries[0];
+  const countryAreas = areas.filter((a) => a.countryCode === (country?.code ?? formData.countryCode));
+  const currencySymbol = country?.currencySymbol?.ar ?? "ج.م";
+  const currencyDecimals = country?.currencyDecimals ?? 2;
+  const priceStep = currencyDecimals > 0 ? 1 / 10 ** currencyDecimals : 1;
+
   const handleAreaChange = (newArea: string) => {
-    const areaMeta = AREAS.find((a) => a.id === newArea);
-    setFormData((prev) => ({
-      ...prev,
-      area: newArea,
-      lat: areaMeta ? areaMeta.defaultCoords[0] : prev.lat,
-      lng: areaMeta ? areaMeta.defaultCoords[1] : prev.lng,
-    }));
+    setPinSet(false);
+    setFormData((prev) => ({ ...prev, area: newArea, lat: 0, lng: 0 }));
   };
 
   const handleNext = () => {
@@ -324,20 +342,61 @@ export default function RegisterWizard() {
         toast.error("يرجى إدخال اسم المالك أو المسؤول");
         return;
       }
+      const dialDigits = formData.dialCode.replace(/\D/g, "");
       const rawPhone = formData.phone.replace(/\D/g, "");
-      if (!rawPhone.startsWith("01") || rawPhone.length !== 11) {
-        toast.error("يرجى إدخال رقم موبايل مصري صحيح مكون من 11 رقم يبدأ بـ 01");
+      const national = rawPhone.startsWith(dialDigits) ? rawPhone.slice(dialDigits.length) : rawPhone.replace(/^0+/, "");
+      if (national.length < 6 || national.length > 12) {
+        toast.error("أدخل رقم موبايل صحيح للدولة المختارة");
         return;
       }
     }
 
     if (step === 2) {
+      if (!formData.countryCode) {
+        toast.error("اختر الدولة");
+        return;
+      }
+      if (countryAreas.length && !formData.area) {
+        toast.error("اختر المنطقة");
+        return;
+      }
+      if (!countryAreas.length && formData.customArea.trim().length < 2) {
+        toast.error("اكتب اسم المنطقة");
+        return;
+      }
       if (!formData.address.trim()) {
         toast.error("يرجى إدخال العنوان التفصيلي للفرع");
         return;
       }
-      if (!formData.lat || !formData.lng) {
-        toast.error("يرجى تحديد موقع الفرع على الخريطة");
+      if (!pinSet || !formData.lat || !formData.lng || isLegacyPin(formData.lat, formData.lng)) {
+        toast.error("حدد موقع الفرع على الخريطة — لا يمكن إرسال الطلب والدبوس على الموقع الافتراضي");
+        return;
+      }
+    }
+
+    if (step === 3) {
+      const openDays = workingHours.filter((h) => !h.closed);
+      if (!openDays.length) {
+        toast.error("يجب أن تعمل المغسلة يومًا واحدًا على الأقل");
+        return;
+      }
+      const bad = openDays.some((h) => {
+        const [oh, om] = h.open.split(":").map(Number);
+        const [ch, cm] = h.close.split(":").map(Number);
+        const open = oh * 60 + om;
+        const close = ch * 60 + cm === 0 ? 1440 : ch * 60 + cm;
+        return !(open < close);
+      });
+      if (bad) {
+        toast.error("وقت الفتح يجب أن يكون قبل وقت الإغلاق");
+        return;
+      }
+    }
+
+    if (step === 5) {
+      const regs = uploadedDocs.filter((d) => d.category === "commercial_reg" && !d.uploading && d.path !== "commercial_reg.pdf");
+      if (!regs.length) {
+        toast.error("ارفع السجل التجاري أو البطاقة الضريبية");
         return;
       }
     }
@@ -367,7 +426,7 @@ export default function RegisterWizard() {
     }
     const priceNum = Number(newServicePrice);
     if (!priceNum || priceNum <= 0) {
-      toast.error("يرجى إدخال سعر صحيح للخدمة بالجنيه");
+      toast.error(`يرجى إدخال سعر صحيح (${currencySymbol})`);
       return;
     }
     const durationNum = Number(newServiceDuration);
@@ -481,22 +540,30 @@ export default function RegisterWizard() {
         }));
 
       // Document strings to be stored in Supabase text[] column
-      const documentPaths = uploadedDocs.map((d) => d.path || d.name);
+      const documentPaths = uploadedDocs
+        .filter((d) => !d.uploading && d.path && d.path !== "commercial_reg.pdf")
+        .map((d) => d.path);
+      const dialDigits = formData.dialCode.replace(/\D/g, "");
+      const rawPhone = formData.phone.replace(/\D/g, "");
+      const national = rawPhone.startsWith(dialDigits) ? rawPhone.slice(dialDigits.length).replace(/^0+/, "") : rawPhone.replace(/^0+/, "");
 
-      const payload: SubmitApplicationPayload = {
+      const payload: SubmitApplicationPayload & { countryCode: string; dialCode: string; customAreaName?: string } = {
         businessName: formData.businessName.trim(),
         ownerName: formData.ownerName.trim(),
-        phone: formData.phone.trim(),
+        phone: `+${dialDigits}${national}`,
+        dialCode: formData.dialCode,
         email: formData.email.trim(),
         branchName: formData.branchName.trim() || formData.businessName.trim(),
-        area: formData.area,
+        countryCode: formData.countryCode,
+        area: countryAreas.length ? formData.area : "other",
+        customAreaName: countryAreas.length ? undefined : formData.customArea.trim(),
         address: formData.address.trim(),
         lat: formData.lat,
         lng: formData.lng,
         capacity: formData.capacity,
         workingHours,
         services: selectedServices,
-        documents: documentPaths.length ? documentPaths : ["commercial_reg.pdf"],
+        documents: documentPaths,
       };
 
       const res = await submitApplication(payload);
@@ -939,17 +1006,37 @@ export default function RegisterWizard() {
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">رقم الموبايل للتسجيل والتواصل *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    dir="ltr"
-                    className="text-right"
-                    placeholder="01012345678"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      aria-label="مفتاح الدولة"
+                      value={formData.dialCode}
+                      onChange={(e) => {
+                        const dial = e.target.value;
+                        const match = countries.find((c) => c.dialCode === dial);
+                        setFormData({ ...formData, dialCode: dial, countryCode: match?.code ?? formData.countryCode, area: "", customArea: "" });
+                        setPinSet(false);
+                      }}
+                      className="h-10 w-28 shrink-0 rounded-md border border-input bg-background px-2 text-sm"
+                      dir="ltr"
+                    >
+                      {(countries.length ? countries : [{ code: "EG", dialCode: "+20", name: { ar: "مصر", en: "Egypt" } }]).map((c) => (
+                        <option key={c.code} value={c.dialCode}>
+                          {c.dialCode} {c.name.ar}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      dir="ltr"
+                      className="text-left"
+                      placeholder="5xxxxxxxx"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
                   <p className="text-[11px] text-muted-foreground">
-                    سيتم استخدام هذا الرقم لتسجيل دخول المالك إلى بوابة الشركاء لاحقاً.
+                    يُحفظ الرقم دوليًا ({formData.dialCode}…) ويُستخدم لدخول بوابة الشركاء.
                   </p>
                 </div>
 
@@ -990,19 +1077,58 @@ export default function RegisterWizard() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="area">المنطقة الجغرافية *</Label>
+                    <Label htmlFor="country">الدولة *</Label>
                     <select
-                      id="area"
-                      value={formData.area}
-                      onChange={(e) => handleAreaChange(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      id="country"
+                      value={formData.countryCode}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        const match = countries.find((c) => c.code === code);
+                        setPinSet(false);
+                        setFormData({
+                          ...formData,
+                          countryCode: code,
+                          dialCode: match?.dialCode ?? formData.dialCode,
+                          area: "",
+                          customArea: "",
+                          lat: 0,
+                          lng: 0,
+                        });
+                      }}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
-                      {AREAS.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
+                      {countries.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.name.ar}
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="area">المنطقة الجغرافية *</Label>
+                    {countryAreas.length ? (
+                      <select
+                        id="area"
+                        value={formData.area}
+                        onChange={(e) => handleAreaChange(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        <option value="">اختر المنطقة</option>
+                        {countryAreas.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name.ar}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        id="area"
+                        placeholder="اكتب اسم المنطقة — سيضيفها فريق المراجعة"
+                        value={formData.customArea}
+                        onChange={(e) => setFormData({ ...formData, customArea: e.target.value })}
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -1023,10 +1149,15 @@ export default function RegisterWizard() {
                     تحديد موقع الفرع على الخريطة (GPS Pin Picker):
                   </Label>
                   <MapLocationPicker
-                    lat={formData.lat}
-                    lng={formData.lng}
-                    area={formData.area}
+                    lat={pinSet ? formData.lat : null}
+                    lng={pinSet ? formData.lng : null}
+                    fallbackCenter={
+                      countryAreas.find((a) => a.id === formData.area)?.lat
+                        ? [countryAreas.find((a) => a.id === formData.area)!.lat!, countryAreas.find((a) => a.id === formData.area)!.lng!]
+                        : [country?.lat ?? 30.0444, country?.lng ?? 31.2357]
+                    }
                     onChange={(newLat, newLng) => {
+                      setPinSet(true);
                       setFormData((prev) => ({ ...prev, lat: newLat, lng: newLng }));
                     }}
                     onPlace={(place) => {
@@ -1207,8 +1338,8 @@ export default function RegisterWizard() {
                         <div className="relative">
                           <Input
                             type="number"
-                            min={10}
-                            step={10}
+                            min={priceStep}
+                            step={priceStep}
                             value={svc.price}
                             disabled={!svc.selected}
                             onChange={(e) => {
@@ -1222,7 +1353,7 @@ export default function RegisterWizard() {
                             className="h-8.5 w-24 pe-7 text-center font-bold text-xs"
                           />
                           <span className="pointer-events-none absolute end-1.5 top-2 text-[10px] font-medium text-muted-foreground">
-                            ج.م
+                            {currencySymbol}
                           </span>
                         </div>
                       </div>
@@ -1257,12 +1388,14 @@ export default function RegisterWizard() {
                     {/* Price Input with Explicit Unit */}
                     <div className="space-y-1">
                       <Label htmlFor="custom-service-price" className="text-xs font-medium">
-                        السعر (بالجنيه) *
+                        السعر ({currencySymbol}) *
                       </Label>
                       <div className="relative">
                         <Input
                           id="custom-service-price"
                           type="number"
+                          min={priceStep}
+                          step={priceStep}
                           placeholder="150"
                           value={newServicePrice}
                           onChange={(e) =>
@@ -1271,7 +1404,7 @@ export default function RegisterWizard() {
                           className="h-9.5 pe-9 text-xs font-bold text-center bg-background"
                         />
                         <span className="pointer-events-none absolute end-2.5 top-2.5 text-xs font-semibold text-muted-foreground">
-                          ج.م
+                          {currencySymbol}
                         </span>
                       </div>
                     </div>
@@ -1457,12 +1590,12 @@ export default function RegisterWizard() {
                   </div>
                   <div className="flex justify-between border-b pb-2">
                     <span className="text-muted-foreground">رقم الهاتف:</span>
-                    <span className="num font-semibold dir-ltr text-right">{formData.phone}</span>
+                    <span className="num font-semibold dir-ltr text-right">{formData.dialCode} {formData.phone}</span>
                   </div>
                   <div className="flex justify-between border-b pb-2">
                     <span className="text-muted-foreground">المنطقة والعنوان:</span>
                     <span className="text-right">
-                      {AREAS.find((a) => a.id === formData.area)?.name} — {formData.address}
+                      {(countryAreas.find((a) => a.id === formData.area)?.name.ar || formData.customArea || "—")} — {formData.address}
                     </span>
                   </div>
                   <div className="flex justify-between border-b pb-2">
@@ -1474,6 +1607,17 @@ export default function RegisterWizard() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">سعة المغسلة:</span>
                     <span className="font-bold">{formData.capacity} سيارات في نفس الوقت</span>
+                  </div>
+                  <div className="border-t pt-2">
+                    <p className="mb-1 text-muted-foreground">ساعات العمل:</p>
+                    <ul className="space-y-0.5 text-xs">
+                      {workingHours.map((h, i) => (
+                        <li key={WEEKDAYS[i]} className="flex justify-between">
+                          <span>{WEEKDAYS[i]}</span>
+                          <span className="num">{h.closed ? "عطلة" : `${h.open} – ${h.close}`}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
 
@@ -1488,7 +1632,7 @@ export default function RegisterWizard() {
                         <li key={i} className="flex justify-between items-center border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
                           <span className="font-medium">{s.name}</span>
                           <span className="font-semibold text-primary">
-                            {s.price} ج.م ({s.durationMin} دقيقة)
+                            {s.price} {currencySymbol} ({s.durationMin} دقيقة)
                           </span>
                         </li>
                       ))}

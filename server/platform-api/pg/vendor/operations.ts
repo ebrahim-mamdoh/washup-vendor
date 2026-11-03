@@ -107,6 +107,7 @@ export const vendorOperationRoutes = [
     const source = query.get("source");
     const staffId = query.get("staffId");
     const search = searchPattern(query);
+    const rawSearch = query.get("search")?.trim() ?? "";
 
     const base = sql`
       o.branch_id = any(${branchIds})
@@ -117,6 +118,7 @@ export const vendorOperationRoutes = [
       ${
         search
           ? sql`and (o.number ilike ${search} or o.code ilike ${search} or o.plate ilike ${search}
+              or (length(public.normalize_plate(${rawSearch})) >= 2 and strpos(coalesce(o.plate_normalized, ''), public.normalize_plate(${rawSearch})) > 0)
               or exists (select 1 from public.customers cu where cu.id = o.customer_id and (cu.name ilike ${search}
                 or ${sql.unsafe(PHONE("cu.phone"))} ilike ${search} or replace(${sql.unsafe(PHONE("cu.phone"))}, ' ', '') ilike ${search})))`
           : sql``

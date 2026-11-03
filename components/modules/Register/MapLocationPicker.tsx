@@ -20,21 +20,10 @@ import {
 import { LocationPicker } from "@/components/shared/maps/google-map";
 import type { PickedPlace } from "@/components/shared/maps/google-map-utils";
 
-const AREA_COORDINATES: Record<string, [number, number]> = {
-  nasr: [30.0561, 31.3412],
-  helio: [30.112, 31.345],
-  nc: [30.0131, 31.4395],
-  maadi: [29.9602, 31.2569],
-  zamalek: [30.0631, 31.2185],
-  moh: [30.0524, 31.2003],
-  zayed: [30.045, 30.985],
-  oct: [29.972, 30.94],
-};
-
 interface MapLocationPickerProps {
-  lat: number;
-  lng: number;
-  area?: string;
+  lat: number | null;
+  lng: number | null;
+  fallbackCenter?: [number, number];
   onChange: (lat: number, lng: number) => void;
   /** A place picked from the Google search box (its address can prefill the form). */
   onPlace?: (place: PickedPlace) => void;
@@ -44,13 +33,13 @@ interface MapLocationPickerProps {
 export default function MapLocationPicker({
   lat,
   lng,
-  area = "nc",
+  fallbackCenter = [30.0444, 31.2357],
   onChange,
   onPlace,
 }: MapLocationPickerProps) {
   const [locating, setLocating] = useState(false);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
-  const areaCenter = AREA_COORDINATES[area] ?? AREA_COORDINATES.nc;
+  const areaCenter = fallbackCenter;
 
   // Execute geolocation with smart fallback (GPS first, then Wi-Fi/Network)
   const executeGetPosition = (highAccuracy: boolean) => {
@@ -173,7 +162,7 @@ export default function MapLocationPicker({
 
       {/* Map Container */}
       <LocationPicker
-        value={{ lat, lng }}
+        value={lat != null && lng != null ? { lat, lng } : null}
         onChange={(p) => onChange(p.lat, p.lng)}
         onPlace={onPlace}
         fallbackCenter={{ lat: areaCenter[0], lng: areaCenter[1] }}
@@ -181,7 +170,7 @@ export default function MapLocationPicker({
         className="h-[280px] sm:h-[320px]"
       />
       <p className="num text-[11px] text-muted-foreground" dir="ltr">
-        {lat.toFixed(6)}, {lng.toFixed(6)}
+        {lat != null && lng != null ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : "لم يُحدَّد الدبوس بعد"}
       </p>
 
       {/* Geolocation Permission Helper Dialog */}

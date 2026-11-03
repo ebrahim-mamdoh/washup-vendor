@@ -18,7 +18,7 @@ import { daysAgo, now, round2 } from "../../db";
 import { ok } from "../../http";
 import { serviceName } from "../../lookups";
 import type { VendorActor } from "../../router";
-import { cairoDateParts, dayKey, hoursFor, isOpenAt, overdueMinutes } from "../../vendor/engine";
+import { dayKey, hoursFor, isOpenAt, overdueMinutes, zoneDateParts } from "../../vendor/engine";
 import { branchesWhere, ordersWhere, shiftsWhere } from "../entities";
 import { onShiftAt, staffNames } from "../lookups";
 import { vroute } from "../router";
@@ -294,7 +294,7 @@ export const vendorDashboardRoutes = [
     // Oldest day any figure reads: the previous comparison period, and 7 days for sparklines/alerts.
     const windowStart = daysAgo(Math.max(2 * n - 1, 6));
 
-    const [scoped, branchRows, shiftLists] = await Promise.all([
+    const [scoped, branchRows, shiftLists, locales] = await Promise.all([
       ordersWhere(
         sql,
         sql`o.branch_id = any(${branchIds}) and ((o.scheduled_at >= ${windowStart.toISOString()} and o.scheduled_at <= ${endOfDay(at).toISOString()})
@@ -303,8 +303,17 @@ export const vendorDashboardRoutes = [
       ),
       branchesWhere(sql, sql`br.id = any(${branchIds})`),
       Promise.all(branchIds.map((id) => onShiftAt(sql, id, at))),
+      sql<{ id: string; symbol: string; decimals: number; timezone: string }[]>`
+        select br.id, c.currency_symbol ->> 'ar' as symbol, c.currency_decimals::int as decimals, c.timezone
+        from public.branches br
+        join public.areas a on a.id = br.area_id
+        join public.countries c on c.code = a.country_code
+        where br.id = any(${branchIds})`,
     ]);
     const branches = new Map(branchRows.map((b) => [b.id, b]));
+    const localeOf = new Map(locales.map((l) => [l.id, l]));
+    const zones = [...new Set(locales.map((l) => l.timezone))];
+    const chartZone = zones.length === 1 ? zones[0] : "Africa/Cairo";
     const onShift = new Map(branchIds.map((id, i) => [id, shiftLists[i]]));
     const inside = scoped.filter((o) => o.status === "waiting" || o.status === "in_service" || o.status === "completed");
     const todayKey = dayKey(at);
@@ -318,11 +327,11 @@ export const vendorDashboardRoutes = [
 
     let revenueChart: { label: string; value: number }[];
     if (period === "today") {
-      const hourNow = cairoDateParts(at).hour;
+      const hourNow = zoneDateParts(at, chartZone).hour;
       const hours = Array.from({ length: Math.max(1, hourNow - 7) }, (_, i) => 8 + i);
       revenueChart = hours.map((h) => ({
         label: `${h % 12 || 12}${h >= 12 ? "م" : "ص"}`,
-        value: paidRevenue(today.filter((o) => cairoDateParts(new Date(o.scheduledAt)).hour === h)),
+        value: paidRevenue(today.filter((o) => zoneDateParts(new Date(o.scheduledAt), chartZone).hour === h)),
       }));
     } else {
       revenueChart = Array.from({ length: n }, (_, i) => {
@@ -350,7 +359,11 @@ export const vendorDashboardRoutes = [
       branchId: query.get("branchId") ?? "all",
       generatedAt: at.toISOString(),
       kpis: buildKpis(scoped, period),
-      liveBranches: branchIds.map((id) => liveBranch(branches.get(id)!, scoped, onShift.get(id) ?? [], at, todayKey)),
+      liveBranches: branchIds.map((id) => {
+        const card = liveBranch(branches.get(id)!, scoped, onShift.get(id) ?? [], at, todayKey);
+        const loc = localeOf.get(id);
+        return { ...card, currencySymbol: loc?.symbol ?? "ج.م", currencyDecimals: loc?.decimals ?? 2, timezone: loc?.timezone ?? "Africa/Cairo" };
+      }),
       carsInside: carsInside(scoped, branches, staff, at, todayKey),
       alerts: alertList,
       charts: {

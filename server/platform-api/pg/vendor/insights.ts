@@ -718,20 +718,20 @@ export const vendorInsightRoutes = [
     if (q.length < 2) return ok({ query: q, results: [] as VendorSearchResult[] });
     const sql = db();
     const term = searchPattern(new URLSearchParams({ search: q }))!;
-    const plateQ = q.replace(/[\s-]/g, "").toUpperCase();
+    const plateHit = sql`length(public.normalize_plate(${q})) >= 2 and strpos(coalesce(o.plate_normalized, ''), public.normalize_plate(${q})) > 0`;
 
     const [orders, plates, customers] = await Promise.all([
       sql<{ id: string; number: string; plate: string | null; service: string }[]>`
         select o.id, o.number, o.plate, coalesce(${sql.unsafe(PRIMARY_ITEM("o"))} ->> 'ar', '—') as service
         from public.orders o
-        where o.branch_id = any(${actor.branchIds}) and (o.number ilike ${term} or o.code ilike ${term})
+        where o.branch_id = any(${actor.branchIds}) and (o.number ilike ${term} or o.code ilike ${term} or ${plateHit})
         order by o.scheduled_at desc, o.id limit 5`,
       // One row per plate: its latest order ("آخر طلب").
       sql<{ id: string; number: string; plate: string; customerId: string | null }[]>`
         select p.id, p.number, p.plate, p."customerId" from (
           select distinct on (o.plate) o.id, o.number, o.plate, o.customer_id as "customerId", o.scheduled_at
           from public.orders o
-          where o.branch_id = any(${actor.branchIds}) and coalesce(o.plate, '') <> '' and strpos(o.plate, ${plateQ}) > 0
+          where o.branch_id = any(${actor.branchIds}) and coalesce(o.plate, '') <> '' and ${plateHit}
           order by o.plate, o.scheduled_at desc, o.id
         ) p order by p.scheduled_at desc, p.id limit 5`,
       sql<{ id: string; name: string; phone: string }[]>`

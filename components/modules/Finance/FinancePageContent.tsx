@@ -118,6 +118,14 @@ export default function FinancePageContent() {
 
   const scopeLabel = isAll ? "كل الفروع" : branchName(branchId);
   const periodText = PERIOD_TEXT[period];
+  const scoped = isAll ? branches : branches.filter((b) => b.id === branchId);
+  const locale = scoped.length && scoped.every((b) => b.currencySymbol === scoped[0]?.currencySymbol) ? scoped[0] : null;
+  const showMoney = (value: number, opts?: { decimals?: boolean }): string => {
+    if (locale?.currencySymbol) {
+      return formatMoney(value, { symbol: locale.currencySymbol, fractionDigits: locale.currencyDecimals ?? 2 });
+    }
+    return formatMoney(value, opts);
+  };
 
   const header = (
     <PageHeader
@@ -159,7 +167,7 @@ export default function FinancePageContent() {
           label: "الإيراد",
           icon: <Banknote />,
           tone: TONES.primary,
-          value: formatMoney(d.revenue),
+          value: showMoney(d.revenue),
           hint: `${periodText} · من الطلبات المدفوعة`,
           definition: "مجموع قيمة الطلبات المدفوعة في الفترة (نقدي + بطاقة + أونلاين). الطلبات غير المدفوعة أو الملغاة أو المستردة لا تُحسب.",
           emphasis: true,
@@ -169,7 +177,7 @@ export default function FinancePageContent() {
           label: "عمولة Wash Up",
           icon: <Percent />,
           tone: TONES.violet,
-          value: formatMoney(d.commission, { decimals: true }),
+          value: showMoney(d.commission, { decimals: true }),
           hint: `${formatPercent(rate)} من الإيراد`,
           definition: `نسبة Wash Up (${formatPercent(rate)}) من إيراد الطلبات المدفوعة فقط — لا عمولة على الطلبات غير المدفوعة أو الملغاة.`,
           emphasis: true,
@@ -179,7 +187,7 @@ export default function FinancePageContent() {
           label: "صافي المغسلة",
           icon: <Scale />,
           tone: TONES.success,
-          value: formatMoney(d.net, { decimals: true }),
+          value: showMoney(d.net, { decimals: true }),
           hint: "الإيراد ناقص عمولة Wash Up",
           definition: "ما يخص المغسلة من الإيراد بعد خصم عمولة Wash Up.",
           emphasis: true,
@@ -189,7 +197,7 @@ export default function FinancePageContent() {
           label: "المبالغ المستردة",
           icon: <Undo2 />,
           tone: TONES.danger,
-          value: formatMoney(d.refunds),
+          value: showMoney(d.refunds),
           hint: periodText,
           definition: "قيمة الطلبات التي رُدّت للعميل في الفترة — غير داخلة في الإيراد.",
         },
@@ -198,7 +206,7 @@ export default function FinancePageContent() {
           label: "الخصومات الممنوحة",
           icon: <TicketPercent />,
           tone: TONES.warning,
-          value: formatMoney(d.discounts),
+          value: showMoney(d.discounts),
           hint: `${formatNumber(discountCount)} طلب بخصم يدوي`,
           definition: "مجموع الخصومات اليدوية التي طبّقها الموظفون على الطلبات غير الملغاة (بدون عروض التطبيق).",
         },
@@ -208,7 +216,7 @@ export default function FinancePageContent() {
           icon: <ReceiptText />,
           tone: TONES.aqua,
           value: formatNumber(d.paidOrders),
-          hint: d.paidOrders ? `متوسط التذكرة ${formatMoney(Math.round(d.revenue / d.paidOrders))}` : "لا توجد طلبات مدفوعة",
+          hint: d.paidOrders ? `متوسط التذكرة ${showMoney(Math.round(d.revenue / d.paidOrders))}` : "لا توجد طلبات مدفوعة",
           definition: "عدد الطلبات التي اكتمل دفعها في الفترة.",
         },
       ]
@@ -269,7 +277,7 @@ export default function FinancePageContent() {
                   {[...d.byDay].reverse().map((x) => (
                     <tr key={x.date}>
                       <td className="num px-4 py-2">{formatDate(`${x.date}T00:00:00`, { withDay: true })}</td>
-                      <td className={cn("num px-4 py-2 text-end font-semibold", !x.revenue && "font-normal text-muted-foreground")}>{formatMoney(x.revenue)}</td>
+                      <td className={cn("num px-4 py-2 text-end font-semibold", !x.revenue && "font-normal text-muted-foreground")}>{showMoney(x.revenue)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -298,7 +306,7 @@ export default function FinancePageContent() {
                         <span className="num text-xs font-normal text-muted-foreground">({formatNumber(m.count)} طلب)</span>
                       </span>
                       <span className="num">
-                        <span className="font-semibold">{formatMoney(m.amount)}</span>
+                        <span className="font-semibold">{showMoney(m.amount)}</span>
                         <span className="ms-2 text-xs text-muted-foreground">{formatPercent(share)}</span>
                       </span>
                     </div>
@@ -310,7 +318,7 @@ export default function FinancePageContent() {
               })}
               <li className="flex items-center justify-between border-t border-border/60 pt-3 text-sm">
                 <span className="text-muted-foreground">الإجمالي</span>
-                <span className="num font-bold">{formatMoney(methodTotal)}</span>
+                <span className="num font-bold">{showMoney(methodTotal)}</span>
               </li>
             </ul>
           )}
@@ -330,7 +338,7 @@ export default function FinancePageContent() {
               <>
                 {d.pendingPayments.count ? (
                   <span className="num rounded-md bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
-                    {formatNumber(d.pendingPayments.count)} · {formatMoney(d.pendingPayments.amount)}
+                    {formatNumber(d.pendingPayments.count)} · {showMoney(d.pendingPayments.amount)}
                   </span>
                 ) : null}
                 <CsvButton
@@ -376,7 +384,7 @@ export default function FinancePageContent() {
                       <td className={cn(TD, "hidden lg:table-cell")}>{o.serviceName.ar}</td>
                       {isAll ? <td className={cn(TD, "hidden text-xs text-muted-foreground xl:table-cell")}>{o.branchName.ar}</td> : null}
                       <td className={cn(TD, "text-xs text-muted-foreground")}>{formatRelative(completedAt(o))}</td>
-                      <td className={cn(TD, "num text-end font-semibold")}>{formatMoney(o.total)}</td>
+                      <td className={cn(TD, "num text-end font-semibold")}>{showMoney(o.total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -386,7 +394,7 @@ export default function FinancePageContent() {
                       <span className="lg:hidden">الإجمالي</span>
                       <span className="hidden lg:inline">إجمالي المعلّق</span>
                     </td>
-                    <td className="num h-11 px-4 pe-5 text-end">{formatMoney(d.pendingPayments.amount)}</td>
+                    <td className="num h-11 px-4 pe-5 text-end">{showMoney(d.pendingPayments.amount)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -408,7 +416,7 @@ export default function FinancePageContent() {
                       <div className="flex items-baseline justify-between gap-2 text-sm">
                         <span className="min-w-0 truncate font-medium">{b.name.ar}</span>
                         <span className="num shrink-0">
-                          <span className="font-semibold">{formatMoney(b.revenue)}</span>
+                          <span className="font-semibold">{showMoney(b.revenue)}</span>
                           {!singleBranch ? <span className="ms-2 text-xs text-muted-foreground">{formatPercent(share)}</span> : null}
                         </span>
                       </div>
@@ -463,7 +471,7 @@ export default function FinancePageContent() {
                         </span>
                       </td>
                       <td className={cn(TD, "num text-end")}>{formatNumber(s.count)}</td>
-                      <td className={cn(TD, "num text-end font-semibold")}>{formatMoney(s.amount)}</td>
+                      <td className={cn(TD, "num text-end font-semibold")}>{showMoney(s.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -472,7 +480,7 @@ export default function FinancePageContent() {
                     <tr className="bg-muted/40 font-semibold">
                       <td className="h-11 px-4 ps-5">الإجمالي</td>
                       <td className="num h-11 px-4 text-end">{formatNumber(discountCount)}</td>
-                      <td className="num h-11 px-4 pe-5 text-end">{formatMoney(d.discounts)}</td>
+                      <td className="num h-11 px-4 pe-5 text-end">{showMoney(d.discounts)}</td>
                     </tr>
                   </tfoot>
                 ) : null}
@@ -532,8 +540,8 @@ export default function FinancePageContent() {
                     <td className={cn(TD, "num whitespace-nowrap")}>
                       {formatDate(p.periodStart)} – {formatDate(p.periodEnd, { withYear: true })}
                     </td>
-                    <td className={cn(TD, "num text-end font-semibold")}>{formatMoney(p.amountDue, { decimals: true })}</td>
-                    <td className={cn(TD, "num text-end")}>{p.amountPaid ? formatMoney(p.amountPaid, { decimals: true }) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className={cn(TD, "num text-end font-semibold")}>{showMoney(p.amountDue, { decimals: true })}</td>
+                    <td className={cn(TD, "num text-end")}>{p.amountPaid ? showMoney(p.amountPaid, { decimals: true }) : <span className="text-muted-foreground">—</span>}</td>
                     <td className={TD}>
                       <StatusBadge meta={PAYOUT_STATUS[p.status]} size="sm" />
                     </td>

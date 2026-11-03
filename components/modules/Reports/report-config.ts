@@ -77,10 +77,14 @@ export function reportTypeConfig(type: string): ReportTypeConfig {
 
 export type ValueFormat = "number" | "money" | "percent" | "text";
 
-export function formatValue(value: string | number | null | undefined, format: ValueFormat = "text"): string {
+export function formatValue(
+  value: string | number | null | undefined,
+  format: ValueFormat = "text",
+  money?: { symbol?: string; fractionDigits?: number },
+): string {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "string" || format === "text") return String(value);
-  if (format === "money") return formatMoney(value, { decimals: !Number.isInteger(value) });
+  if (format === "money") return formatMoney(value, money?.symbol ? { symbol: money.symbol, fractionDigits: money.fractionDigits ?? 2 } : { decimals: !Number.isInteger(value) });
   if (format === "percent") return formatPercent(value);
   return formatNumber(value, !Number.isInteger(value));
 }

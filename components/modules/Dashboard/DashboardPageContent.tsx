@@ -115,7 +115,13 @@ export default function DashboardPageContent() {
               emphasis={i < 4}
               label={cfg.label}
               icon={<Icon />}
-              value={cfg.format(item.value)}
+              value={
+                key === "revenue" && new Set(data?.liveBranches.map((b) => b.currencySymbol)).size === 1
+                  ? formatMoney(item.value, { symbol: data?.liveBranches[0]?.currencySymbol, fractionDigits: data?.liveBranches[0]?.currencyDecimals })
+                  : key === "revenue" && (data?.liveBranches.length ?? 0) > 1
+                    ? "حسب الفرع"
+                    : cfg.format(item.value)
+              }
               delta={item.delta}
               invertDelta={cfg.invert}
               spark={item.spark}
@@ -168,7 +174,7 @@ export default function DashboardPageContent() {
                         ["تم الوصول", b.waiting],
                         ["جارٍ التنفيذ", b.inService],
                         ["بانتظار الدفع", b.paymentPending],
-                        ["إيراد اليوم", formatMoney(b.revenueToday)],
+                        ["إيراد اليوم", formatMoney(b.revenueToday, { symbol: b.currencySymbol, fractionDigits: b.currencyDecimals })],
                       ].map(([label, value]) => (
                         <div key={String(label)} className="rounded-lg bg-muted/50 px-1 py-2">
                           <dt className="text-[10px] text-muted-foreground">{label}</dt>
@@ -323,7 +329,7 @@ export default function DashboardPageContent() {
                     <div className="flex items-baseline justify-between text-sm">
                       <span className="font-medium">{s.name.ar}</span>
                       <span className="num text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">{s.count}</span> · {formatMoney(s.revenue)}
+                        <span className="font-semibold text-foreground">{s.count}</span> · {formatMoney(s.revenue, data.liveBranches.length === 1 ? { symbol: data.liveBranches[0]?.currencySymbol, fractionDigits: data.liveBranches[0]?.currencyDecimals } : undefined)}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -359,7 +365,7 @@ export default function DashboardPageContent() {
             <dl className="grid grid-cols-2 gap-3">
               {[
                 { label: "طلبات اليوم", value: formatNumber(data.dailySummary.orders) },
-                { label: "إيراد اليوم", value: formatMoney(data.dailySummary.revenue) },
+                { label: "إيراد اليوم", value: formatMoney(data.dailySummary.revenue, data.liveBranches.length === 1 ? { symbol: data.liveBranches[0]?.currencySymbol, fractionDigits: data.liveBranches[0]?.currencyDecimals } : undefined) },
                 { label: "أكثر خدمة", value: data.dailySummary.topService?.ar ?? "—" },
                 { label: "تنبيهات مفتوحة", value: formatNumber(data.dailySummary.issues) },
               ].map((s) => (
