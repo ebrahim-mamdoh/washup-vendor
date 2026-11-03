@@ -57,7 +57,7 @@ export const reviewRoutes = [
       review.reportedByWash = false;
       review.reportReason = null;
       logAudit(db, { actorId: admin.id, action: "keep_review", entity: "reviews", entityId: review.id, branchId: review.branchId, oldValue: "reported", newValue: "visible", reason });
-      pushVendorNotification(db, review.businessId, review.branchId, "review", "تمت مراجعة بلاغك على تقييم", "راجعت كارزن التقييم وقررت إبقاءه ظاهرًا.", "/reviews");
+      pushVendorNotification(db, review.businessId, review.branchId, "review", "تمت مراجعة بلاغك على تقييم", "راجعت Wash Up التقييم وقررت إبقاءه ظاهرًا.", "/reviews");
       return ok(review, "تم إغلاق البلاغ وإبقاء التقييم ظاهرًا");
     }
     if ((review.status === "hidden") === hidden) {
@@ -88,7 +88,7 @@ export const reviewRoutes = [
       reason,
     });
     const rating = db.businesses.find((b) => b.id === review.businessId)?.rating ?? 0;
-    pushVendorNotification(db, review.businessId, review.branchId, "review", hidden ? "تم إخفاء تقييم بواسطة كارزن" : "تمت استعادة تقييم", `${hidden ? "تمت مراجعة التقييم وإخفاؤه" : "عاد التقييم للظهور"} — تقييم المغسلة الآن ${rating}.`, "/reviews");
+    pushVendorNotification(db, review.businessId, review.branchId, "review", hidden ? "تم إخفاء تقييم بواسطة Wash Up" : "تمت استعادة تقييم", `${hidden ? "تمت مراجعة التقييم وإخفاؤه" : "عاد التقييم للظهور"} — تقييم المغسلة الآن ${rating}.`, "/reviews");
     return ok(review, `${hidden ? "تم إخفاء التقييم" : "تمت استعادة التقييم"} — تقييم المغسلة الآن ${rating}`);
   }),
 ];

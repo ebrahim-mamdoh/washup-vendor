@@ -151,7 +151,7 @@ function auditPart(value: unknown): string {
 const AUDIT_WORDS: Record<string, string> = {
   pending: "بانتظار",
   confirmed: "مؤكد",
-  waiting: "في الانتظار",
+  waiting: "تم الوصول",
   in_service: "جارٍ التنفيذ",
   completed: "مكتمل",
   cancelled: "ملغي",

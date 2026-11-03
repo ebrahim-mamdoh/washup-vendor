@@ -75,7 +75,7 @@ export default function BranchesPageContent() {
           <EmptyState
             icon={<MapPinned />}
             title="لا توجد فروع مرتبطة بحسابك"
-            description="تُضاف الفروع الجديدة بعد مراجعة فريق كارزن لبياناتها. إن كان لديك فرع غير ظاهر تواصل مع الدعم."
+            description="تُضاف الفروع الجديدة بعد مراجعة فريق Wash Up لبياناتها. إن كان لديك فرع غير ظاهر تواصل مع الدعم."
           />
         </SectionCard>
       ) : (

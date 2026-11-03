@@ -218,7 +218,7 @@ export const washRoutes = [
       newValue: "suspended",
       reason: `${SUSPEND_REASON_LABELS[reason]}: ${note}${cancelled ? ` (ألغي ${cancelled} حجز قادم)` : ""}`,
     });
-    pushVendorNotification(db, business.id, null, "platform", "تم تعليق مغسلتك مؤقتًا", `قررت إدارة كارزن تعليق المغسلة: ${business.statusReason}. لن تظهر للعملاء ولن تستقبل حجوزات جديدة حتى إعادة التفعيل.`, "/settings");
+    pushVendorNotification(db, business.id, null, "platform", "تم تعليق مغسلتك مؤقتًا", `قررت إدارة Wash Up تعليق المغسلة: ${business.statusReason}. لن تظهر للعملاء ولن تستقبل حجوزات جديدة حتى إعادة التفعيل.`, "/settings");
     return ok(business, `تم تعليق ${business.name.ar}${cancelled ? ` وإلغاء ${cancelled} حجز` : ""}`);
   }),
 

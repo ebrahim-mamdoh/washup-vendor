@@ -84,7 +84,7 @@ export const vendorApplicationRoutes = [
         `/applications/${id}`,
       );
 
-      return ok(app, "تم تقديم طلب الانضمام بنجاح وسيتواصل معك فريق كارزن قريبًا");
+      return ok(app, "تم تقديم طلب الانضمام بنجاح وسيتواصل معك فريق Wash Up قريبًا");
     },
     true, // isPublic = true
   ),

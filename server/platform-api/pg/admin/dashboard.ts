@@ -14,6 +14,7 @@ import type {
 } from "@/types/dashboard";
 
 import { daysAgo, now, round2 } from "../../db";
+import { cairoDateParts, cairoLocalToUtc } from "../../vendor/engine";
 import { ok } from "../../http";
 import { defaultCommissionPct } from "../platform";
 import { route } from "../router";
@@ -166,21 +167,19 @@ async function buildFunnel(q: Q, from: string, end: string): Promise<DashboardFu
 }
 
 /**
- * Revenue curve: hourly for today (8 ص → current hour; earlier/later orders
- * fold into the first/last hour so the total matches the KPI card), daily
- * otherwise.
+ * Revenue curve: hourly for today in Africa/Cairo (8 ص → current hour; earlier/later
+ * orders fold into the first/last hour so the total matches the KPI card), daily
+ * otherwise. Buckets are Cairo wall-clock, not the database session timezone.
  */
 async function buildRevenue(q: Q, period: DashboardPeriod, week: DayTotals[], pct: number): Promise<RevenuePoint[]> {
   if (period === "today") {
-    const today = daysAgo(0);
-    const hours = Array.from({ length: Math.max(1, now().getHours() - 7) }, (_, i) => 8 + i);
-    const at = (h: number) => {
-      const d = new Date(today);
-      d.setHours(h, 0, 0, 0);
-      return d.toISOString();
-    };
-    const starts = hours.map((h, i) => (i === 0 ? at(0) : at(h)));
-    const ends = hours.map((h, i) => (i === hours.length - 1 ? at(24) : at(h + 1)));
+    const parts = cairoDateParts(now());
+    const hours = Array.from({ length: Math.max(1, parts.hour - 7) }, (_, i) => 8 + i);
+    const at = (h: number) => cairoLocalToUtc(parts.y, parts.m, parts.day, h, 0).toISOString();
+    const startOfDay = cairoLocalToUtc(parts.y, parts.m, parts.day, 0, 0).toISOString();
+    const endOfDay = cairoLocalToUtc(parts.y, parts.m, parts.day + 1, 0, 0).toISOString();
+    const starts = hours.map((h, i) => (i === 0 ? startOfDay : at(h)));
+    const ends = hours.map((h, i) => (i === hours.length - 1 ? endOfDay : at(h + 1)));
     const rows = await orderTotals(q, starts, ends, pct);
     return hours.map((h, i) => ({
       label: `${h % 12 || 12}${h >= 12 ? "م" : "ص"}`,

@@ -405,7 +405,7 @@ function OfferForm({ offer, defaultBranchIds, isPending, onCancel, onSubmit }: O
 
         <p className="flex items-start gap-2 px-1 text-[11px] leading-relaxed text-muted-foreground">
           <Info className="mt-0.5 size-3.5 shrink-0" />
-          العروض لا تتراكم: عند انطباق أكثر من عرض (منها عروض كارزن) يُطبق التسعير أفضل خصم واحد للعميل تلقائيًا، حسب تصنيف الخدمة الأساسية في الطلب.
+          العروض لا تتراكم: عند انطباق أكثر من عرض (منها عروض Wash Up) يُطبق التسعير أفضل خصم واحد للعميل تلقائيًا، حسب تصنيف الخدمة الأساسية في الطلب.
         </p>
       </div>
 

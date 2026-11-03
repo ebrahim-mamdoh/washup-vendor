@@ -296,7 +296,7 @@ export const financeRoutes = [
           null,
           "platform",
           "تحديث نسبة العمولة",
-          `نسبة عمولة كارزن على مغسلتك أصبحت ${next ?? nextDefault}٪ للمعاملات الجديدة.`,
+          `نسبة عمولة Wash Up على مغسلتك أصبحت ${next ?? nextDefault}٪ للمعاملات الجديدة.`,
           "/finance",
         );
         await t`update public.businesses set commission_rate = ${next} where id = ${biz.id}`;
@@ -377,7 +377,7 @@ export const financeRoutes = [
         null,
         "payout",
         status === "paid" ? "تم تحويل مستحقاتك" : "تم تحويل دفعة جزئية",
-        `حولت كارزن ${amount.toLocaleString("en-US")} ج.م — المرجع ${reference}.`,
+        `حولت Wash Up ${amount.toLocaleString("en-US")} ج.م — المرجع ${reference}.`,
         "/finance",
       );
       const [after] = await payoutsWhere(t, t`po.id = ${current.id}`);

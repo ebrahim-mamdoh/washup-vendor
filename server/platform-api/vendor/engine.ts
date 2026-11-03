@@ -275,6 +275,7 @@ export function toVendorItem(db: MockDatabase, o: Order): VendorOrderListItem {
     vehicleLabel: vehicle ? `${vehicle.make} ${vehicle.model}` : null,
     nextAction: nextActionFor(o),
     overdueMin: overdueMinutes(o),
+    noShowGraceMin: db.branches.find((b) => b.id === o.branchId)?.settings.noShowGraceMin ?? 15,
     locked: Boolean(o.closedInDayId),
   };
 }
@@ -384,6 +385,42 @@ function requireReason(value: unknown, label = "السبب"): string {
   return text;
 }
 
+/** Keys the customer app would otherwise show raw. Stored text is a sentence in Arabic and English. */
+const CANCEL_REASON_TEXT: Record<string, string> = {
+  expired_unconfirmed:
+    "اتلغى تلقائيًا لأن المغسلة ما أكدتش في الوقت المحدد — Cancelled because the wash did not confirm before the appointment",
+  expired_not_started:
+    "أُغلق الطلب لأن الخدمة لم تبدأ بعد تسجيل الوصول — Closed because the service never started after check-in",
+  "Cancelled by customer": "ألغاه العميل — Cancelled by the customer",
+};
+
+const MACHINE_KEY = /^[a-z0-9]+(?:[._][a-z0-9]+)+$/i;
+
+/** Turns a stored key into a sentence. Unknown machine keys are rejected so the app never shows them. */
+export function readableCancelReason(raw: string): string {
+  const text = raw.trim();
+  if (CANCEL_REASON_TEXT[text]) return CANCEL_REASON_TEXT[text];
+  if (MACHINE_KEY.test(text) && !/[\u0600-\u06FF]/.test(text)) {
+    throw new MockApiError("اكتب سبب الإلغاء بجملة واضحة بالعربي أو الإنجليزي", 422, { reason: ["اكتب السبب بالعربي أو الإنجليزي"] });
+  }
+  return text;
+}
+
+/** `null` when the code matched. A string is the audit reason for a manager waiver. */
+export function assertCheckInCode(actor: { role: string }, orderCode: string, payload: { code?: string; waiveCheckIn?: boolean }): string | null {
+  if (payload.waiveCheckIn) {
+    if (actor.role !== "owner" && actor.role !== "manager") {
+      throw new MockApiError("تسجيل الوصول بدون كود متاح للمدير أو المالك فقط", 403);
+    }
+    return "تسجيل وصول بدون كود — العميل بدون هاتف";
+  }
+  const entered = String(payload.code ?? "").replace(/\s/g, "").toUpperCase();
+  if (!orderCode || entered !== orderCode.trim().toUpperCase()) {
+    throw new MockApiError("كود الوصول غير مطابق", 422, { code: ["كود الوصول غير مطابق"] });
+  }
+  return null;
+}
+
 // ── State machine ───────────────────────────────────────────
 
 const PAYMENT_LABEL: Record<PaymentMethod, string> = { cash: "نقدي", card: "بطاقة", online: "أونلاين" };
@@ -405,9 +442,10 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       return `تم تأكيد الحجز ${o.number} وإبلاغ العميل`;
     }
     case "check_in": {
+      const waiver = assertCheckInCode(actor, o.code, payload);
       o.status = "waiting";
       pushTimeline(o, "waiting", actor);
-      audit(db, actor, o, "order.check_in", from, "waiting");
+      audit(db, actor, o, "order.check_in", from, waiver ? "waiting · waived" : "waiting", waiver);
       return `تم تسجيل وصول ${o.plate || o.number}`;
     }
     case "start": {
@@ -459,7 +497,7 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       return change > 0 ? `تم التحصيل — الباقي للعميل ${change} ج.م` : "تم تحصيل المبلغ بنجاح";
     }
     case "cancel": {
-      const reason = requireReason(payload.reason, "سبب الإلغاء");
+      const reason = readableCancelReason(requireReason(payload.reason, "سبب الإلغاء"));
       o.status = "cancelled";
       o.cancel = { reason, byType: "staff", byId: actor.staff.id, at: now().toISOString() };
       pushTimeline(o, "cancelled", actor);
@@ -733,7 +771,7 @@ export function createOrder(db: MockDatabase, actor: VendorActor, payload: Creat
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: "بانتظار التأكيد",
   confirmed: "مؤكد",
-  waiting: "في الانتظار",
+  waiting: "تم الوصول",
   in_service: "جارٍ التنفيذ",
   completed: "مكتمل",
   cancelled: "ملغي",

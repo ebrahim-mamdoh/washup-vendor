@@ -3,6 +3,7 @@ import "server-only";
 import type { Order, OrderDetails, OrderStatus } from "@/types/orders";
 
 import { MockApiError, ok, requireText } from "../../http";
+import { readableCancelReason } from "../../vendor/engine";
 import { UPCOMING_STATUSES } from "../../lookups";
 import {
   auditWhere,
@@ -134,16 +135,16 @@ export const orderRoutes = [
     const order = await tx(async (t) => {
       const current = await orderById(t, params.id, "الحجز");
       if (!(UPCOMING_STATUSES as readonly string[]).includes(current.status)) {
-        throw new MockApiError("يمكن إلغاء الحجوزات قيد المراجعة أو المؤكدة فقط", 409);
+        throw new MockApiError("يمكن إلغاء الحجوزات بانتظار التأكيد أو المؤكدة فقط", 409);
       }
-      const reason = requireText(body.reason, "reason", "سبب الإلغاء", 5);
+      const reason = readableCancelReason(requireText(body.reason, "reason", "سبب الإلغاء", 5));
 
       // Status guard in the WHERE clause: an order that moved on meanwhile can't be cancelled.
       const updated = await t`
         update public.orders set status = 'cancelled', cancel_reason = ${reason},
                cancelled_by_type = 'admin', cancelled_by_id = ${admin.id}, cancelled_at = now()
         where id = ${current.id} and status in ('pending', 'confirmed') returning id`;
-      if (!updated.length) throw new MockApiError("يمكن إلغاء الحجوزات قيد المراجعة أو المؤكدة فقط", 409);
+      if (!updated.length) throw new MockApiError("يمكن إلغاء الحجوزات بانتظار التأكيد أو المؤكدة فقط", 409);
       await t`insert into public.order_events (order_id, status, actor_type, actor_id) values (${current.id}, 'cancelled', 'admin', ${admin.id})`;
       // A commission entry that was never settled disappears with the order.
       await t`delete from public.transactions where order_id = ${current.id} and status = 'pending'`;
@@ -163,7 +164,7 @@ export const orderRoutes = [
         current.businessId,
         current.branchId,
         "booking_cancelled",
-        `ألغت إدارة كارزن الحجز ${current.number}`,
+        `ألغت إدارة Wash Up الحجز ${current.number}`,
         `السبب: ${reason}`,
         `/orders/${current.id}`,
       );

@@ -23,7 +23,7 @@ import type { LiveColumnKey, VendorOrderListItem } from "@/types/vendor/operatio
 
 const COLUMNS: { key: LiveColumnKey; label: string; tone: string; empty: string }[] = [
   { key: "upcoming", label: "قادمة اليوم", tone: "var(--st-confirmed)", empty: "لا حجوزات قادمة" },
-  { key: "waiting", label: "في الانتظار", tone: "var(--st-waiting)", empty: "لا سيارات منتظرة" },
+  { key: "waiting", label: "تم الوصول", tone: "var(--st-waiting)", empty: "لا سيارات وصلت بعد" },
   { key: "in_service", label: "جارٍ التنفيذ", tone: "var(--st-in_service)", empty: "كل الأماكن فاضية" },
   { key: "payment_pending", label: "بانتظار الدفع", tone: TONES.warning, empty: "لا مدفوعات معلقة" },
   { key: "done", label: "تم اليوم", tone: "var(--st-completed)", empty: "لم يكتمل شيء بعد" },

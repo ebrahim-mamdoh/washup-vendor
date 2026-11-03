@@ -5,6 +5,7 @@ import { logAudit, now, pushAdminNotification } from "../db";
 import { MockApiError, countBy, matchesSearch, ok, paginate, requireText, sortBy } from "../http";
 import { UPCOMING_STATUSES, findOrThrow, toOrderListItem } from "../lookups";
 import { route } from "../router";
+import { readableCancelReason } from "../vendor/engine";
 import { pushVendorNotification } from "../vendor/notify";
 
 const STATUSES: OrderStatus[] = ["pending", "confirmed", "waiting", "in_service", "completed", "cancelled", "no_show"];
@@ -74,9 +75,9 @@ export const orderRoutes = [
   route("POST", "/admin/orders/:id/cancel", ({ db, params, body, admin }) => {
     const order = findOrThrow(db.orders, params.id, "الحجز");
     if (!(UPCOMING_STATUSES as readonly string[]).includes(order.status)) {
-      throw new MockApiError("يمكن إلغاء الحجوزات قيد المراجعة أو المؤكدة فقط", 409);
+      throw new MockApiError("يمكن إلغاء الحجوزات بانتظار التأكيد أو المؤكدة فقط", 409);
     }
-    const reason = requireText(body.reason, "reason", "سبب الإلغاء", 5);
+    const reason = readableCancelReason(requireText(body.reason, "reason", "سبب الإلغاء", 5));
     const old = order.status;
     const at = now().toISOString();
     order.status = "cancelled";
@@ -87,7 +88,7 @@ export const orderRoutes = [
       db.transactions.splice(db.transactions.indexOf(txn), 1);
     }
     logAudit(db, { actorId: admin.id, action: "cancel_order", entity: "orders", entityId: order.id, branchId: order.branchId, oldValue: old, newValue: "cancelled", reason });
-    pushVendorNotification(db, order.businessId, order.branchId, "booking_cancelled", `ألغت إدارة كارزن الحجز ${order.number}`, `السبب: ${reason}`, `/orders/${order.id}`);
+    pushVendorNotification(db, order.businessId, order.branchId, "booking_cancelled", `ألغت إدارة Wash Up الحجز ${order.number}`, `السبب: ${reason}`, `/orders/${order.id}`);
     return ok(order, `تم إلغاء الحجز ${order.number} وإبلاغ العميل والمغسلة`);
   }),
 

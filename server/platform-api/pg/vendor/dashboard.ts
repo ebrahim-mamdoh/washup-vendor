@@ -18,7 +18,7 @@ import { daysAgo, now, round2 } from "../../db";
 import { ok } from "../../http";
 import { serviceName } from "../../lookups";
 import type { VendorActor } from "../../router";
-import { dayKey, hoursFor, isOpenAt, overdueMinutes } from "../../vendor/engine";
+import { cairoDateParts, dayKey, hoursFor, isOpenAt, overdueMinutes } from "../../vendor/engine";
 import { branchesWhere, ordersWhere, shiftsWhere } from "../entities";
 import { onShiftAt, staffNames } from "../lookups";
 import { vroute } from "../router";
@@ -318,10 +318,11 @@ export const vendorDashboardRoutes = [
 
     let revenueChart: { label: string; value: number }[];
     if (period === "today") {
-      const hours = Array.from({ length: Math.max(1, at.getHours() - 7) }, (_, i) => 8 + i);
+      const hourNow = cairoDateParts(at).hour;
+      const hours = Array.from({ length: Math.max(1, hourNow - 7) }, (_, i) => 8 + i);
       revenueChart = hours.map((h) => ({
         label: `${h % 12 || 12}${h >= 12 ? "م" : "ص"}`,
-        value: paidRevenue(today.filter((o) => new Date(o.scheduledAt).getHours() === h)),
+        value: paidRevenue(today.filter((o) => cairoDateParts(new Date(o.scheduledAt)).hour === h)),
       }));
     } else {
       revenueChart = Array.from({ length: n }, (_, i) => {

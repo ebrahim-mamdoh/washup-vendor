@@ -106,7 +106,7 @@ export const applicationRoutes = [
       // staff.phone is unique: the owner signs in with it.
       const [taken] = await t`select 1 from public.staff where phone = ${raw.phone}`;
       if (taken) {
-        throw new MockApiError("رقم هاتف المالك مسجّل بالفعل لحساب آخر في كارزن", 409, {
+        throw new MockApiError("رقم هاتف المالك مسجّل بالفعل لحساب آخر في Wash Up", 409, {
           phone: ["رقم الهاتف مستخدم بالفعل"],
         });
       }
@@ -170,7 +170,7 @@ export const applicationRoutes = [
         biz.id,
         null,
         "platform",
-        "مرحبًا بك في كارزن 🎉",
+        "مرحبًا بك في Wash Up 🎉",
         activate
           ? "تمت الموافقة على مغسلتك وأصبحت ظاهرة للعملاء. أكمل خطوات الإعداد لتبدأ في استقبال الحجوزات."
           : "تمت الموافقة على مغسلتك. أكمل خطوات الإعداد ليتم تفعيلها للعملاء.",

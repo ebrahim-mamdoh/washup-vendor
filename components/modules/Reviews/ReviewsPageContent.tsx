@@ -118,7 +118,7 @@ function RatingSummary({
           </span>
           <span>
             <span className="num block text-lg leading-tight font-bold">{formatNumber(meta.reported)}</span>
-            <span className="text-[11px] text-muted-foreground">مُبلغ لكارزن</span>
+            <span className="text-[11px] text-muted-foreground">مُبلغ لـ Wash Up</span>
           </span>
         </div>
       </div>
@@ -186,7 +186,7 @@ export default function ReviewsPageContent() {
     <div className="space-y-6">
       <PageHeader
         title="التقييمات"
-        description={`آراء عملاء ${isAll ? "كل الفروع" : branchName(branchId)} — رد مرة واحدة على كل تقييم، وأبلغ كارزن عن التقييمات غير العادلة.`}
+        description={`آراء عملاء ${isAll ? "كل الفروع" : branchName(branchId)} — رد مرة واحدة على كل تقييم، وأبلغ Wash Up عن التقييمات غير العادلة.`}
       />
 
       {meta ? (
@@ -274,8 +274,8 @@ export default function ReviewsPageContent() {
       <ReasonDialog
         open={reportOpen}
         onOpenChange={setReportOpen}
-        title="إبلاغ كارزن عن تقييم"
-        description="يراجع فريق الإشراف في كارزن التقييم وقد يخفيه إذا خالف سياسة التقييمات. يبقى التقييم ظاهرًا حتى انتهاء المراجعة، ولا يمكن الإبلاغ عنه مرة أخرى."
+        title="إبلاغ Wash Up عن تقييم"
+        description="يراجع فريق الإشراف في Wash Up التقييم وقد يخفيه إذا خالف سياسة التقييمات. يبقى التقييم ظاهرًا حتى انتهاء المراجعة، ولا يمكن الإبلاغ عنه مرة أخرى."
         presets={REPORT_PRESETS}
         presetLabel="سبب الإبلاغ"
         textLabel="تفاصيل إضافية"

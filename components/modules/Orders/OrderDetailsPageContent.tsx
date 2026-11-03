@@ -37,7 +37,7 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
         back={{ href: "/orders", label: "الطلبات" }}
         eyebrow={
           <span className="num">
-            الكود {order.code} · {formatDateTime(order.scheduledAt)}
+            {formatDateTime(order.scheduledAt)}
           </span>
         }
         title={<span className="num">{order.number}</span>}
@@ -58,7 +58,7 @@ export default function OrderDetailsPageContent({ id }: { id: string }) {
           <OrderActions
             size="lg"
             allowed={data.allowedActions}
-            order={{ ...order, nextAction: data.nextAction, locked: data.locked }}
+            order={{ ...order, nextAction: data.nextAction, locked: data.locked, noShowGraceMin: branch.settings.noShowGraceMin }}
           />
         }
       />

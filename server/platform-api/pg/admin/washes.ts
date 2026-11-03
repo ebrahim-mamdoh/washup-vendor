@@ -235,7 +235,7 @@ export const washRoutes = [
         null,
         "platform",
         "تم تعليق مغسلتك مؤقتًا",
-        `قررت إدارة كارزن تعليق المغسلة: ${statusReason}. لن تظهر للعملاء ولن تستقبل حجوزات جديدة حتى إعادة التفعيل.`,
+        `قررت إدارة Wash Up تعليق المغسلة: ${statusReason}. لن تظهر للعملاء ولن تستقبل حجوزات جديدة حتى إعادة التفعيل.`,
         "/settings",
       );
       return { business: await businessById(t, current.id), cancelled: cancelledCount };
