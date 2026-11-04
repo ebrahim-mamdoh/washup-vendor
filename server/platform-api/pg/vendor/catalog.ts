@@ -6,6 +6,7 @@ import type { BranchSettings, ServiceType } from "@/types/washes";
 
 import { daysAgo, now } from "../../db";
 import { MockApiError, ok, requireText } from "../../http";
+import { roundMoney } from "../phone";
 import type { VendorActor } from "../../router";
 import { defaultPermissions } from "../../seed";
 import { cleanWorkingHours } from "../../vendor/engine";
@@ -56,14 +57,14 @@ function parseServiceBody(body: Record<string, unknown>) {
   const nameEn = requireText(name.en, "name.en", "اسم الخدمة بالإنجليزية", 2);
   const price = Number(body.price);
   const durationMin = Number(body.durationMin);
-  if (Number.isNaN(price) || price < 10 || price > 5000) throw new MockApiError("السعر يجب أن يكون بين 10 و 5000 ج.م", 422, { price: ["قيمة غير صالحة"] });
+  if (Number.isNaN(price) || price < 1 || price > 50000) throw new MockApiError("السعر يجب أن يكون بين 1 و 50000", 422, { price: ["قيمة غير صالحة"] });
   if (Number.isNaN(durationMin) || durationMin < 2 || durationMin > 240) throw new MockApiError("المدة بين 2 و 240 دقيقة", 422, { durationMin: ["قيمة غير صالحة"] });
   const type: ServiceType = body.type === "addon" ? "addon" : "primary";
   const category = CATEGORIES.includes(String(body.category)) ? String(body.category) : "exterior";
   return {
     name: { ar: nameAr, en: nameEn },
     description: { ar: String(description.ar ?? "").trim(), en: String(description.en ?? "").trim() },
-    price: Math.round(price),
+    price: roundMoney(price, 2),
     durationMin: Math.round(durationMin),
     type,
     category,
@@ -170,7 +171,7 @@ export const vendorCatalogRoutes = [
         values (${branchId}, ${data.type}, ${data.category}, ${t.json(data.name)}, ${t.json(data.description)},
                 ${data.price}, ${data.durationMin}, ${data.active})
         returning id`;
-      await audit(t, actor, "service.create", "services", id, branchId, null, `${data.name.ar} · ${data.price} ج.م · ${data.durationMin} د`);
+      await audit(t, actor, "service.create", "services", id, branchId, null, `${data.name.ar} · ${data.price} · ${data.durationMin} د`);
       const [service] = await servicesWhere(t, t`sv.id = ${id}`);
       return { service, data };
     });
@@ -203,7 +204,7 @@ export const vendorCatalogRoutes = [
       );
       return { service, before, priceChanged };
     });
-    return ok(service, priceChanged ? `تم تحديث السعر (${before.price} ← ${service.price} ج.م) — يُطبق على الطلبات الجديدة فقط` : "تم حفظ الخدمة");
+    return ok(service, priceChanged ? `تم تحديث السعر (${before.price} ← ${service.price}) — يُطبق على الطلبات الجديدة فقط` : "تم حفظ الخدمة");
   }),
 
   // ── Wash offers (D9) ─────────────────────────────────────

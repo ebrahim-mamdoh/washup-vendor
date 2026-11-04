@@ -5,7 +5,7 @@ import type { AdminRole, AdminUser } from "@/types/auth";
 
 import { MockApiError, ok, requireText } from "../../http";
 import { DEFAULT_ROLES_MATRIX } from "../../seed";
-import { createLogin, isLocalAuth, loginNotice } from "../auth";
+import { createLogin, extractTempPassword, isLocalAuth, loginNotice } from "../auth";
 import { adminsWhere } from "../entities";
 import { logAudit } from "../platform";
 import { route } from "../router";
@@ -54,19 +54,24 @@ export const adminRoutes = [
     if (!EMAIL_RE.test(email)) throw new MockApiError("صيغة البريد الإلكتروني غير صحيحة", 422, { email: ["صيغة البريد غير صحيحة"] });
     const role = String(body.role) as AdminRole;
 
-    const record = await tx(async (t) => {
+    const row = await tx(async (t) => {
       const [taken] = await t`select 1 from public.admin_users where lower(email) = ${email}`;
       if (taken) throw new MockApiError("هذا البريد مستخدم بالفعل", 409, { email: ["هذا البريد مستخدم بالفعل"] });
       if (!ROLES.includes(role)) throw new MockApiError("اختر دورًا صالحًا", 422);
-      const [row] = await t<{ id: string }[]>`
+      const [inserted] = await t<{ id: string }[]>`
         insert into public.admin_users (name, email, role, status) values (${name}, ${email}, ${role}, 'active') returning id`;
-      await logAudit(t, { actorId: admin.id, action: "create_admin_user", entity: "admins", entityId: row.id, newValue: { email, role } });
-      // Local auth accepts the demo password for any active profile; otherwise create the Supabase Auth login.
-      const login = isLocalAuth() ? null : await createLogin({ email });
-      if (login && "userId" in login) await t`update public.admin_users set user_id = ${login.userId} where id = ${row.id}`;
-      return { admin: await adminById(t, row.id), login };
+      await logAudit(t, { actorId: admin.id, action: "create_admin_user", entity: "admins", entityId: inserted.id, newValue: { email, role } });
+      return inserted;
     });
-    return ok(record.admin, `تمت إضافة ${name} — ${loginNotice(record.login)}`);
+
+    // Supabase Auth login outside transaction to avoid long DB locks
+    const login = isLocalAuth() ? null : await createLogin({ email });
+    if (login && "userId" in login) {
+      await db()`update public.admin_users set user_id = ${login.userId} where id = ${row.id}`;
+    }
+    const createdAdmin = await adminById(db(), row.id);
+    const tempPassword = extractTempPassword(login);
+    return ok({ ...createdAdmin, ...(tempPassword ? { tempPassword } : {}) }, `تمت إضافة ${name} — ${loginNotice(login)}`);
   }),
 
   route("PATCH", "/admin/admins/:id", async ({ params, body, admin }) => {

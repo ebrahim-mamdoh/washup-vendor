@@ -195,7 +195,7 @@ async function alerts(
       id: `cash_${s.id}`,
       type: "cash_difference",
       severity: "danger",
-      title: `فرق نقدية ${s.difference! > 0 ? "+" : ""}${s.difference} ج.م`,
+      title: `فرق نقدية ${s.difference! > 0 ? "+" : ""}${s.difference} ${(branches.get(s.branchId) as any)?.currencySymbol ?? "ج.م"}`,
       description: `وردية ${shiftStaff.get(s.staffId) ?? null} — ${(branches.get(s.branchId)?.name ?? EMPTY).ar}`,
       href: `/shifts?filter=difference`,
     });

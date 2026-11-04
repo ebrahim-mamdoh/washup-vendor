@@ -2,8 +2,8 @@ import "server-only";
 
 import type { SubmitApplicationPayload } from "@/types/applications";
 import { MockApiError, ok, requireText } from "../../http";
-import { normalizePhone } from "../../vendor/engine";
-import { applicationsWhere, e164 } from "../entities";
+import { applicationsWhere } from "../entities";
+import { isValidPhone, toE164 } from "../phone";
 import { pushAdminNotification } from "../platform";
 import { vroute } from "../router";
 import { db } from "../sql";
@@ -16,13 +16,23 @@ export const vendorApplicationRoutes = [
       const data = body as unknown as SubmitApplicationPayload;
       const businessName = requireText(data.businessName, "businessName", "اسم المغسلة", 2);
       const ownerName = requireText(data.ownerName, "ownerName", "اسم المالك", 2);
-      const rawPhone = normalizePhone(String(data.phone ?? ""));
-      if (rawPhone.length !== 10) {
-        throw new MockApiError("رقم موبايل مصري غير صحيح (11 رقم يبدأ بـ 01)", 422, { phone: ["رقم غير صحيح"] });
+      const phoneE164 = toE164(String(data.phone ?? ""));
+      if (!isValidPhone(phoneE164)) {
+        throw new MockApiError("رقم موبايل غير صحيح", 422, { phone: ["رقم غير صحيح"] });
       }
-      const phoneE164 = e164(rawPhone);
+
+      // Prevent duplicate pending applications for the same phone (W16)
+      const sqlCheck = db();
+      const [existingPending] = await sqlCheck`
+        select id from public.wash_applications
+        where phone = ${phoneE164} and status = 'pending' limit 1`;
+      if (existingPending) {
+        throw new MockApiError("يوجد طلب انضمام قيد المراجعة مسجل بهذا الهاتف بالفعل", 409, {
+          phone: ["يوجد طلب قيد المراجعة بهذا الهاتف"],
+        });
+      }
       const rawEmail = String(data.email ?? "").trim();
-      const email = rawEmail.includes("@") ? rawEmail : `${rawPhone}@partner.washup.app`;
+      const email = rawEmail.includes("@") ? rawEmail : `${phoneE164.replace(/\D/g, "")}@partner.washup.app`;
       const area = String(data.area ?? "nasr").trim();
       const address = requireText(data.address, "address", "عنوان المغسلة", 5);
       const lat = Number(data.lat) || 30.05;
@@ -90,20 +100,26 @@ export const vendorApplicationRoutes = [
       if (target.startsWith("app_")) {
         [app] = await applicationsWhere(sql, sql`ap.id = ${target}`);
       } else {
-        const digits = target.replace(/\D/g, "");
-        const p10 = digits.startsWith("20") ? digits.slice(2) : digits.startsWith("0") ? digits.slice(1) : digits;
-        if (p10.length === 10) {
-          const phoneE = e164(p10);
+        const phoneE = toE164(target);
+        if (isValidPhone(phoneE)) {
           [app] = await applicationsWhere(
             sql,
-            sql`ap.phone = ${phoneE} or ap.phone like ${"%" + p10}`,
+            sql`ap.phone = ${phoneE}`,
             sql`order by ap.submitted_at desc limit 1`
           );
         }
       }
 
       if (!app) throw new MockApiError("طلب الانضمام غير موجود", 404);
-      return ok(app);
+      // Respond with status only to protect sensitive owner data (W16)
+      return ok({
+        id: app.id,
+        businessName: app.businessName,
+        status: app.status,
+        reviewNote: app.status === "needs_changes" || app.status === "rejected" ? app.reviewNote : null,
+        submittedAt: app.submittedAt,
+        reviewedAt: app.reviewedAt,
+      });
     },
     true,
   ),

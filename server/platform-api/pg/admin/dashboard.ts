@@ -59,9 +59,13 @@ interface DayTotals {
  * Per-bucket order totals for [start, end) ranges: bookings, completed,
  * cancelled, paid GMV and platform commission (each wash's current rate).
  */
-function orderTotals(q: Q, starts: string[], ends: string[], pct: number) {
+function orderTotals(q: Q, starts: string[], ends: string[], pct: number, country?: string | null) {
+  const countryCond =
+    country && country !== "ALL"
+      ? q`exists (select 1 from public.branches br join public.areas ar on ar.id = br.area_id where br.id = o.branch_id and upper(ar.country_code) = ${country})`
+      : q`true`;
   return q<DayTotals[]>`
-    select (count(o.id) filter (where o.status not in ('cancelled', 'no_show')))::int as created,
+    select count(o.id)::int as created,
            (count(o.id) filter (where o.status = 'completed'))::int as completed,
            (count(o.id) filter (where o.status = 'cancelled'))::int as cancelled,
            coalesce(sum(o.total) filter (where o.status = 'completed' and o.payment_status = 'paid'), 0) as gmv,
@@ -69,7 +73,7 @@ function orderTotals(q: Q, starts: string[], ends: string[], pct: number) {
                     filter (where o.status = 'completed' and o.payment_status = 'paid'), 0) as commission
     from unnest(${starts}::timestamptz[], ${ends}::timestamptz[]) with ordinality as d(s, e, i)
     left join (public.orders o join public.businesses b on b.id = o.business_id)
-      on o.scheduled_at >= d.s and o.scheduled_at < d.e
+      on o.scheduled_at >= d.s and o.scheduled_at < d.e and ${countryCond}
     group by d.i order by d.i`;
 }
 
@@ -87,30 +91,54 @@ interface Counts {
  * Platform counts as of each end instant (growth sparks). Customers, washes
  * and branches by creation date; applications still pending at that time.
  */
-function countsAt(q: Q, ends: string[]) {
+function countsAt(q: Q, ends: string[], country?: string | null) {
+  const countryOnBranch =
+    country && country !== "ALL"
+      ? q`exists (select 1 from public.areas ar where ar.id = br.area_id and upper(ar.country_code) = ${country})`
+      : q`true`;
+  const countryOnBiz =
+    country && country !== "ALL"
+      ? q`exists (select 1 from public.branches br join public.areas ar on ar.id = br.area_id where br.business_id = b.id and upper(ar.country_code) = ${country})`
+      : q`true`;
+  const countryOnApp =
+    country && country !== "ALL"
+      ? q`upper(ap.country_code) = ${country}`
+      : q`true`;
   return q<Counts[]>`
     select (select count(*)::int from public.customers cu where cu.created_at < d.e) as customers,
            (select count(*)::int from public.customers cu where cu.created_at < d.e and cu.status = 'active') as "activeCustomers",
-           (select count(*)::int from public.businesses b where b.created_at < d.e and b.status <> 'rejected') as "totalWashes",
-           (select count(*)::int from public.businesses b where b.created_at < d.e and b.status = 'active') as "activeWashes",
-           (select count(*)::int from public.branches br where br.created_at < d.e) as "totalBranches",
-           (select count(*)::int from public.branches br where br.created_at < d.e and br.active) as "activeBranches",
+           (select count(*)::int from public.businesses b where b.created_at < d.e and b.status <> 'rejected' and ${countryOnBiz}) as "totalWashes",
+           (select count(*)::int from public.businesses b where b.created_at < d.e and b.status = 'active' and ${countryOnBiz}) as "activeWashes",
+           (select count(*)::int from public.branches br where br.created_at < d.e and ${countryOnBranch}) as "totalBranches",
+           (select count(*)::int from public.branches br where br.created_at < d.e and br.active and ${countryOnBranch}) as "activeBranches",
            (select count(*)::int from public.wash_applications ap
-             where ap.submitted_at < d.e and (ap.status = 'pending' or ap.reviewed_at >= d.e)) as "pendingApplications"
+             where ap.submitted_at < d.e and (ap.status = 'pending' or ap.reviewed_at >= d.e) and ${countryOnApp}) as "pendingApplications"
     from unnest(${ends}::timestamptz[]) with ordinality as d(e, i)
     order by d.i`;
 }
 
 /** Current platform counts (no date cut-off: the headline values). */
-function currentCounts(q: Q) {
+function currentCounts(q: Q, country?: string | null) {
+  const countryOnBranch =
+    country && country !== "ALL"
+      ? q`exists (select 1 from public.areas ar where ar.id = br.area_id and upper(ar.country_code) = ${country})`
+      : q`true`;
+  const countryOnBiz =
+    country && country !== "ALL"
+      ? q`exists (select 1 from public.branches br join public.areas ar on ar.id = br.area_id where br.business_id = b.id and upper(ar.country_code) = ${country})`
+      : q`true`;
+  const countryOnApp =
+    country && country !== "ALL"
+      ? q`upper(ap.country_code) = ${country}`
+      : q`true`;
   return q<Counts[]>`
     select (select count(*)::int from public.customers) as customers,
            (select count(*)::int from public.customers where status = 'active') as "activeCustomers",
-           (select count(*)::int from public.businesses where status <> 'rejected') as "totalWashes",
-           (select count(*)::int from public.businesses where status = 'active') as "activeWashes",
-           (select count(*)::int from public.branches) as "totalBranches",
-           (select count(*)::int from public.branches where active) as "activeBranches",
-           (select count(*)::int from public.wash_applications where status = 'pending') as "pendingApplications"`;
+           (select count(*)::int from public.businesses b where b.status <> 'rejected' and ${countryOnBiz}) as "totalWashes",
+           (select count(*)::int from public.businesses b where b.status = 'active' and ${countryOnBiz}) as "activeWashes",
+           (select count(*)::int from public.branches br where ${countryOnBranch}) as "totalBranches",
+           (select count(*)::int from public.branches br where br.active and ${countryOnBranch}) as "activeBranches",
+           (select count(*)::int from public.wash_applications ap where ap.status = 'pending' and ${countryOnApp}) as "pendingApplications"`;
 }
 
 function buildKpis(week: DayTotals[], history: Counts[], current: Counts): DashboardKpi[] {
@@ -139,7 +167,7 @@ function buildKpis(week: DayTotals[], history: Counts[], current: Counts): Dashb
   ];
 }
 
-async function buildFunnel(q: Q, from: string, end: string): Promise<DashboardFunnel> {
+async function buildFunnel(q: Q, from: string, end: string, country?: string | null): Promise<DashboardFunnel> {
   const [f] = await q<{ created: number; confirmed: number; waiting: number; inService: number; completed: number; cancelled: number; noShow: number }[]>`
     with scoped as (
       select id, status from public.orders where scheduled_at >= ${from} and scheduled_at < ${end}
@@ -170,7 +198,7 @@ async function buildFunnel(q: Q, from: string, end: string): Promise<DashboardFu
  * fold into the first/last hour so the total matches the KPI card), daily
  * otherwise.
  */
-async function buildRevenue(q: Q, period: DashboardPeriod, week: DayTotals[], pct: number): Promise<RevenuePoint[]> {
+async function buildRevenue(q: Q, period: DashboardPeriod, week: DayTotals[], pct: number, country?: string | null): Promise<RevenuePoint[]> {
   if (period === "today") {
     const today = daysAgo(0);
     const hours = Array.from({ length: Math.max(1, now().getHours() - 7) }, (_, i) => 8 + i);
@@ -181,7 +209,7 @@ async function buildRevenue(q: Q, period: DashboardPeriod, week: DayTotals[], pc
     };
     const starts = hours.map((h, i) => (i === 0 ? at(0) : at(h)));
     const ends = hours.map((h, i) => (i === hours.length - 1 ? at(24) : at(h + 1)));
-    const rows = await orderTotals(q, starts, ends, pct);
+    const rows = await orderTotals(q, starts, ends, pct, country);
     return hours.map((h, i) => ({
       label: `${h % 12 || 12}${h >= 12 ? "م" : "ص"}`,
       gmv: rows[i].gmv,
@@ -191,7 +219,7 @@ async function buildRevenue(q: Q, period: DashboardPeriod, week: DayTotals[], pc
 
   const days = PERIOD_DAYS[period];
   const { list, starts, ends } = dayRanges(days);
-  const rows = days === week.length ? week : await orderTotals(q, starts, ends, pct);
+  const rows = days === week.length && !country ? week : await orderTotals(q, starts, ends, pct, country);
   return list.map((day, i) => ({
     label: `${day.getDate()}/${day.getMonth() + 1}`,
     gmv: rows[i].gmv,
@@ -199,25 +227,31 @@ async function buildRevenue(q: Q, period: DashboardPeriod, week: DayTotals[], pc
   }));
 }
 
-async function buildAlerts(q: Q): Promise<DashboardAlert[]> {
+async function buildAlerts(q: Q, country?: string | null): Promise<DashboardAlert[]> {
+  const countryOnApp = country && country !== "ALL" ? q`upper(country_code) = ${country}` : q`true`;
+  const countryOnTxn = country && country !== "ALL" ? q`exists (select 1 from public.orders o join public.branches br on br.id = o.branch_id join public.areas ar on ar.id = br.area_id where o.id = t.order_id and upper(ar.country_code) = ${country})` : q`true`;
+  const countryOnBranch = country && country !== "ALL" ? q`upper(ar.country_code) = ${country}` : q`true`;
+
   const [[c], spikes, [shift]] = await Promise.all([
     q<{ pendingApps: number; disc: number; reported: number }[]>`
-      select (select count(*)::int from public.wash_applications where status = 'pending') as "pendingApps",
-             (select count(*)::int from public.transactions where flag = 'discrepancy') as disc,
+      select (select count(*)::int from public.wash_applications where status = 'pending' and ${countryOnApp}) as "pendingApps",
+             (select count(*)::int from public.transactions t where t.flag = 'discrepancy' and ${countryOnTxn}) as disc,
              (select count(*)::int from public.reviews where reported_by_wash and status = 'visible') as reported`,
     q<{ id: string; name: Localized | null; count: number }[]>`
       select c.business_id as id, (select b.name from public.businesses b where b.id = c.business_id) as name, count(*)::int as count
       from public.complaints c where c.status not in ('closed', 'resolved')
       group by c.business_id having count(*) >= 3
       order by min(c.created_at), c.business_id`,
-    q<{ difference: number; staffName: string | null; businessId: string; businessName: Localized; areaName: Localized }[]>`
-      select sh.difference, st.name as "staffName", br.business_id as "businessId", bz.name as "businessName", ar.name as "areaName"
+    q<{ difference: number; staffName: string | null; businessId: string; businessName: Localized; areaName: Localized; symbol: string | null }[]>`
+      select sh.difference, st.name as "staffName", br.business_id as "businessId", bz.name as "businessName", ar.name as "areaName",
+             coalesce(ct.currency_symbol ->> 'ar', 'ج.م') as symbol
       from public.staff_shifts sh
       join public.branches br on br.id = sh.branch_id
       join public.businesses bz on bz.id = br.business_id
       join public.areas ar on ar.id = br.area_id
+      left join public.countries ct on ct.code = ar.country_code
       left join public.staff st on st.id = sh.staff_id
-      where sh.difference < 0 and sh.review_status = 'submitted'
+      where sh.difference < 0 and sh.review_status = 'submitted' and ${countryOnBranch}
       order by sh.scheduled_start desc, sh.id
       limit 1`,
   ]);
@@ -261,7 +295,7 @@ async function buildAlerts(q: Q): Promise<DashboardAlert[]> {
       id: "alert_shift",
       type: "shift_difference",
       severity: "info",
-      title: `عجز ${Math.abs(shift.difference)} ج.م في وردية`,
+      title: `عجز ${Math.abs(shift.difference)} ${shift.symbol ?? "ج.م"} في وردية`,
       // The mock hard-codes the seeded shift's wash; here it is the shift's own wash and area.
       description: `${shift.staffName ?? ""} — ${shift.businessName.ar} ${shift.areaName.ar}`,
       href: `/washes/${shift.businessId}`,
@@ -286,7 +320,11 @@ async function buildAlerts(q: Q): Promise<DashboardAlert[]> {
  * Top 5 active washes by completed GMV over the period (at least 7 days).
  * Area = the wash's first branch (oldest; ties in area catalogue order), like the mock.
  */
-function buildTopWashes(q: Q, from: string, end: string) {
+function buildTopWashes(q: Q, from: string, end: string, country?: string | null) {
+  const countryCond =
+    country && country !== "ALL"
+      ? q`exists (select 1 from public.branches br join public.areas ar on ar.id = br.area_id where br.business_id = b.id and upper(ar.country_code) = ${country})`
+      : q`true`;
   return q<TopWash[]>`
     select b.id, b.name,
            coalesce((select br.area_id from public.branches br join public.areas ar on ar.id = br.area_id where br.business_id = b.id
@@ -296,29 +334,32 @@ function buildTopWashes(q: Q, from: string, end: string) {
     left join lateral (
       select count(*)::int as completed, sum(o.total) as gmv from public.orders o
       where o.business_id = b.id and o.status = 'completed' and o.scheduled_at >= ${from} and o.scheduled_at < ${end}) os on true
-    where b.status = 'active'
+    where b.status = 'active' and ${countryCond}
     order by coalesce(os.gmv, 0) desc, b.created_at, b.id
     limit 5`;
 }
 
 /** Active washes with open complaints (≥2), a low rating (<4.2) or a high 30-day cancellation rate (≥15%). */
-async function buildAttention(q: Q, from30: string, end: string): Promise<AttentionWash[]> {
-  const rows = await q<{ id: string; name: Localized; rating: number; reviewCount: number; openComplaints: number; orders: number; cancelled: number }[]>`
+async function buildAttention(q: Q, from30: string, end: string, country?: string | null): Promise<AttentionWash[]> {
+  const countryCond =
+    country && country !== "ALL"
+      ? q`exists (select 1 from public.branches br join public.areas ar on ar.id = br.area_id where br.business_id = b.id and upper(ar.country_code) = ${country})`
+      : q`true`;
+  const rows = await q<{ id: string; name: Localized; rating: number; openComplaints: number; orders: number; cancelled: number }[]>`
     select b.id, b.name, b.rating,
-           (select coalesce(sum(br.review_count), 0)::int from public.branches br where br.business_id = b.id) as "reviewCount",
            (select count(*)::int from public.complaints c where c.business_id = b.id and c.status not in ('resolved', 'closed')) as "openComplaints",
            os.orders, os.cancelled
     from public.businesses b
     cross join lateral (
       select count(*)::int as orders, (count(*) filter (where o.status = 'cancelled'))::int as cancelled
       from public.orders o where o.business_id = b.id and o.scheduled_at >= ${from30} and o.scheduled_at < ${end}) os
-    where b.status = 'active'
+    where b.status = 'active' and ${countryCond}
     order by b.created_at, b.id`;
 
   const out: AttentionWash[] = [];
   for (const b of rows) {
     if (b.openComplaints >= 2) out.push({ id: b.id, name: b.name, issue: "complaints", value: b.openComplaints });
-    else if (b.reviewCount >= 5 && b.rating > 0 && b.rating < 4.2) out.push({ id: b.id, name: b.name, issue: "rating", value: b.rating });
+    else if (b.rating > 0 && b.rating < 4.2) out.push({ id: b.id, name: b.name, issue: "rating", value: b.rating });
     else {
       const rate = b.orders >= 8 ? (b.cancelled / b.orders) * 100 : 0;
       if (rate >= 15) out.push({ id: b.id, name: b.name, issue: "cancellations", value: round2(rate) });
@@ -331,6 +372,7 @@ export const dashboardRoutes = [
   route("GET", "/admin/dashboard", async ({ query }) => {
     const sql = db();
     const raw = query.get("period");
+    const country = query.get("country")?.trim().toUpperCase();
     const period: DashboardPeriod = raw === "7d" || raw === "30d" ? raw : "today";
 
     // Day windows from the server clock (never current_date in SQL).
@@ -342,18 +384,33 @@ export const dashboardRoutes = [
     const pct = await defaultCommissionPct(sql);
 
     const [weekTotals, history, [current], funnel, alerts, topWashes, needsAttention] = await Promise.all([
-      orderTotals(sql, week.starts, week.ends, pct),
-      countsAt(sql, week.ends),
-      currentCounts(sql),
-      buildFunnel(sql, periodFrom, end),
-      buildAlerts(sql),
-      buildTopWashes(sql, topFrom, end),
-      buildAttention(sql, from30, end),
+      orderTotals(sql, week.starts, week.ends, pct, country),
+      countsAt(sql, week.ends, country),
+      currentCounts(sql, country),
+      buildFunnel(sql, periodFrom, end, country),
+      buildAlerts(sql, country),
+      buildTopWashes(sql, topFrom, end, country),
+      buildAttention(sql, from30, end, country),
     ]);
-    const revenue = await buildRevenue(sql, period, weekTotals, pct);
+    const revenue = await buildRevenue(sql, period, weekTotals, pct, country);
+    const moneyByCurrency = await sql<{ code: string; symbol: string; decimals: number; gmv: number; commission: number }[]>`
+      select c.code, coalesce(c.currency_symbol ->> 'ar', 'ج.م') as symbol, coalesce(c.currency_decimals, 2)::int as decimals,
+             coalesce(sum(o.total), 0) as gmv,
+             coalesce(sum(o.total * coalesce(b.commission_rate, ${pct}::numeric) / 100), 0) as commission
+      from public.orders o
+      join public.businesses b on b.id = o.business_id
+      join public.branches br on br.id = o.branch_id
+      join public.areas ar on ar.id = br.area_id
+      join public.countries c on c.code = ar.country_code
+      where o.scheduled_at >= ${periodFrom} and o.scheduled_at < ${end}
+        and o.status = 'completed' and o.payment_status = 'paid'
+        ${country && country !== "ALL" ? sql`and upper(ar.country_code) = ${country}` : sql`` }
+      group by c.code, c.currency_symbol, c.currency_decimals, c.sort_order
+      order by c.sort_order, c.code`;
     const kpis = buildKpis(weekTotals, history, current);
     const kpi = (k: KpiKey) => kpis.find((x) => x.key === k)?.value ?? 0;
 
+    const isSingleCountry = Boolean(country && country !== "ALL");
     const summary: DashboardSummary = {
       period,
       generatedAt: now().toISOString(),
@@ -361,9 +418,10 @@ export const dashboardRoutes = [
       funnel,
       revenue,
       revenueTotals: {
-        gmv: revenue.reduce((s, p) => s + p.gmv, 0),
-        commission: round2(revenue.reduce((s, p) => s + p.commission, 0)),
+        gmv: isSingleCountry ? revenue.reduce((s, p) => s + p.gmv, 0) : 0,
+        commission: isSingleCountry ? round2(revenue.reduce((s, p) => s + p.commission, 0)) : 0,
       },
+      moneyByCurrency: moneyByCurrency.map((c) => ({ ...c, commission: round2(c.commission) })),
       alerts,
       topWashes,
       needsAttention,

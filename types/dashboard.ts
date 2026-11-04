@@ -83,6 +83,7 @@ export interface DashboardSummary {
   funnel: DashboardFunnel;
   revenue: RevenuePoint[];
   revenueTotals: { gmv: number; commission: number };
+  moneyByCurrency?: { code: string; symbol: string; decimals: number; gmv: number; commission: number }[];
   alerts: DashboardAlert[];
   topWashes: TopWash[];
   needsAttention: AttentionWash[];

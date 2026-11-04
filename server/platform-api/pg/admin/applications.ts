@@ -4,7 +4,7 @@ import type { ApplicationStatus, WashApplication } from "@/types/applications";
 
 import { MockApiError, ok, requireText } from "../../http";
 import { defaultPermissions } from "../../seed";
-import { createLogin, isLocalAuth, loginNotice } from "../auth";
+import { createLogin, extractTempPassword, isLocalAuth, loginNotice } from "../auth";
 import { DEFAULT_NOTIFICATION_PREFS } from "../../vendor/notify";
 import { PHONE, applicationsWhere } from "../entities";
 import { countsOf, orderBy, paged, searchPattern } from "../list";
@@ -117,6 +117,12 @@ export const applicationRoutes = [
         values (${t.json(name)}, ${activate ? "active" : "approved"}, null, null, 0)
         returning id`;
 
+      // Ensure area exists within the transaction (W16)
+      await t`
+        insert into public.areas (id, name, active)
+        values (${app.area}, ${t.json({ ar: app.area, en: app.area })}, true)
+        on conflict (id) do nothing`;
+
       const settings = await bookingDefaults(t);
       const [branch] = await t<{ id: string }[]>`
         insert into public.branches (business_id, name, area_id, address, lat, lng, phone, capacity, active, featured,
@@ -203,13 +209,17 @@ export const applicationRoutes = [
         },
         `/washes/${biz.id}`,
       );
-      // The owner signs in to the partner portal with this phone: create and link the Supabase Auth login.
-      const login = isLocalAuth() ? null : await createLogin({ phone: raw.phone });
-      if (login && "userId" in login) await t`update public.staff set user_id = ${login.userId} where id = ${owner.id}`;
-      return { application: await applicationById(t, app.id), businessId: biz.id, login };
+      return { application: await applicationById(t, app.id), businessId: biz.id, ownerId: owner.id, phone: raw.phone };
     });
-    const { login, ...data } = result;
-    return ok(data, `تمت الموافقة على ${data.application.businessName} — حساب المالك: ${loginNotice(login)}`);
+
+    // Supabase Auth login outside transaction (W11)
+    const login = isLocalAuth() ? null : await createLogin({ phone: result.phone });
+    if (login && "userId" in login) {
+      await db()`update public.staff set user_id = ${login.userId} where id = ${result.ownerId}`;
+    }
+    const tempPassword = extractTempPassword(login);
+    const data = { application: result.application, businessId: result.businessId, ...(tempPassword ? { tempPassword } : {}) };
+    return ok(data, `تمت الموافقة على ${result.application.businessName} — حساب المالك: ${loginNotice(login)}`);
   }),
 
   route("POST", "/admin/applications/:id/reject", async ({ params, body, admin }) => {

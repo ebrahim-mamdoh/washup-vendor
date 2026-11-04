@@ -36,6 +36,7 @@ import {
 } from "../../vendor/engine";
 import { branchById, customersWhere, e164, offersWhere, orderById, servicesWhere, vehiclesWhere } from "../entities";
 import { staffNames } from "../lookups";
+import { isValidPhone, toE164 } from "../phone";
 import { defaultCommissionPct, logAudit } from "../platform";
 import type { Q } from "../sql";
 import { assertNotSuspended } from "./scope";
@@ -331,8 +332,9 @@ const PAYMENT_LABEL: Record<PaymentMethod, string> = { cash: "نقدي", card: "
 
 /** Applies one action to a locked order (see `lockOrderInScope`) and returns the success message. */
 export async function performAction(t: Tx, actor: VendorActor, o: Order, payload: OrderActionPayload): Promise<string> {
+  // Lock branch row to serialize concurrent bay occupancy checks (W14)
   const [branch] = await t<{ capacity: number; grace: number }[]>`
-    select capacity, no_show_grace_min as grace from public.branches where id = ${o.branchId}`;
+    select capacity, no_show_grace_min as grace from public.branches where id = ${o.branchId} for update`;
   const allowed = allowedActions(actor, o, branch?.grace ?? 15);
   if (!allowed.includes(payload.action)) {
     if (o.closedInDayId) throw new MockApiError("الطلب مقفل بإغلاق اليوم — لا يمكن تعديله", 423);
@@ -370,14 +372,20 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await pushTimeline(t, o, "completed", actor);
       await ensurePendingTransaction(t, o);
       await audit(t, actor, o, "order.complete", from, "completed");
-      return `اكتملت الخدمة — بانتظار الدفع ${o.total} ج.م`;
+      return `اكتملت الخدمة — بانتظار الدفع ${o.total}`;
     }
     case "collect_payment": {
+      // Reject payment if day closing has already been executed for branch/date (W15)
+      const orderDateStr = new Date(o.scheduledAt).toISOString().slice(0, 10);
+      const [closedDay] = await t`
+        select 1 from public.day_closings where branch_id = ${o.branchId} and date = ${orderDateStr}::date limit 1`;
+      if (closedDay) throw new MockApiError("تم إغلاق اليوم لهذا الفرع — لا يمكن تحصيل مدفوعات لطلباته", 409);
+
       const method = payload.method;
       if (method !== "cash" && method !== "card") throw new MockApiError("اختر طريقة الدفع", 422);
       if (method === "cash") {
         const received = Number(payload.amountReceived ?? o.total);
-        if (Number.isNaN(received) || received < o.total) throw new MockApiError(`المبلغ المستلم أقل من الإجمالي (${o.total} ج.م)`, 422);
+        if (Number.isNaN(received) || received < o.total) throw new MockApiError(`المبلغ المستلم أقل من الإجمالي (${o.total})`, 422);
       }
       const rows = await t`
         update public.orders set payment_status = 'paid', payment_method = ${method}
@@ -390,7 +398,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await t`update public.transactions set status = 'paid' where order_id = ${o.id}`;
       await audit(t, actor, o, "order.payment", "pending", `paid · ${PAYMENT_LABEL[method]} · ${o.total}`);
       const change = method === "cash" ? Number(payload.amountReceived ?? o.total) - o.total : 0;
-      return change > 0 ? `تم التحصيل — الباقي للعميل ${change} ج.م` : "تم تحصيل المبلغ بنجاح";
+      return change > 0 ? `تم التحصيل — الباقي للعميل ${change}` : "تم تحصيل المبلغ بنجاح";
     }
     case "cancel": {
       const reason = requireReason(payload.reason, "سبب الإلغاء");
@@ -440,7 +448,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
                 (select coalesce(max(position) + 1, 0) from public.order_items where order_id = ${o.id}))`;
       const total = await writeTotals(t, o, [...o.items, item], o.discount);
       await audit(t, actor, o, "order.add_service", oldTotal, `${total} (+${svc.name.ar})`);
-      return `تمت إضافة ${svc.name.ar} — الإجمالي ${total} ج.م`;
+      return `تمت إضافة ${svc.name.ar} — الإجمالي ${total}`;
     }
     case "discount": {
       const reason = requireReason(payload.reason, "سبب الخصم");
@@ -450,7 +458,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       const discount = withManualDiscount(o, offer ? offerAmount(offer, primaryPrice(o.items)) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       const total = await writeTotals(t, o, o.items, discount);
       await audit(t, actor, o, "order.discount", old, total, reason);
-      return `تم تطبيق الخصم — الإجمالي الآن ${total} ج.م`;
+      return `تم تطبيق الخصم — الإجمالي الآن ${total}`;
     }
     case "note": {
       const text = typeof payload.text === "string" ? payload.text.trim() : "";
@@ -470,7 +478,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
         where id = (select id from public.payments where order_id = ${o.id} and status = 'paid' order by collected_at, id limit 1)`;
       await t`update public.transactions set status = 'refunded' where order_id = ${o.id}`;
       await audit(t, actor, o, "order.refund", "paid", "refunded", reason);
-      return `تم استرداد ${o.total} ج.م للعميل`;
+      return `تم استرداد ${o.total} للعميل`;
     }
     default:
       throw new MockApiError(CONFLICT, 409);
@@ -482,14 +490,30 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
 export async function recognize(q: Q, businessId: string, plate?: string | null, phone?: string | null): Promise<CustomerRecognition> {
   let vehicle: Vehicle | null = null;
   let customer: Customer | null = null;
+  // Scope vehicle recognition to the business to protect platform customer privacy (W9)
   if (plate && normalizePlate(plate).length >= 3) {
-    [vehicle = null] = await vehiclesWhere(q, q`v.plate_normalized = ${normalizePlate(plate)}`, q`order by v.created_at, v.id limit 1`);
+    const norm = normalizePlate(plate);
+    [vehicle = null] = await vehiclesWhere(
+      q,
+      q`v.plate_normalized = ${norm} and exists (select 1 from public.orders o where o.vehicle_id = v.id and o.business_id = ${businessId})`,
+      q`order by v.created_at, v.id limit 1`
+    );
     if (vehicle) [customer = null] = await customersWhere(q, q`cu.id = ${vehicle.customerId}`);
   }
-  if (!customer && phone && normalizePhone(phone).length >= 10) {
-    [customer = null] = await customersWhere(q, q`cu.phone = ${e164(normalizePhone(phone))}`);
-    if (customer && !vehicle) {
-      [vehicle = null] = await vehiclesWhere(q, q`v.customer_id = ${customer.id} and v.is_default`, q`order by v.created_at, v.id limit 1`);
+  if (!customer && phone) {
+    const ePhone = toE164(phone);
+    if (isValidPhone(ePhone)) {
+      [customer = null] = await customersWhere(
+        q,
+        q`cu.phone = ${ePhone} and exists (select 1 from public.orders o where o.customer_id = cu.id and o.business_id = ${businessId})`
+      );
+      if (customer && !vehicle) {
+        [vehicle = null] = await vehiclesWhere(
+          q,
+          q`v.customer_id = ${customer.id} and v.is_default and exists (select 1 from public.orders o where o.vehicle_id = v.id and o.business_id = ${businessId})`,
+          q`order by v.created_at, v.id limit 1`
+        );
+      }
     }
   }
   if (vehicle && plate && normalizePlate(plate).length >= 3 && normalizePlate(vehicle.plate) !== normalizePlate(plate)) {
@@ -533,6 +557,12 @@ export async function recognizeForWash(q: Q, businessId: string, plate?: string 
 export async function createOrder(t: Tx, actor: VendorActor, payload: CreateOrderPayload): Promise<string> {
   assertNotSuspended(actor);
   const branch = await branchById(t, payload.branchId);
+  // Reject order creation if day closing is already executed for the branch/date (W15)
+  const scheduledDate = payload.scheduledAt ? new Date(payload.scheduledAt) : now();
+  const scheduledDateStr = scheduledDate.toISOString().slice(0, 10);
+  const [closedDay] = await t`
+    select 1 from public.day_closings where branch_id = ${branch.id} and date = ${scheduledDateStr}::date limit 1`;
+  if (closedDay) throw new MockApiError("تم إغلاق اليوم لهذا الفرع — لا يمكن إنشاء طلبات جديدة", 409);
   if (!branch.active) throw new MockApiError("الفرع متوقف — فعّله أولًا لاستقبال الطلبات", 409);
   const plate = normalizePlate(payload.plate ?? "");
   if (plate.length < 3) throw new MockApiError("رقم اللوحة مطلوب", 422, { plate: ["مطلوب"] });
@@ -596,7 +626,7 @@ export async function createOrder(t: Tx, actor: VendorActor, payload: CreateOrde
     entity: "orders",
     entityId: order.id,
     branchId: branch.id,
-    newValue: `${order.number} · ${isPhone ? "حجز هاتفي" : "حضور مباشر"} · ${price.total} ج.م`,
+    newValue: `${order.number} · ${isPhone ? "حجز هاتفي" : "حضور مباشر"} · ${price.total} ${(branch as any).currencySymbol ?? "ج.م"}`,
   });
   return order.id;
 }

@@ -121,6 +121,23 @@ export const platformRoutes = [
         const n = Number(v[key]);
         if (Number.isNaN(n) || n < 0 || n > 10080) throw new MockApiError("قيمة غير صالحة في إعدادات الحجز", 422, { [key]: ["قيمة غير صالحة"] });
       }
+    } else if (section === "general") {
+      const v = body.value as Record<string, unknown>;
+      if (!v.platformName || typeof v.platformName !== "string" || !v.currency || typeof v.currency !== "string") {
+        throw new MockApiError("بيانات الإعدادات العامة غير مكتملة (اسم المنصة والعملة مطلوبان)", 422);
+      }
+    } else if (section === "legal") {
+      const v = body.value as Record<string, unknown>;
+      if (!v.terms || typeof v.terms !== "object" || !v.privacy || typeof v.privacy !== "object") {
+        throw new MockApiError("بيانات الشروط وسياسة الخصوصية غير صالحة", 422);
+      }
+    } else if (section === "catalogs") {
+      const v = body.value as Record<string, unknown>;
+      for (const key of Object.keys(CATALOG_TABLES) as CatalogKey[]) {
+        if (v[key] !== undefined && !Array.isArray(v[key])) {
+          throw new MockApiError(`قائمة ${key} يجب أن تكون مصفوفة`, 422);
+        }
+      }
     }
 
     try {

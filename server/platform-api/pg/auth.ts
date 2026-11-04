@@ -82,6 +82,7 @@ export async function signInWithPassword(
     method: "POST",
     headers: { apikey: key, "Content-Type": "application/json" },
     body: JSON.stringify({ ...credentials, password }),
+    signal: AbortSignal.timeout(10_000),
   });
   if (res.status === 400 || res.status === 401 || res.status === 422) return null;
   if (res.status === 429) throw new MockApiError("محاولات كثيرة لتسجيل الدخول، حاول بعد قليل", 429);
@@ -105,6 +106,7 @@ export async function refreshSession(refreshToken: string): Promise<Session | nu
     method: "POST",
     headers: { apikey: key, "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refreshToken }),
+    signal: AbortSignal.timeout(10_000),
   });
   if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 422) return null;
   if (res.status === 429) throw new MockApiError("طلبات تجديد كثيرة، حاول بعد قليل", 429);
@@ -133,7 +135,10 @@ export async function identityFromToken(token: string): Promise<Identity | null>
   if (hit && hit.until > Date.now()) return hit.identity;
 
   const { url, key } = supabaseEnv();
-  const res = await fetch(`${url}/auth/v1/user`, { headers: { apikey: key, Authorization: `Bearer ${token}` } });
+  const res = await fetch(`${url}/auth/v1/user`, {
+    headers: { apikey: key, Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!res.ok) {
     cache().tokens.delete(token);
     if (res.status === 401 || res.status === 403) return null;
@@ -164,6 +169,7 @@ export async function createLogin(credentials: { phone: string } | { email: stri
     method: "POST",
     headers: { apikey: secret, Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
     body: JSON.stringify({ ...credentials, password, ...confirm }),
+    signal: AbortSignal.timeout(10_000),
   });
   if (res.status === 422 || res.status === 409) return { skipped: "taken" };
   if (!res.ok) throw new Error(`Supabase Auth user creation failed: ${res.status}`);
@@ -178,6 +184,13 @@ export function loginNotice(login: NewLogin | null): string {
   return login.skipped === "taken"
     ? "هذا الرقم/البريد له حساب دخول آخر على Wash Up — تواصل مع الدعم لربطه"
     : "لم يُنشأ حساب الدخول (مفتاح Supabase السري غير مضبوط على الخادم)";
+}
+
+/** Extracts temporary password for returning in API response data (W22). */
+export function extractTempPassword(login: NewLogin | null): string | null {
+  if (!login) return isLocalAuth() ? "demo1234" : null;
+  if ("userId" in login) return login.password;
+  return null;
 }
 
 export async function signOut(token: string): Promise<void> {

@@ -444,18 +444,15 @@ export default function RegisterWizard() {
           );
           toast.success(`تم رفع الملف "${file.name}" بنجاح 📁`);
         } else {
-          // If upload fails, keep filename for submission
-          setUploadedDocs((prev) =>
-            prev.map((d) => (d.id === tempId ? { ...d, uploading: false } : d))
-          );
-          toast.info(`تم إرفاق "${file.name}"`);
+          // If upload fails, remove optimistic document to prevent submitting failed uploads (W16)
+          setUploadedDocs((prev) => prev.filter((d) => d.id !== tempId));
+          const errMsg = typeof json?.message === "string" ? json.message : `فشل رفع الملف "${file.name}"`;
+          toast.error(errMsg);
         }
       } catch (err) {
         console.warn("[Upload Error]", err);
-        setUploadedDocs((prev) =>
-          prev.map((d) => (d.id === tempId ? { ...d, uploading: false } : d))
-        );
-        toast.info(`تم إرفاق "${file.name}"`);
+        setUploadedDocs((prev) => prev.filter((d) => d.id !== tempId));
+        toast.error(`تعذر رفع الملف "${file.name}" — يرجى التأكد من الصيغة والاتصال`);
       }
     }
 
@@ -471,6 +468,10 @@ export default function RegisterWizard() {
   // Final Application Submission to Supabase API
   const handleSubmit = async () => {
     try {
+      if (uploadedDocs.some((d) => d.uploading)) {
+        toast.error("يرجى الانتظار حتى يكتمل رفع الملفات الحالية");
+        return;
+      }
       setLoading(true);
       const selectedServices: ApplicationService[] = services
         .filter((s) => s.selected)

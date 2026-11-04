@@ -90,3 +90,9 @@ export function findInScope<T extends { id: string; branchId: string }>(actor: V
   if (!item || !actor.branchIds.includes(item.branchId)) throw new MockApiError(`${label} غير موجود`, 404);
   return item;
 }
+
+export function assertManager(actor: VendorActor, action = "هذا الإجراء"): void {
+  if (actor.role !== "owner" && actor.role !== "manager") {
+    throw new MockApiError(`غير مصرح: ${action} يتطلب صلاحية مدير أو مالك`, 403);
+  }
+}

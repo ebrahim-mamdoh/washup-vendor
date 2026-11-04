@@ -116,7 +116,7 @@ export const vendorOperationRoutes = [
       ${dateWhere(sql, query.get("date"))}
       ${
         search
-          ? sql`and (o.number ilike ${search} or o.code ilike ${search} or o.plate ilike ${search}
+          ? sql`and (o.number ilike ${search} or o.plate ilike ${search}
               or exists (select 1 from public.customers cu where cu.id = o.customer_id and (cu.name ilike ${search}
                 or ${sql.unsafe(PHONE("cu.phone"))} ilike ${search} or replace(${sql.unsafe(PHONE("cu.phone"))}, ' ', '') ilike ${search})))`
           : sql``
@@ -193,6 +193,7 @@ export const vendorOperationRoutes = [
       assignableStaff: assignable.map((s) => ({ id: s.id, name: s.name })),
       allowedActions: allowedActions(actor, order, branch.settings.noShowGraceMin ?? 15),
       nextAction: nextActionFor(order),
+      noShowGraceMin: branch.settings.noShowGraceMin ?? 15,
       maxDiscountPct: actor.staff.maxDiscountPct,
       locked: Boolean(order.closedInDayId),
     };
@@ -361,6 +362,9 @@ export const vendorOperationRoutes = [
   }),
 
   vroute("POST", "/vendor/schedule/blocks", async ({ body, actor }) => {
+    if (actor.role !== "owner" && actor.role !== "manager") {
+      throw new MockApiError("غير مصرح: حجب الفترات متاح للإدارة فقط", 403);
+    }
     const branchId = String(body.branchId ?? "");
     assertBranch(actor, branchId);
     const { block, affected } = await tx(async (t) => {
@@ -389,6 +393,9 @@ export const vendorOperationRoutes = [
   }),
 
   vroute("DELETE", "/vendor/schedule/blocks/:id", async ({ params, actor }) => {
+    if (actor.role !== "owner" && actor.role !== "manager") {
+      throw new MockApiError("غير مصرح: إلغاء حجب الفترات متاح للإدارة فقط", 403);
+    }
     await tx(async (t) => {
       const [block] = await t<{ id: string; branchId: string; start: string; end: string }[]>`
         delete from public.branch_blocked_slots where id = ${params.id} and branch_id = any(${actor.branchIds})

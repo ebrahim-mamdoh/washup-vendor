@@ -33,7 +33,7 @@ import { branchNames, staffNames, toVendorItems } from "../lookups";
 import { defaultCommissionPct, logAudit, pushAdminNotification } from "../platform";
 import { vroute } from "../router";
 import { type Q, db, tx } from "../sql";
-import { scopeBranches } from "./scope";
+import { assertManager, assertOwner, scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
 /** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة كارزن" actor (admin names stay internal). */
@@ -337,6 +337,9 @@ const AUDIT_ITEM_COLS = `w.id, w."actorType", w."actorId", w."actorName", w.acti
 export const vendorInsightRoutes = [
   // ── Customers / CRM (D12 / OW-19) ────────────────────────
   vroute("GET", "/vendor/customers", async ({ query, actor }) => {
+    if (actor.role !== "owner" && actor.role !== "manager") {
+      throw new MockApiError("غير مصرح: عرض العملاء متاح للإدارة فقط", 403);
+    }
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const segment = query.get("segment");
@@ -361,6 +364,9 @@ export const vendorInsightRoutes = [
   }),
 
   vroute("GET", "/vendor/customers/:id", async ({ params, actor }) => {
+    if (actor.role !== "owner" && actor.role !== "manager") {
+      throw new MockApiError("غير مصرح: بيانات العميل متاحة للإدارة فقط", 403);
+    }
     const sql = db();
     const [orders, [customer], vehicles, reviews] = await Promise.all([
       ordersWhere(sql, sql`o.customer_id = ${params.id} and o.branch_id = any(${actor.branchIds})`, sql`order by o.scheduled_at desc, o.id`),
@@ -504,6 +510,9 @@ export const vendorInsightRoutes = [
 
   // ── Reports (D14 / OW-18) ────────────────────────────────
   vroute("GET", "/vendor/reports", async ({ query, actor }) => {
+    if (actor.role !== "owner" && actor.role !== "manager") {
+      throw new MockApiError("غير مصرح: التقارير متاحة للإدارة فقط", 403);
+    }
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const type = (["orders", "revenue", "services", "source", "employees"] as const).find((t) => t === query.get("type")) ?? "orders";
@@ -547,6 +556,7 @@ export const vendorInsightRoutes = [
 
   // ── Financials (D15 / OW-14) ─────────────────────────────
   vroute("GET", "/vendor/finance", async ({ query, actor }) => {
+    assertOwner(actor, "عرض المالية ومستحقات المغسلة");
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const raw = query.get("period");
@@ -724,7 +734,7 @@ export const vendorInsightRoutes = [
       sql<{ id: string; number: string; plate: string | null; service: string }[]>`
         select o.id, o.number, o.plate, coalesce(${sql.unsafe(PRIMARY_ITEM("o"))} ->> 'ar', '—') as service
         from public.orders o
-        where o.branch_id = any(${actor.branchIds}) and (o.number ilike ${term} or o.code ilike ${term})
+        where o.branch_id = any(${actor.branchIds}) and o.number ilike ${term}
         order by o.scheduled_at desc, o.id limit 5`,
       // One row per plate: its latest order ("آخر طلب").
       sql<{ id: string; number: string; plate: string; customerId: string | null }[]>`

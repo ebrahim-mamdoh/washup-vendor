@@ -33,6 +33,8 @@ export interface TransactionListItem extends Transaction {
   orderNumber: string;
   paymentMethod: PaymentMethod | null;
   collectedAmount: number | null;
+  currencySymbol?: string;
+  currencyDecimals?: number;
 }
 
 export type TransactionFilter = TransactionStatus | "all" | "discrepancy";
@@ -40,11 +42,13 @@ export type TransactionFilter = TransactionStatus | "all" | "discrepancy";
 export type TransactionListMeta = {
   counts: StatusCounts<TransactionStatus | "discrepancy">;
   totals: { gross: number; commission: number; netToWash: number };
+  totalsByCurrency?: { symbol: string; decimals: number; gross: number; commission: number; netToWash: number }[];
 };
 
 export interface TransactionListParams extends ListParams {
   filter?: TransactionFilter;
   washId?: string;
+  country?: string;
 }
 
 export interface DiscrepancyDetails {
@@ -66,6 +70,17 @@ export interface FinanceSeriesPoint {
   commission: number;
 }
 
+export interface CurrencyOverview {
+  gmv: number;
+  commission: number;
+  netToWashes: number;
+  refunds: number;
+  pendingPayouts: number;
+  paidOrders: number;
+  currencySymbol?: string;
+  currencyDecimals?: number;
+}
+
 export interface FinanceOverview {
   period: FinancePeriod;
   gmv: number;
@@ -78,6 +93,7 @@ export interface FinanceOverview {
   discrepancies: number;
   series: FinanceSeriesPoint[];
   topWashes: { id: string; name: Localized; gmv: number; commission: number; orders: number }[];
+  byCurrency?: Record<string, CurrencyOverview>;
 }
 
 export interface CommissionWash {
@@ -86,6 +102,8 @@ export interface CommissionWash {
   rate: number;
   isOverride: boolean;
   gmv30d: number;
+  currencySymbol?: string;
+  currencyDecimals?: number;
 }
 
 export interface CommissionSettings {
@@ -115,11 +133,14 @@ export interface Payout {
 
 export interface PayoutListItem extends Payout {
   businessName: Localized;
+  currencySymbol?: string;
+  currencyDecimals?: number;
 }
 
 export type PayoutListMeta = {
   counts: StatusCounts<PayoutStatus>;
   totals: { due: number; paid: number };
+  totalsByCurrency?: { symbol: string; decimals: number; due: number; paid: number }[];
 };
 
 export interface MarkPayoutPaidPayload {

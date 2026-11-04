@@ -393,6 +393,6 @@ export const vendorTeamRoutes = [
       o.closedInDayId = closing.id;
     });
     logAudit(db, { actorType: "staff", actorId: actor.staff.id, action: "day.close", entity: "branches", entityId: branchId, branchId, oldValue: expected.total, newValue: actual.total, reason: reason || null });
-    return ok(closing, difference ? `تم إغلاق اليوم بفرق ${difference} ج.م — تم قفل ${paid.length} طلب` : `تم إغلاق اليوم وقفل ${paid.length} طلب`);
+    return ok(closing, difference ? `تم إغلاق اليوم بفرق ${difference} — تم قفل ${paid.length} طلب` : `تم إغلاق اليوم وقفل ${paid.length} طلب`);
   }),
 ];

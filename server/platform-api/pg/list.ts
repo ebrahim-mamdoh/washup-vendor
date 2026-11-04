@@ -4,6 +4,7 @@ import type { Pagination } from "@/types/common";
 import type postgres from "postgres";
 
 import type { Q } from "./sql";
+import { cairoDateParts, cairoLocalToUtc } from "../vendor/engine";
 
 /**
  * List helpers for SQL-backed endpoints: same query params and response shapes
@@ -83,11 +84,10 @@ export function countsOf<K extends string>(rows: readonly { k: string | null; n:
   return counts;
 }
 
-/** Start and end (exclusive) of the server-local calendar day containing `d`, as ISO strings. */
-export function dayBounds(d: Date): [string, string] {
-  const start = new Date(d);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+/** Start and end (exclusive) of the calendar day containing `d` in the target timezone (default Africa/Cairo), as ISO strings (W10). */
+export function dayBounds(d: Date, timeZone: string = "Africa/Cairo"): [string, string] {
+  const parts = cairoDateParts(d, timeZone);
+  const start = cairoLocalToUtc(parts.y, parts.m, parts.day, 0, 0, timeZone);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return [start.toISOString(), end.toISOString()];
 }

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useAuthReady, useLogin } from "@/hooks/use-auth";
 import { resolveUserFacingError } from "@/lib/api/api-error-handler";
 
-/** Egyptian mobile: local `01…` (11 digits) or the 10 digits after +20 — same rule as the platform. */
+/** Phone number: accepts international E.164 and local formats (8 to 15 digits). */
 const loginSchema = z.object({
   phone: z
     .string()
@@ -20,8 +20,8 @@ const loginSchema = z.object({
     .min(1, "رقم الموبايل مطلوب")
     .refine((v) => {
       const d = v.replace(/\D/g, "");
-      return d.length === 10 || (d.length === 11 && d.startsWith("01")) || (d.length === 12 && d.startsWith("20"));
-    }, "رقم موبايل مصري غير صحيح"),
+      return d.length >= 8 && d.length <= 15;
+    }, "رقم هاتف غير صحيح"),
   password: z.string().min(1, "كلمة المرور مطلوبة").min(6, "كلمة المرور 6 أحرف على الأقل"),
 });
 

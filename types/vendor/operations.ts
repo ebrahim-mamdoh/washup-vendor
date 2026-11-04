@@ -70,6 +70,7 @@ export interface VendorOrderDetails {
   allowedActions: OrderAction[];
   nextAction: PrimaryAction | null;
   maxDiscountPct: number;
+  noShowGraceMin?: number;
   locked: boolean;
 }
 

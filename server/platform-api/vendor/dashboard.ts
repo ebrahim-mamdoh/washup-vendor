@@ -146,7 +146,7 @@ function alerts(db: MockDatabase, actor: VendorActor, branchIds: string[], scope
       id: `cash_${s.id}`,
       type: "cash_difference",
       severity: "danger",
-      title: `فرق نقدية ${s.difference! > 0 ? "+" : ""}${s.difference} ج.م`,
+      title: `فرق نقدية ${s.difference! > 0 ? "+" : ""}${s.difference}`,
       description: `وردية ${staffName(db, s.staffId)} — ${branchName(db, s.branchId).ar}`,
       href: `/shifts?filter=difference`,
     });

@@ -61,6 +61,8 @@ export async function handleSupabaseRequest(req: Request, segments: string[]): P
     }
     const admin = identity ? await resolveAdmin(sql, identity) : null;
     if (!matched.def.isPublic && !admin) return fail(EXPIRED, 401);
+    if (!matched.def.isPublic && admin?.role !== "super") return fail("غير مصرح: هذه البوابة مخصصة للمدير العام فقط", 403);
+    if (!matched.def.isPublic && admin.role !== "super") return fail("غير مصرح: هذه البوابة مخصصة للمدير العام فقط", 403);
     return await (matched.def as PgRouteDef<PgAdminContext>).handler({ ...base, admin: admin! });
   } catch (error) {
     if (error instanceof MockApiError) return fail(error.message, error.httpStatus, error.errors);

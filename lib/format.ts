@@ -21,9 +21,15 @@ export function formatCompact(value: number): string {
   return compactFmt.format(value);
 }
 
-export function formatMoney(value: number | null | undefined, { decimals = false } = {}): string {
+export function formatMoney(
+  value: number | null | undefined,
+  options: { decimals?: boolean | number; currency?: string; fractionDigits?: number; symbol?: string } = {},
+): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
-  return `${(decimals ? decFmt : intFmt).format(value)} ج.م`;
+  const sym = options.symbol ?? options.currency ?? "ج.م";
+  const numDecimals = typeof options.fractionDigits === "number" ? options.fractionDigits : typeof options.decimals === "number" ? options.decimals : options.decimals ? 2 : 0;
+  const fmt = numDecimals > 0 ? (numDecimals === 2 ? decFmt : new Intl.NumberFormat("en-US", { maximumFractionDigits: numDecimals, minimumFractionDigits: numDecimals })) : intFmt;
+  return `${fmt.format(value)} ${sym}`;
 }
 
 export function formatPercent(value: number | null | undefined, digits = 1): string {
