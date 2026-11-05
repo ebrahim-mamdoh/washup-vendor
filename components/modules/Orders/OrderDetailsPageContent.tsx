@@ -13,7 +13,7 @@ import { DetailSkeleton, EmptyState, ErrorState } from "@/components/shared/stat
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
-import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, VEHICLE_COLOR, cancelReasonLabel, discountReasonLabel, paymentStatusMeta } from "@/lib/constants/labels";
+import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, VEHICLE_COLOR, cancelReasonLabel, discountReasonLabel, paymentStatusMeta } from "@/lib/constants/labels";
 import { formatDateTime, formatDuration, formatMoney, formatRelative } from "@/lib/format";
 import { OrderActions } from "@/components/modules/Orders/actions/OrderActions";
 import { useOrder } from "@/hooks/use-operations";

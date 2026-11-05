@@ -3,12 +3,12 @@ import "server-only";
 import type {
   CommissionSettings,
   CommissionWash,
+  CurrencyOverview,
   DiscrepancyDetails,
   FinanceOverview,
   FinancePeriod,
   Payout,
   PayoutListItem,
-  Transaction,
   TransactionListItem,
   TransactionStatus,
 } from "@/types/finance";
@@ -173,7 +173,7 @@ export const financeRoutes = [
         order by ac.currency`,
     ]);
 
-    const byCurrency: Record<string, any> = {};
+    const byCurrency: Record<string, CurrencyOverview> = {};
     for (const r of byCurrencyRows) {
       byCurrency[r.currency] = {
         gmv: r.gmv,

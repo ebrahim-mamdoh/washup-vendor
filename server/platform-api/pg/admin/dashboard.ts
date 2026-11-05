@@ -167,7 +167,7 @@ function buildKpis(week: DayTotals[], history: Counts[], current: Counts): Dashb
   ];
 }
 
-async function buildFunnel(q: Q, from: string, end: string, country?: string | null): Promise<DashboardFunnel> {
+async function buildFunnel(q: Q, from: string, end: string): Promise<DashboardFunnel> {
   const [f] = await q<{ created: number; confirmed: number; waiting: number; inService: number; completed: number; cancelled: number; noShow: number }[]>`
     with scoped as (
       select id, status from public.orders where scheduled_at >= ${from} and scheduled_at < ${end}
@@ -387,7 +387,7 @@ export const dashboardRoutes = [
       orderTotals(sql, week.starts, week.ends, pct, country),
       countsAt(sql, week.ends, country),
       currentCounts(sql, country),
-      buildFunnel(sql, periodFrom, end, country),
+      buildFunnel(sql, periodFrom, end),
       buildAlerts(sql, country),
       buildTopWashes(sql, topFrom, end, country),
       buildAttention(sql, from30, end, country),

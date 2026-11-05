@@ -33,7 +33,7 @@ import { branchNames, staffNames, toVendorItems } from "../lookups";
 import { defaultCommissionPct, logAudit, pushAdminNotification } from "../platform";
 import { vroute } from "../router";
 import { type Q, db, tx } from "../sql";
-import { assertManager, assertOwner, scopeBranches } from "./scope";
+import { assertOwner, scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
 /** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة كارزن" actor (admin names stay internal). */
@@ -724,7 +724,7 @@ export const vendorInsightRoutes = [
 
   // ── Global search (plate / phone / order number) ─────────
   vroute("GET", "/vendor/search", async ({ query, actor }) => {
-    const q = query.get("q")?.trim() ?? "";
+    const q = (query.get("q") ?? "").replaceAll("\0", "").trim();
     if (q.length < 2) return ok({ query: q, results: [] as VendorSearchResult[] });
     const sql = db();
     const term = searchPattern(new URLSearchParams({ search: q }))!;

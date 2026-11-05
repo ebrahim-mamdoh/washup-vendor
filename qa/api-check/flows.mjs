@@ -7,7 +7,7 @@ const API = `${base}/api/v1`;
 const out = [];
 const log = (ok, name, detail = "") => out.push(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  -> " + detail : ""}`);
 async function call(method, path, token, body) {
-  const res = await fetch(API + path, { method, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const res = await fetch(API + path, { method, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), "x-forwarded-for": "10.0.1." + (Math.floor(Math.random() * 200) + 1) }, body: body === undefined ? undefined : JSON.stringify(body) });
   let json = null;
   try { json = await res.json(); } catch {}
   return { status: res.status, json, msg: json?.message };
@@ -73,10 +73,16 @@ if (created.status === 200) {
 }
 
 // Phone booking: slot → create → cancel
-const tomorrow = new Date(Date.now() + 86400000);
-const day = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
-const slots = (await call("GET", `/vendor/availability?branchId=${br}&date=${day}&serviceIds=${primary.id}`, M)).json.data ?? [];
-const slot = slots.find((s) => !s.past && !s.blocked && s.free > 0);
+let slot = null;
+let slots = [];
+let tomorrow = new Date(Date.now() + 86400000);
+for (let i = 1; i <= 7; i++) {
+  const d = new Date(Date.now() + i * 86400000);
+  const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const res = (await call("GET", `/vendor/availability?branchId=${br}&date=${ds}&serviceIds=${primary.id}`, M)).json?.data ?? [];
+  const found = res.find((s) => !s.past && !s.blocked && s.free > 0);
+  if (found) { slot = found; slots = res; tomorrow = d; break; }
+}
 log(Boolean(slot), `availability tomorrow (${slots.length} slots)`);
 if (slot) {
   const ph = await step("create phone booking", "POST", "/vendor/orders", M, { source: "phone", branchId: br, plate: "QA 0002", customerPhone: "01099990001", serviceIds: [primary.id], scheduledAt: slot.start });

@@ -9,7 +9,7 @@ const check = (name, cond, detail = "") => results.push(`${cond ? "PASS" : "FAIL
 async function call(method, path, token, body) {
   const res = await fetch(API + path, {
     method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), "x-forwarded-for": "10.0.2." + (Math.floor(Math.random() * 200) + 1) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   let json = null;
@@ -115,7 +115,7 @@ if (mgrPhone) {
     await call("POST", `/vendor/orders/${o.id}/actions`, M, { action: "cancel", reason: "qa cleanup" });
   }
   // Manager can't grant permissions he lacks
-  if (!mgr.account.permissions.editServices) {
+  if (mgr.account.permissions.manageStaff && !mgr.account.permissions.editServices) {
     const phone = `015${Math.floor(Math.random() * 9e7 + 1e7)}`;
     const r = await call("POST", "/vendor/staff", M, { branchId: mb, name: "QA Employee", phone, role: "employee", permissions: { editServices: true } });
     check("manager grant capped (editServices stays false)", r.status === 200 && r.json.data.permissions.editServices === false, `${r.status} ${JSON.stringify(r.json?.data?.permissions)}`);

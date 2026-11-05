@@ -626,7 +626,7 @@ export async function createOrder(t: Tx, actor: VendorActor, payload: CreateOrde
     entity: "orders",
     entityId: order.id,
     branchId: branch.id,
-    newValue: `${order.number} · ${isPhone ? "حجز هاتفي" : "حضور مباشر"} · ${price.total} ${(branch as any).currencySymbol ?? "ج.م"}`,
+    newValue: `${order.number} · ${isPhone ? "حجز هاتفي" : "حضور مباشر"} · ${price.total} ${(branch as Branch & { currencySymbol?: string }).currencySymbol ?? "ج.م"}`,
   });
   return order.id;
 }

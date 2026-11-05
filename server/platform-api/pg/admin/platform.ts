@@ -240,7 +240,7 @@ export const platformRoutes = [
   // ── Global search (⌘K) ────────────────────────────────────
   route("GET", "/admin/search", async ({ query }) => {
     const sql = db();
-    const q = query.get("q")?.trim() ?? "";
+    const q = (query.get("q") ?? "").replaceAll("\0", "").trim();
     if (q.length < 2) return ok({ query: q, results: [] });
     const like = searchPattern(new URLSearchParams({ search: q }))!;
     const qNorm = q.replace(/[\s-]/g, "").toUpperCase();
