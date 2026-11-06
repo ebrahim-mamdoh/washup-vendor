@@ -1,6 +1,7 @@
 import "server-only";
 
-import type { SubmitApplicationPayload } from "@/types/applications";
+import type { SubmitApplicationPayload, WashApplication } from "@/types/applications";
+import type postgres from "postgres";
 import { MockApiError, ok, requireText } from "../../http";
 import { applicationsWhere } from "../entities";
 import { isLegacyDefaultPin } from "../admin/geo";
@@ -161,7 +162,7 @@ export const vendorApplicationRoutes = [
           capacity, services, working_hours, documents, status, submitted_at
         ) values (
           ${id}, ${businessName}, ${ownerName}, ${phoneE164}, ${email}, ${area}, ${address}, ${lat}, ${lng},
-          ${capacity}, ${sql.json(priced as any)}, ${sql.json(workingHours as any)}, ${documents}, 'pending', now()
+          ${capacity}, ${sql.json(priced as unknown as postgres.JSONValue)}, ${sql.json(workingHours as unknown as postgres.JSONValue)}, ${documents}, 'pending', now()
         )
       `;
 
@@ -188,7 +189,7 @@ export const vendorApplicationRoutes = [
     async ({ params }) => {
       const sql = db();
       const target = String(params.id ?? "").trim();
-      let app: any;
+      let app: WashApplication | undefined;
 
       if (target.startsWith("app_")) {
         [app] = await applicationsWhere(sql, sql`ap.id = ${target}`);

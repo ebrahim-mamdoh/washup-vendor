@@ -48,7 +48,10 @@ export async function POST(req: Request) {
         return NextResponse.json(
           {
             status: false,
-            message: (errJson as any)?.message || "تعذر رفع الملف إلى مساحة التخزين في سوبابيز",
+            message:
+              typeof errJson === "object" && errJson !== null && "message" in errJson
+                ? String((errJson as Record<string, unknown>).message)
+                : "تعذر رفع الملف إلى مساحة التخزين في سوبابيز",
           },
           { status: uploadRes.status }
         );
@@ -83,8 +86,9 @@ export async function POST(req: Request) {
       },
       message: "تم رفع الملف بنجاح (وضع محلي)",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Upload Route Error]", error);
-    return NextResponse.json({ status: false, message: error?.message || "حدث خطأ غير متوقع أثناء الرفع" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع أثناء الرفع";
+    return NextResponse.json({ status: false, message }, { status: 500 });
   }
 }

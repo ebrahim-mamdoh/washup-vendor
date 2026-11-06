@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { ArrowLeft, Check, Clock, Rocket, Sparkles, Store, UserPlus } from "lucide-react";
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -138,6 +138,12 @@ export function SetupWelcome() {
   const { setup, businessId } = usePendingSetup();
   const open = useUIStore((s) => s.setupOpen);
   const setOpen = useUIStore((s) => s.setSetupOpen);
+
+  useEffect(() => {
+    if (businessId && !seenFor(businessId)) {
+      setOpen(true);
+    }
+  }, [businessId, setOpen]);
 
   if (!setup) return null;
   return (

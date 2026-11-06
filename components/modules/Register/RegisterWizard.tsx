@@ -1024,6 +1024,7 @@ export default function RegisterWizard() {
                     placeholder="مثال: مغسلة النور لخدمات السيارات"
                     value={formData.businessName}
                     onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                    className="h-10 text-sm"
                   />
                 </div>
 
@@ -1034,12 +1035,13 @@ export default function RegisterWizard() {
                     placeholder="مثال: كريم عبد السلام"
                     value={formData.ownerName}
                     onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                    className="h-10 text-sm"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">رقم الموبايل للتسجيل والتواصل *</Label>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2" dir="ltr">
                     <select
                       aria-label="مفتاح الدولة"
                       value={formData.dialCode}
@@ -1051,7 +1053,7 @@ export default function RegisterWizard() {
                         setFormData({ ...formData, dialCode: dial, countryCode: code, area: "", customArea: "" });
                         setPinSet(false);
                       }}
-                      className="h-10 w-28 shrink-0 rounded-md border border-input bg-background px-2 text-sm"
+                      className="h-10 w-32 shrink-0 rounded-lg border border-input bg-background px-2.5 text-sm font-medium transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 cursor-pointer"
                       dir="ltr"
                     >
                       {(countries.length ? countries : [{ code: "EG", dialCode: "+20", name: { ar: "مصر", en: "Egypt" } }]).map((c) => (
@@ -1064,8 +1066,8 @@ export default function RegisterWizard() {
                       id="phone"
                       type="tel"
                       dir="ltr"
-                      className="text-left"
-                      placeholder="5xxxxxxxx"
+                      className="h-10 text-left text-sm"
+                      placeholder={formData.dialCode === "+20" ? "01012345678" : "5xxxxxxxx"}
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     />
@@ -1083,6 +1085,7 @@ export default function RegisterWizard() {
                     placeholder="owner@wash.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="h-10 text-sm"
                   />
                 </div>
               </div>
