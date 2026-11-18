@@ -5,6 +5,7 @@ import { MockApiError, ok, requireText } from "../../http";
 import { applicationsWhere } from "../entities";
 import { isLegacyDefaultPin } from "../admin/geo";
 import { pushAdminNotification } from "../platform";
+import { phoneLookupView } from "../../vendor/application-view";
 import { vroute } from "../router";
 import { type Q, db } from "../sql";
 
@@ -153,7 +154,8 @@ export const vendorApplicationRoutes = [
         if (!known) throw new MockApiError("المنطقة لا تتبع الدولة المختارة", 422, { area: ["منطقة غير صالحة"] });
         assertPinNear(lat, lng, known.lat, known.lng, 50, "الدبوس بعيد عن المنطقة المختارة. يجب أن يكون خلال 50 كم من مركزها");
       }
-      const id = `app_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+      // The code is what lets an applicant read their full application (GAP-005): unguessable.
+      const id = `app_${Date.now().toString(36)}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
 
       await sql`
         insert into public.wash_applications (
@@ -204,7 +206,7 @@ export const vendorApplicationRoutes = [
       }
 
       if (!app) throw new MockApiError("طلب الانضمام غير موجود", 404);
-      return ok(app);
+      return ok(target.startsWith("app_") ? app : phoneLookupView(app));
     },
     true,
   ),

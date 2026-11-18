@@ -9,13 +9,16 @@ import { logAudit } from "../platform";
 import { route } from "../router";
 import { type Q, db } from "../sql";
 
-/** Signed-in identity → active admin profile, or null. */
+/**
+ * Signed-in identity → active Super Admin profile, or null. Checked on every request (GAP-003):
+ * this panel and its API are for role `super` only; other admin roles have no access here.
+ */
 export async function resolveAdmin(q: Q, identity: Identity): Promise<AdminUser | null> {
   const [admin] =
     identity.kind === "supabase"
       ? await adminsWhere(q, q`a.user_id = ${identity.userId}`)
       : await adminsWhere(q, q`a.id = ${identity.profileId}`);
-  return admin && admin.status === "active" ? admin : null;
+  return admin && admin.status === "active" && admin.role === "super" ? admin : null;
 }
 
 export const authRoutes = [

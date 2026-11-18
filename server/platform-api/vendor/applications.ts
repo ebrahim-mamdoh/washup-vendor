@@ -4,6 +4,7 @@ import type { SubmitApplicationPayload, WashApplication } from "@/types/applicat
 import { nid, now, pushAdminNotification } from "../db";
 import { MockApiError, ok, requireText } from "../http";
 import { vroute } from "../router";
+import { phoneLookupView } from "./application-view";
 import { normalizePhone } from "./engine";
 
 export const vendorApplicationRoutes = [
@@ -107,7 +108,7 @@ export const vendorApplicationRoutes = [
       }
 
       if (!app) throw new MockApiError("طلب الانضمام غير موجود", 404);
-      return ok(app);
+      return ok(target.startsWith("app_") ? app : phoneLookupView(app));
     },
     true, // isPublic = true
   ),

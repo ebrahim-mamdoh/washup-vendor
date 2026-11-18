@@ -27,7 +27,11 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-/** Demo personas from spec 02 B1 (prefilled, one tap). */
+/**
+ * Demo personas (spec 02 B1). Shown — and prefilled — only on local/demo builds that set
+ * NEXT_PUBLIC_SHOW_DEMO_LOGINS=1; production login pages must never publish credentials (GAP-002).
+ */
+const SHOW_DEMO_LOGINS = process.env.NEXT_PUBLIC_SHOW_DEMO_LOGINS === "1";
 const PERSONAS = [
   { key: "owner", name: "خالد منصور", role: "مالك — كل الفروع", phone: "+20 120 000 0000", icon: Store },
   { key: "manager", name: "محمد عادل", role: "مدير فرع — مدينة نصر", phone: "+20 100 555 0102", icon: UserCog },
@@ -54,7 +58,7 @@ export default function LoginForm() {
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { phone: PERSONAS[0].phone, password: "demo1234" },
+    defaultValues: SHOW_DEMO_LOGINS ? { phone: PERSONAS[0].phone, password: "demo1234" } : { phone: "", password: "" },
   });
 
   useEffect(() => {
@@ -138,6 +142,7 @@ export default function LoginForm() {
         تسجيل الدخول
       </Button>
 
+      {SHOW_DEMO_LOGINS ? (
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">حسابات العرض التجريبي (كلمة المرور demo1234)</p>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -170,6 +175,7 @@ export default function LoginForm() {
           })}
         </div>
       </div>
+      ) : null}
     </form>
   );
 }

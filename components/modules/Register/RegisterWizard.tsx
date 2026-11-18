@@ -38,6 +38,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { APPLICATION_STATUS } from "@/lib/constants/labels";
 import { fetchApplication, submitApplication } from "@/lib/services/applications.service";
 import type { ApplicationService, SubmitApplicationPayload, WashApplication } from "@/types/applications";
 import type { WorkingDay } from "@/types/washes";
@@ -202,7 +203,8 @@ export default function RegisterWizard() {
     try {
       if (!silent) setFetchingStatus(true);
       const res = await fetchApplication(id);
-      if (res) {
+      // A phone number in ?id= only yields a status summary (no code): nothing to open here.
+      if (res && res.id) {
         // If status changed from pending while user was watching, alert them
         setActiveApp((prev) => {
           if (silent && prev && prev.status !== res.status) {
@@ -310,6 +312,13 @@ export default function RegisterWizard() {
     setIsSearching(true);
     try {
       const res = await fetchApplication(q);
+      if (res && !res.id && res.status) {
+        // Lookup by phone answers with the status only (no code, no details) to protect applicants.
+        const label = APPLICATION_STATUS[res.status as keyof typeof APPLICATION_STATUS]?.label ?? res.status;
+        toast.info(`طلب مغسلة "${res.businessName}": ${label}. لعرض التفاصيل أو التعديل استخدم كود الطلب.`);
+        setLookupQuery("");
+        return;
+      }
       if (res && res.id) {
         if (typeof window !== "undefined") {
           localStorage.setItem("carzen_application_id", res.id);

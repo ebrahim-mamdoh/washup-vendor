@@ -17,7 +17,7 @@ import { washRoutes } from "./handlers/washes";
 import { MockApiError, fail } from "./http";
 import { handleSupabaseRequest } from "./pg";
 import { type HttpMethod, type RouteDef, type VendorRouteDef, matchPath } from "./router";
-import { isLoginPath, loginThrottle } from "./throttle";
+import { isApplicationPhoneLookup, isLoginPath, loginThrottle } from "./throttle";
 import { VENDOR_ROUTES } from "./vendor";
 import { resolveVendorActor } from "./vendor/scope";
 
@@ -58,15 +58,26 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
 const MAX_BODY_BYTES = 1_000_000;
 
 export async function handleMockRequest(req: Request, segments: string[]): Promise<Response> {
+  const isProduction = process.env.NODE_ENV === "production";
   // The partner portal only serves /vendor/*: the admin namespace belongs to the Super Admin app
-  // (CARZEN_SERVE_ADMIN_API=1 re-enables it, e.g. for the demo reset endpoint).
-  if (segments[0] !== "vendor" && process.env.CARZEN_SERVE_ADMIN_API !== "1") {
+  // (CARZEN_SERVE_ADMIN_API=1 re-enables this stale copy for local demos only, never in production).
+  if (segments[0] !== "vendor" && (process.env.CARZEN_SERVE_ADMIN_API !== "1" || isProduction)) {
     return fail(`المسار ${req.method.toUpperCase()} /${segments.join("/")} غير موجود`, 404);
+  }
+  // Fail closed: a production deploy without CARZEN_DATA_SOURCE=supabase would otherwise serve the
+  // seeded mock store (demo logins, writes to an ephemeral file) under the real URL.
+  if (isProduction && process.env.CARZEN_DATA_SOURCE !== "supabase") {
+    console.error("[platform-api] CARZEN_DATA_SOURCE must be \"supabase\" in production");
+    return fail("الخدمة غير متاحة حاليًا", 503);
   }
   if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return fail("حجم الطلب أكبر من المسموح", 413);
   if (isLoginPath(segments) && req.method === "POST") {
     const wait = loginThrottle(req);
     if (wait) return fail(`محاولات كثيرة لتسجيل الدخول، حاول بعد ${wait} ثانية`, 429);
+  }
+  if (isApplicationPhoneLookup(segments) && req.method === "GET") {
+    const wait = loginThrottle(req, "application-lookup");
+    if (wait) return fail(`محاولات بحث كثيرة، حاول بعد ${wait} ثانية`, 429);
   }
 
   // Real data: the same routes served from the Supabase Postgres database.
@@ -103,7 +114,8 @@ export async function handleMockRequest(req: Request, segments: string[]): Promi
       response = await (matched.def as VendorRouteDef).handler({ ...base, actor: actor! });
     } else {
       const adminId = token ? db.sessions[token] : undefined;
-      const admin = adminId ? db.admins.find((a) => a.id === adminId && a.status === "active") : undefined;
+      // Super Admin only (GAP-003): other admin roles have no panel and no API access here.
+      const admin = adminId ? db.admins.find((a) => a.id === adminId && a.status === "active" && a.role === "super") : undefined;
       if (!matched.def.isPublic && !admin) return fail("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
       response = await (matched.def as RouteDef).handler({ ...base, admin: admin! });
     }

@@ -20,9 +20,20 @@ export function isLoginPath(segments: string[]): boolean {
   return segments.length === 3 && segments[1] === "auth" && (segments[2] === "login" || segments[2] === "forgot-password");
 }
 
-/** Records an attempt; returns 0 when allowed, else the seconds to wait. */
-export function loginThrottle(req: Request): number {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local";
+/**
+ * Public application lookup by phone number (anything that isn't an `app_…` id): it answers
+ * whether a phone has applied, so it gets the same per-IP budget as sign-in.
+ */
+export function isApplicationPhoneLookup(segments: string[]): boolean {
+  return segments.length === 3 && segments[0] === "vendor" && segments[1] === "applications" && !segments[2].startsWith("app_");
+}
+
+/**
+ * Records an attempt; returns 0 when allowed, else the seconds to wait.
+ * `bucket` keeps separate budgets (sign-in vs. application lookups) for the same IP.
+ */
+export function loginThrottle(req: Request, bucket = "login"): number {
+  const ip = `${bucket}:${req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local"}`;
   const at = Date.now();
   const map = attempts();
   const recent = (map.get(ip) ?? []).filter((t) => at - t < WINDOW_MS);
