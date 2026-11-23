@@ -72,6 +72,14 @@ export function assertOwner(actor: VendorActor, what = "هذا الإجراء"):
   if (actor.role !== "owner") throw new MockApiError(`${what} متاح لمالك المغسلة فقط`, 403);
 }
 
+/**
+ * Owner/manager pages (customers, reviews, reports, finance, audit) are hidden from employees
+ * in the portal menu (`EMPLOYEE_HREFS`); this enforces the same rule on the server (GAP-004).
+ */
+export function assertNotEmployee(actor: VendorActor): void {
+  if (actor.role === "employee") throw new MockApiError("هذه الصفحة متاحة للمالك ومدير الفرع فقط", 403);
+}
+
 /** A manager can only grant permissions he holds himself (the owner grants anything). */
 export function capPermissions(actor: VendorActor, permissions: StaffPermissions): StaffPermissions {
   if (actor.role === "owner") return permissions;

@@ -5,7 +5,7 @@
 begin;
 
 update public.admin_users
-set status = 'suspended'
+set status = 'inactive'  -- admin_status enum is active|inactive ('suspended' made this script fail)
 where email ilike '%@carzen.demo';
 
 update public.platform_settings

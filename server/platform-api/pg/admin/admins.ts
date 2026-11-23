@@ -80,7 +80,7 @@ export const adminRoutes = [
       if (body.role !== undefined) {
         const role = String(body.role) as AdminRole;
         if (!ROLES.includes(role)) throw new MockApiError("اختر دورًا صالحًا", 422);
-        if (current.id === admin.id && role !== "super") throw new MockApiError("لا يمكنك تغيير دورك بنفسك", 409);
+        if (current.id === admin.id && role !== current.role) throw new MockApiError("لا يمكنك تغيير دورك بنفسك", 409);
         if (current.role === "super" && role !== "super" && (await activeSupers(t)) <= 1) {
           throw new MockApiError("لا يمكن إزالة آخر Super Admin", 409);
         }

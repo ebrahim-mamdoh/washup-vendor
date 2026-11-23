@@ -33,7 +33,7 @@ import { branchNames, staffNames, toVendorItems } from "../lookups";
 import { defaultCommissionPct, logAudit, pushAdminNotification } from "../platform";
 import { vroute } from "../router";
 import { type Q, db, tx } from "../sql";
-import { assertOwner, scopeBranches } from "./scope";
+import { assertNotEmployee, scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
 /** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة Wash Up" actor (admin names stay internal). */
@@ -337,9 +337,7 @@ const AUDIT_ITEM_COLS = `w.id, w."actorType", w."actorId", w."actorName", w.acti
 export const vendorInsightRoutes = [
   // ── Customers / CRM (D12 / OW-19) ────────────────────────
   vroute("GET", "/vendor/customers", async ({ query, actor }) => {
-    if (actor.role !== "owner" && actor.role !== "manager") {
-      throw new MockApiError("غير مصرح: عرض العملاء متاح للإدارة فقط", 403);
-    }
+    assertNotEmployee(actor);
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const segment = query.get("segment");
@@ -364,9 +362,7 @@ export const vendorInsightRoutes = [
   }),
 
   vroute("GET", "/vendor/customers/:id", async ({ params, actor }) => {
-    if (actor.role !== "owner" && actor.role !== "manager") {
-      throw new MockApiError("غير مصرح: بيانات العميل متاحة للإدارة فقط", 403);
-    }
+    assertNotEmployee(actor);
     const sql = db();
     const [orders, [customer], vehicles, reviews] = await Promise.all([
       ordersWhere(sql, sql`o.customer_id = ${params.id} and o.branch_id = any(${actor.branchIds})`, sql`order by o.scheduled_at desc, o.id`),
@@ -397,6 +393,7 @@ export const vendorInsightRoutes = [
 
   // ── Reviews (D13 / OW-20) ────────────────────────────────
   vroute("GET", "/vendor/reviews", async ({ query, actor }) => {
+    assertNotEmployee(actor);
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const stars = query.get("stars");
@@ -448,6 +445,7 @@ export const vendorInsightRoutes = [
   }),
 
   vroute("POST", "/vendor/reviews/:id/reply", async ({ params, body, actor }) => {
+    assertNotEmployee(actor);
     const review = await tx(async (t) => {
       const [current] = await reviewsWhere(t, t`r.id = ${params.id} and r.branch_id = any(${actor.branchIds}) and r.status = 'visible'`);
       if (!current) throw new MockApiError("التقييم غير موجود", 404);
@@ -475,6 +473,7 @@ export const vendorInsightRoutes = [
   }),
 
   vroute("POST", "/vendor/reviews/:id/report", async ({ params, body, actor }) => {
+    assertNotEmployee(actor);
     const review = await tx(async (t) => {
       const [current] = await reviewsWhere(t, t`r.id = ${params.id} and r.branch_id = any(${actor.branchIds}) and r.status = 'visible'`);
       if (!current) throw new MockApiError("التقييم غير موجود", 404);
@@ -510,9 +509,7 @@ export const vendorInsightRoutes = [
 
   // ── Reports (D14 / OW-18) ────────────────────────────────
   vroute("GET", "/vendor/reports", async ({ query, actor }) => {
-    if (actor.role !== "owner" && actor.role !== "manager") {
-      throw new MockApiError("غير مصرح: التقارير متاحة للإدارة فقط", 403);
-    }
+    assertNotEmployee(actor);
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const type = (["orders", "revenue", "services", "source", "employees"] as const).find((t) => t === query.get("type")) ?? "orders";
@@ -556,7 +553,7 @@ export const vendorInsightRoutes = [
 
   // ── Financials (D15 / OW-14) ─────────────────────────────
   vroute("GET", "/vendor/finance", async ({ query, actor }) => {
-    assertOwner(actor, "عرض المالية ومستحقات المغسلة");
+    assertNotEmployee(actor);
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const raw = query.get("period");
@@ -643,6 +640,7 @@ export const vendorInsightRoutes = [
 
   // ── Audit log (D17 / OW-16) ──────────────────────────────
   vroute("GET", "/vendor/audit", async ({ query, actor }) => {
+    assertNotEmployee(actor);
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const actorId = query.get("actorId");

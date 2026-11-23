@@ -21,7 +21,7 @@ import { branchName, effectiveCommissionRate, serviceName } from "../lookups";
 import { vroute } from "../router";
 import type { MockDatabase } from "../schema";
 import { dayKey, hasManualDiscount, staffName, toVendorItem } from "./engine";
-import { scopeBranches } from "./scope";
+import { assertNotEmployee, scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
 /** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة Wash Up" actor (admin names stay internal). */
@@ -267,6 +267,7 @@ function buildReport(db: MockDatabase, branchIds: string[], type: VendorReportTy
 export const vendorInsightRoutes = [
   // ── Customers / CRM (D12 / OW-19) ────────────────────────
   vroute("GET", "/vendor/customers", ({ db, query, actor }) => {
+    assertNotEmployee(actor);
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const segment = query.get("segment");
     const all = customersOf(db, branchIds).filter((c) => matchesSearch(query, c.name, c.phone, c.phone.replace(/\s/g, ""), ...c.plates));
@@ -278,6 +279,7 @@ export const vendorInsightRoutes = [
   }),
 
   vroute("GET", "/vendor/customers/:id", ({ db, params, actor }) => {
+    assertNotEmployee(actor);
     const orders = db.orders
       .filter((o) => o.customerId === params.id && actor.branchIds.includes(o.branchId))
       .sort((a, b) => +new Date(b.scheduledAt) - +new Date(a.scheduledAt));
@@ -305,6 +307,7 @@ export const vendorInsightRoutes = [
 
   // ── Reviews (D13 / OW-20) ────────────────────────────────
   vroute("GET", "/vendor/reviews", ({ db, query, actor }) => {
+    assertNotEmployee(actor);
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const stars = query.get("stars");
     const replied = query.get("replied");
@@ -336,6 +339,7 @@ export const vendorInsightRoutes = [
   }),
 
   vroute("POST", "/vendor/reviews/:id/reply", ({ db, params, body, actor }) => {
+    assertNotEmployee(actor);
     const review = db.reviews.find((r) => r.id === params.id && actor.branchIds.includes(r.branchId) && r.status === "visible");
     if (!review) throw new MockApiError("التقييم غير موجود", 404);
     if (review.reply) throw new MockApiError("تم الرد على هذا التقييم مسبقًا (رد واحد لكل تقييم)", 409);
@@ -348,6 +352,7 @@ export const vendorInsightRoutes = [
   }),
 
   vroute("POST", "/vendor/reviews/:id/report", ({ db, params, body, actor }) => {
+    assertNotEmployee(actor);
     const review = db.reviews.find((r) => r.id === params.id && actor.branchIds.includes(r.branchId) && r.status === "visible");
     if (!review) throw new MockApiError("التقييم غير موجود", 404);
     if (review.reportedByWash) throw new MockApiError("تم إبلاغ Wash Up عن هذا التقييم مسبقًا", 409);
@@ -368,6 +373,7 @@ export const vendorInsightRoutes = [
 
   // ── Reports (D14 / OW-18) ────────────────────────────────
   vroute("GET", "/vendor/reports", ({ db, query, actor }) => {
+    assertNotEmployee(actor);
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const type = (["orders", "revenue", "services", "source", "employees"] as const).find((t) => t === query.get("type")) ?? "orders";
     const to = query.get("to") ? new Date(`${query.get("to")}T23:59:59`) : (() => { const d = new Date(now()); d.setHours(23, 59, 59, 999); return d; })();
@@ -379,6 +385,7 @@ export const vendorInsightRoutes = [
 
   // ── Financials (D15 / OW-14) ─────────────────────────────
   vroute("GET", "/vendor/finance", ({ db, query, actor }) => {
+    assertNotEmployee(actor);
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const raw = query.get("period");
     const period: VendorPeriod = raw === "today" || raw === "7d" ? raw : "30d";
@@ -431,6 +438,7 @@ export const vendorInsightRoutes = [
 
   // ── Audit log (D17 / OW-16) ──────────────────────────────
   vroute("GET", "/vendor/audit", ({ db, query, actor }) => {
+    assertNotEmployee(actor);
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const orderIds = new Set(db.orders.filter((o) => branchIds.includes(o.branchId)).map((o) => o.id));
     const staffIds = new Set(db.staff.filter((s) => s.businessId === actor.business.id).map((s) => s.id));
