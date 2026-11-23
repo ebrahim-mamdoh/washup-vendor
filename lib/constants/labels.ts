@@ -329,6 +329,8 @@ export function discountReasonLabel(reason: string): string {
 
 const CANCEL_REASON: Record<string, string> = {
   expired_unconfirmed: "اتلغى تلقائيًا لأن المغسلة ما أكدتش في الوقت المحدد",
+  expired_not_started: "أُغلق الطلب لأن الخدمة لم تبدأ بعد تسجيل الوصول",
+  "Cancelled by customer": "ألغاه العميل",
 };
 
 export function cancelReasonLabel(reason: string): string {

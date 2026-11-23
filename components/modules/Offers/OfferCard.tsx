@@ -70,7 +70,7 @@ export function OfferCard({ offer, branchCount, branchName, canManage, onEdit, o
           {isPlatform ? (
             <span className="inline-flex h-5 items-center gap-1 rounded-full bg-primary/10 px-2 text-[11px] font-medium text-primary">
               <BadgeCheck className="size-3" />
-              عرض من كارزن
+              عرض من Wash Up
             </span>
           ) : (
             <StatusBadge size="sm" label="عرض المغسلة" tone={TONES.aqua} />
@@ -153,7 +153,7 @@ export function OfferCard({ offer, branchCount, branchName, canManage, onEdit, o
           {isPlatform ? (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               <Lock className="size-3" />
-              تديره كارزن — للعرض فقط
+              تديره Wash Up — للعرض فقط
             </span>
           ) : manageable ? (
             <Button variant="outline" size="sm" onClick={() => onEdit(offer)} aria-label={`${offer.status === "draft" ? "نشر" : "تعديل"} ${offer.title.ar}`}>

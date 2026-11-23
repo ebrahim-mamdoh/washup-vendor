@@ -48,7 +48,7 @@ export function ReviewCard({ review: r, showBranch, onReply, onReport }: ReviewC
           {low ? <span className="num rounded-md bg-destructive/10 px-1.5 py-px text-[11px] font-semibold text-destructive">{r.stars}/5</span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          {r.reportedByWash ? <StatusBadge size="sm" label="مُبلغ لكارزن" tone={TONES.warning} /> : null}
+          {r.reportedByWash ? <StatusBadge size="sm" label="مُبلغ لـ Wash Up" tone={TONES.warning} /> : null}
           {r.reply ? <StatusBadge size="sm" label="تم الرد" tone={TONES.success} /> : <StatusBadge size="sm" label="بدون رد" tone={TONES.neutral} />}
           <time className="num text-[11px] text-muted-foreground" dateTime={r.createdAt} title={formatDateTime(r.createdAt)}>
             {formatRelative(r.createdAt)}
@@ -92,7 +92,7 @@ export function ReviewCard({ review: r, showBranch, onReply, onReport }: ReviewC
         <p className="flex items-start gap-1.5 rounded-lg bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
           <Flag className="mt-0.5 size-3.5 shrink-0" />
           <span>
-            قيد مراجعة فريق كارزن{r.reportReason ? <span className="text-foreground/80"> — {r.reportReason}</span> : null}
+            قيد مراجعة فريق Wash Up{r.reportReason ? <span className="text-foreground/80"> — {r.reportReason}</span> : null}
           </span>
         </p>
       ) : null}
@@ -136,9 +136,9 @@ export function ReviewCard({ review: r, showBranch, onReply, onReport }: ReviewC
         </dl>
         <div className="flex flex-wrap items-center gap-2">
           {!r.reportedByWash ? (
-            <Button variant="ghost" size="sm" onClick={() => onReport(r)} aria-label={`إبلاغ كارزن عن تقييم ${r.customerName}`}>
+            <Button variant="ghost" size="sm" onClick={() => onReport(r)} aria-label={`إبلاغ Wash Up عن تقييم ${r.customerName}`}>
               <Flag />
-              إبلاغ كارزن
+              إبلاغ Wash Up
             </Button>
           ) : null}
           {!r.reply ? (

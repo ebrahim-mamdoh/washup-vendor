@@ -85,7 +85,7 @@ export default function OffersPageContent() {
     <div className="space-y-6">
       <PageHeader
         title="العروض"
-        description="عروض مغسلتك على فروع وخدمات محددة، بجانب عروض كارزن المطبقة على فروعك."
+        description="عروض مغسلتك على فروع وخدمات محددة، بجانب عروض Wash Up المطبقة على فروعك."
         actions={
           canManage ? (
             <Button size="lg" onClick={openCreate}>
@@ -140,7 +140,7 @@ export default function OffersPageContent() {
                 ? "جرّب كلمة أخرى أو امسح البحث."
                 : canManage
                   ? "أنشئ عرضًا بنسبة أو مبلغ ثابت على فروع وخدمات محددة — يُطبق تلقائيًا خلال مدته."
-                  : "ستظهر هنا العروض التي ينشرها مالك المغسلة أو كارزن على فرعك."
+                  : "ستظهر هنا العروض التي ينشرها مالك المغسلة أو Wash Up على فرعك."
             }
             action={
               hasFilters ? (

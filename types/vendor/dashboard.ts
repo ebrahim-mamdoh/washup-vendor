@@ -42,6 +42,9 @@ export interface LiveBranchCard {
   capacity: number;
   staffOnShift: StaffRef[];
   revenueToday: number;
+  currencySymbol?: string;
+  currencyDecimals?: number;
+  timezone?: string;
 }
 
 /** "Cars currently inside" row (spec OW-06). */

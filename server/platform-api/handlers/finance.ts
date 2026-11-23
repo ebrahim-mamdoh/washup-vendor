@@ -185,7 +185,7 @@ export const financeRoutes = [
       }
       if (next === biz.commissionRate) continue;
       logAudit(db, { actorId: admin.id, action: "update_commission_override", entity: "businesses", entityId: biz.id, oldValue: biz.commissionRate === null ? "default" : `${biz.commissionRate}%`, newValue: next === null ? "default" : `${next}%`, reason });
-      pushVendorNotification(db, biz.id, null, "platform", "تحديث نسبة العمولة", `نسبة عمولة كارزن على مغسلتك أصبحت ${next ?? db.defaultCommissionPct}٪ للمعاملات الجديدة.`, "/finance");
+      pushVendorNotification(db, biz.id, null, "platform", "تحديث نسبة العمولة", `نسبة عمولة Wash Up على مغسلتك أصبحت ${next ?? db.defaultCommissionPct}٪ للمعاملات الجديدة.`, "/finance");
       biz.commissionRate = next;
       changes.push(bizId);
     }
@@ -238,7 +238,7 @@ export const financeRoutes = [
       }
     }
     logAudit(db, { actorId: admin.id, action: "mark_payout_paid", entity: "payouts", entityId: payout.id, oldValue: "due", newValue: payout.status, reason: `Reference: ${reference} — ${amount} EGP${settled ? ` (تسوية ${settled} معاملة)` : ""}` });
-    pushVendorNotification(db, payout.businessId, null, "payout", payout.status === "paid" ? "تم تحويل مستحقاتك" : "تم تحويل دفعة جزئية", `حولت كارزن ${amount.toLocaleString("en-US")} ج.م — المرجع ${reference}.`, "/finance");
+    pushVendorNotification(db, payout.businessId, null, "payout", payout.status === "paid" ? "تم تحويل مستحقاتك" : "تم تحويل دفعة جزئية", `حولت Wash Up ${amount.toLocaleString("en-US")} ج.م — المرجع ${reference}.`, "/finance");
     return ok(payout, payout.status === "paid" ? "تم تسجيل الدفعة وتسوية المعاملات" : "تم تسجيل دفعة جزئية");
   }),
 ];

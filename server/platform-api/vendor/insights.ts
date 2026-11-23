@@ -24,7 +24,7 @@ import { dayKey, hasManualDiscount, staffName, toVendorItem } from "./engine";
 import { scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
-/** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة كارزن" actor (admin names stay internal). */
+/** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة Wash Up" actor (admin names stay internal). */
 const CARZEN_ACTOR = "carzen";
 const NEW_WITHIN_DAYS = 30;
 const PERIOD_DAYS: Record<VendorPeriod, number> = { today: 1, "7d": 7, "30d": 30 };
@@ -78,7 +78,7 @@ function customersOf(db: MockDatabase, branchIds: string[]): VendorCustomer[] {
 }
 
 function vendorFacingActor(db: MockDatabase, a: AuditLog): { actorId: string; actorName: string } {
-  if (a.actorType === "admin") return { actorId: CARZEN_ACTOR, actorName: "إدارة كارزن" };
+  if (a.actorType === "admin") return { actorId: CARZEN_ACTOR, actorName: "إدارة Wash Up" };
   if (a.actorType === "system") return { actorId: a.actorId, actorName: "النظام" };
   return { actorId: a.actorId, actorName: a.actorName ?? staffName(db, a.actorId) ?? a.actorId };
 }
@@ -350,7 +350,7 @@ export const vendorInsightRoutes = [
   vroute("POST", "/vendor/reviews/:id/report", ({ db, params, body, actor }) => {
     const review = db.reviews.find((r) => r.id === params.id && actor.branchIds.includes(r.branchId) && r.status === "visible");
     if (!review) throw new MockApiError("التقييم غير موجود", 404);
-    if (review.reportedByWash) throw new MockApiError("تم إبلاغ كارزن عن هذا التقييم مسبقًا", 409);
+    if (review.reportedByWash) throw new MockApiError("تم إبلاغ Wash Up عن هذا التقييم مسبقًا", 409);
     const reason = requireText(body.reason, "reason", "سبب الإبلاغ", 5);
     review.reportedByWash = true;
     review.reportReason = reason;
@@ -363,7 +363,7 @@ export const vendorInsightRoutes = [
       { ar: `تقييم ${review.stars} نجوم — السبب: ${reason}`, en: `${review.stars}-star review — ${reason}` },
       "/reviews?filter=reported",
     );
-    return ok(review, "تم إبلاغ فريق كارزن للمراجعة");
+    return ok(review, "تم إبلاغ فريق Wash Up للمراجعة");
   }),
 
   // ── Reports (D14 / OW-18) ────────────────────────────────

@@ -33,7 +33,7 @@ export const REPORT_TYPES: ReportTypeConfig[] = [
     value: "revenue",
     label: "الإيرادات",
     icon: Banknote,
-    description: "الطلبات المدفوعة فقط — الإيراد وعمولة كارزن وصافي المغسلة يوميًا.",
+    description: "الطلبات المدفوعة فقط — الإيراد وعمولة Wash Up وصافي المغسلة يوميًا.",
     chartTitle: "الإيراد اليومي",
     seriesLabel: "الإيراد",
     emptyTitle: "لا توجد مدفوعات في هذا المدى",
@@ -77,10 +77,14 @@ export function reportTypeConfig(type: string): ReportTypeConfig {
 
 export type ValueFormat = "number" | "money" | "percent" | "text";
 
-export function formatValue(value: string | number | null | undefined, format: ValueFormat = "text"): string {
+export function formatValue(
+  value: string | number | null | undefined,
+  format: ValueFormat = "text",
+  money?: { symbol?: string; fractionDigits?: number },
+): string {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "string" || format === "text") return String(value);
-  if (format === "money") return formatMoney(value, { decimals: !Number.isInteger(value) });
+  if (format === "money") return formatMoney(value, money?.symbol ? { symbol: money.symbol, fractionDigits: money.fractionDigits ?? 2 } : { decimals: !Number.isInteger(value) });
   if (format === "percent") return formatPercent(value);
   return formatNumber(value, !Number.isInteger(value));
 }
@@ -93,8 +97,8 @@ const SUMMARY_HINTS: Record<string, string> = {
   "معدل الإكمال": "المكتملة ÷ إجمالي الطلبات",
   "ملغاة + لم يحضر": "طلبات لم تُنفّذ",
   الإيراد: "مجموع الطلبات المدفوعة فقط",
-  "عمولة كارزن": "نسبة كارزن من الطلبات المدفوعة",
-  "صافي المغسلة": "الإيراد ناقص عمولة كارزن",
+  "عمولة Wash Up": "نسبة Wash Up من الطلبات المدفوعة",
+  "صافي المغسلة": "الإيراد ناقص عمولة Wash Up",
   "متوسط التذكرة": "الإيراد ÷ عدد الطلبات المدفوعة",
   "عدد الخدمات المطلوبة": "خدمات وإضافات مختلفة طُلبت",
   "إيراد الخدمات": "من الطلبات المدفوعة فقط",

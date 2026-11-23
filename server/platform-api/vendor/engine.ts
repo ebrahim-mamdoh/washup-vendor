@@ -41,8 +41,8 @@ export function clockToMin(hhmm: string, isClose = false): number {
 
 const CAIRO = "Africa/Cairo";
 
-/** Calendar / clock parts in Africa/Cairo (wash hours are wall-clock Egypt, not the server TZ). */
-export function cairoDateParts(d: Date, timeZone: string = CAIRO): { y: number; m: number; day: number; weekday: number; hour: number; minute: number } {
+/** Calendar / clock parts in a branch timezone (wash hours are wall-clock, not the server TZ). */
+export function zoneDateParts(d: Date, timeZone = CAIRO): { y: number; m: number; day: number; weekday: number; hour: number; minute: number } {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone,
     year: "numeric",
@@ -65,13 +65,17 @@ export function cairoDateParts(d: Date, timeZone: string = CAIRO): { y: number; 
   };
 }
 
-export function cairoDayKey(d: Date | string): string {
-  const p = cairoDateParts(new Date(d));
+export function cairoDateParts(d: Date, timeZone = CAIRO) {
+  return zoneDateParts(d, timeZone);
+}
+
+export function cairoDayKey(d: Date | string, timeZone = CAIRO): string {
+  const p = cairoDateParts(new Date(d), timeZone);
   return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
 }
 
-/** Instant whose Cairo wall-clock equals the given Y-M-D H:M. */
-export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0, minute = 0, timeZone: string = CAIRO): Date {
+/** Instant whose wall-clock in `timeZone` equals the given Y-M-D H:M. */
+export function zoneLocalToUtc(timeZone: string, y: number, month: number, day: number, hour = 0, minute = 0): Date {
   const utc = Date.UTC(y, month - 1, day, hour, minute, 0);
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -88,6 +92,11 @@ export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0,
     return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
   };
   return new Date(utc - (wallAsUtc(new Date(utc)) - utc));
+}
+
+/** Instant whose Cairo wall-clock equals the given Y-M-D H:M. */
+export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0, minute = 0, timeZone = CAIRO): Date {
+  return zoneLocalToUtc(timeZone, y, month, day, hour, minute);
 }
 
 export function minutesOfDay(d: Date): number {
@@ -276,6 +285,7 @@ export function toVendorItem(db: MockDatabase, o: Order): VendorOrderListItem {
     vehicleLabel: vehicle ? `${vehicle.make} ${vehicle.model}` : null,
     nextAction: nextActionFor(o),
     overdueMin: overdueMinutes(o),
+    noShowGraceMin: db.branches.find((b) => b.id === o.branchId)?.settings.noShowGraceMin ?? 15,
     locked: Boolean(o.closedInDayId),
   };
 }
@@ -385,6 +395,42 @@ function requireReason(value: unknown, label = "السبب"): string {
   return text;
 }
 
+/** Keys the customer app would otherwise show raw. Stored text is a sentence in Arabic and English. */
+const CANCEL_REASON_TEXT: Record<string, string> = {
+  expired_unconfirmed:
+    "اتلغى تلقائيًا لأن المغسلة ما أكدتش في الوقت المحدد — Cancelled because the wash did not confirm before the appointment",
+  expired_not_started:
+    "أُغلق الطلب لأن الخدمة لم تبدأ بعد تسجيل الوصول — Closed because the service never started after check-in",
+  "Cancelled by customer": "ألغاه العميل — Cancelled by the customer",
+};
+
+const MACHINE_KEY = /^[a-z0-9]+(?:[._][a-z0-9]+)+$/i;
+
+/** Turns a stored key into a sentence. Unknown machine keys are rejected so the app never shows them. */
+export function readableCancelReason(raw: string): string {
+  const text = raw.trim();
+  if (CANCEL_REASON_TEXT[text]) return CANCEL_REASON_TEXT[text];
+  if (MACHINE_KEY.test(text) && !/[\u0600-\u06FF]/.test(text)) {
+    throw new MockApiError("اكتب سبب الإلغاء بجملة واضحة بالعربي أو الإنجليزي", 422, { reason: ["اكتب السبب بالعربي أو الإنجليزي"] });
+  }
+  return text;
+}
+
+/** `null` when the code matched. A string is the audit reason for a manager waiver. */
+export function assertCheckInCode(actor: { role: string }, orderCode: string, payload: { code?: string; waiveCheckIn?: boolean }): string | null {
+  if (payload.waiveCheckIn) {
+    if (actor.role !== "owner" && actor.role !== "manager") {
+      throw new MockApiError("تسجيل الوصول بدون كود متاح للمدير أو المالك فقط", 403);
+    }
+    return "تسجيل وصول بدون كود — العميل بدون هاتف";
+  }
+  const entered = String(payload.code ?? "").replace(/\s/g, "").toUpperCase();
+  if (!orderCode || entered !== orderCode.trim().toUpperCase()) {
+    throw new MockApiError("كود الوصول غير مطابق", 422, { code: ["كود الوصول غير مطابق"] });
+  }
+  return null;
+}
+
 // ── State machine ───────────────────────────────────────────
 
 const PAYMENT_LABEL: Record<PaymentMethod, string> = { cash: "نقدي", card: "بطاقة", online: "أونلاين" };
@@ -406,9 +452,10 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       return `تم تأكيد الحجز ${o.number} وإبلاغ العميل`;
     }
     case "check_in": {
+      const waiver = assertCheckInCode(actor, o.code, payload);
       o.status = "waiting";
       pushTimeline(o, "waiting", actor);
-      audit(db, actor, o, "order.check_in", from, "waiting");
+      audit(db, actor, o, "order.check_in", from, waiver ? "waiting · waived" : "waiting", waiver);
       return `تم تسجيل وصول ${o.plate || o.number}`;
     }
     case "start": {
@@ -460,7 +507,7 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       return change > 0 ? `تم التحصيل — الباقي للعميل ${change}` : "تم تحصيل المبلغ بنجاح";
     }
     case "cancel": {
-      const reason = requireReason(payload.reason, "سبب الإلغاء");
+      const reason = readableCancelReason(requireReason(payload.reason, "سبب الإلغاء"));
       o.status = "cancelled";
       o.cancel = { reason, byType: "staff", byId: actor.staff.id, at: now().toISOString() };
       pushTimeline(o, "cancelled", actor);
@@ -573,8 +620,18 @@ function nextCode(db: MockDatabase): string {
   return c;
 }
 
+const PLATE_FOLD: Record<string, string> = {
+  "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+  "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9",
+  "أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي", "ة": "ه",
+};
+
+/** Same folding as public.normalize_plate: spaces, Arabic digits, alef/ya/ta marbuta. */
 export function normalizePlate(p: string): string {
-  return p.replace(/[\s-]/g, "").toUpperCase();
+  return p
+    .replace(/[\s\-_.]/g, "")
+    .replace(/[٠-٩۰-۹أإآىة]/g, (ch) => PLATE_FOLD[ch] ?? ch)
+    .toUpperCase();
 }
 
 export function normalizePhone(p: string): string {
@@ -741,7 +798,7 @@ export function createOrder(db: MockDatabase, actor: VendorActor, payload: Creat
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: "بانتظار التأكيد",
   confirmed: "مؤكد",
-  waiting: "في الانتظار",
+  waiting: "تم الوصول",
   in_service: "جارٍ التنفيذ",
   completed: "مكتمل",
   cancelled: "ملغي",

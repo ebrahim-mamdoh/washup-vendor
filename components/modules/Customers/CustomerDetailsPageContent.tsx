@@ -141,7 +141,7 @@ export default function CustomerDetailsPageContent({ id }: { id: string }) {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <RatingStars value={r.stars} />
                         <span className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                          {r.reportedByWash ? <StatusBadge label="مُبلغ لكارزن" tone={TONES.warning} size="sm" /> : null}
+                          {r.reportedByWash ? <StatusBadge label="مُبلغ لـ Wash Up" tone={TONES.warning} size="sm" /> : null}
                           <span>{branchName(r.branchId)}</span>
                           {num ? (
                             <Link href={`/orders/${r.orderId}`} className="num font-medium text-primary hover:underline">

@@ -76,7 +76,17 @@ function ReportSkeleton() {
   );
 }
 
+function useReportMoney() {
+  const { branches, branchId, isAll } = useBranchScope();
+  const scoped = isAll ? branches : branches.filter((b) => b.id === branchId);
+  if (scoped.length && scoped.every((b) => b.currencySymbol === scoped[0]?.currencySymbol) && scoped[0]?.currencySymbol) {
+    return { symbol: scoped[0].currencySymbol, fractionDigits: scoped[0].currencyDecimals };
+  }
+  return undefined;
+}
+
 function SummaryTiles({ report }: { report: VendorReport }) {
+  const money = useReportMoney();
   return (
     <div className={cn("grid grid-cols-2 gap-3", report.summary.length >= 3 ? "lg:grid-cols-3 xl:grid-cols-4" : "lg:grid-cols-2")}>
       {report.summary.map((s, i) => {
@@ -85,7 +95,7 @@ function SummaryTiles({ report }: { report: VendorReport }) {
           <StatTile
             key={s.label}
             label={s.label}
-            value={formatValue(s.value, s.format)}
+            value={formatValue(s.value, s.format, money)}
             hint={summaryHint(report, s.label)}
             icon={<Icon />}
             tone={report.type === "source" ? CATEGORY_COLORS[i % CATEGORY_COLORS.length] : undefined}
@@ -97,7 +107,8 @@ function SummaryTiles({ report }: { report: VendorReport }) {
 }
 
 function ReportChart({ report, cfg }: { report: VendorReport; cfg: ReportTypeConfig }) {
-  const props = { data: report.chart, valueFormat: report.valueFormat, seriesLabel: cfg.seriesLabel };
+  const money = useReportMoney();
+  const props = { data: report.chart, valueFormat: report.valueFormat, seriesLabel: cfg.seriesLabel, money };
 
   if (report.chartKind === "donut") {
     const total = report.chart.reduce((s, d) => s + d.value, 0) || 1;
@@ -113,7 +124,7 @@ function ReportChart({ report, cfg }: { report: VendorReport; cfg: ReportTypeCon
                 {s.label}
               </span>
               <span className="num">
-                <span className="font-semibold">{formatValue(s.value, report.valueFormat)}</span>
+                <span className="font-semibold">{formatValue(s.value, report.valueFormat, money)}</span>
                 <span className="ms-2 text-xs text-muted-foreground">{formatPercent((s.value / total) * 100)}</span>
               </span>
             </li>
@@ -128,6 +139,7 @@ function ReportChart({ report, cfg }: { report: VendorReport; cfg: ReportTypeCon
 }
 
 function ReportTable({ report, columns }: { report: VendorReport; columns: Column[] }) {
+  const money = useReportMoney();
   const showTotals = report.rows.length > 1;
   const align = (c: Column) => (c.align === "end" ? "text-end" : "text-start");
 
@@ -135,7 +147,7 @@ function ReportTable({ report, columns }: { report: VendorReport; columns: Colum
     const value = row[c.key];
     // An average of 0 means "no reviews yet", not a zero rating.
     if (c.key === "rating" && value === 0) return "—";
-    return formatValue(value, c.format);
+    return formatValue(value, c.format, money);
   };
 
   return (
@@ -180,7 +192,7 @@ function ReportTable({ report, columns }: { report: VendorReport; columns: Colum
                 const total = ci === 0 ? null : columnTotal(c, report.rows);
                 return (
                   <td key={c.key} className={cn("h-12 px-4 first:ps-5 last:pe-5", align(c), ci > 0 && "num")}>
-                    {ci === 0 ? "الإجمالي" : c.format === "text" ? null : total === null ? <span className="text-muted-foreground">—</span> : formatValue(total, c.format)}
+                    {ci === 0 ? "الإجمالي" : c.format === "text" ? null : total === null ? <span className="text-muted-foreground">—</span> : formatValue(total, c.format, money)}
                   </td>
                 );
               })}

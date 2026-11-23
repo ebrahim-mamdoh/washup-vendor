@@ -38,7 +38,7 @@ export const authRoutes = [
         session.identity.kind === "supabase"
           ? await adminsWhere(sql, sql`a.user_id = ${session.identity.userId}`)
           : await adminsWhere(sql, sql`a.id = ${session.identity.profileId}`);
-      if (!admin) throw new MockApiError("هذا الحساب غير مرتبط بملف إداري في كارزن", 403);
+      if (!admin) throw new MockApiError("هذا الحساب غير مرتبط بملف إداري في Wash Up", 403);
       if (admin.status !== "active") {
         throw new MockApiError("هذا الحساب موقوف. تواصل مع مدير النظام.", 403);
       }

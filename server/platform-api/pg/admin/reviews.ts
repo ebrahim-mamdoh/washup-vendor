@@ -123,7 +123,7 @@ export const reviewRoutes = [
           newValue: "visible",
           reason,
         });
-        await pushVendorNotification(t, current.businessId, current.branchId, "review", "تمت مراجعة بلاغك على تقييم", "راجعت كارزن التقييم وقررت إبقاءه ظاهرًا.", "/reviews");
+        await pushVendorNotification(t, current.businessId, current.branchId, "review", "تمت مراجعة بلاغك على تقييم", "راجعت Wash Up التقييم وقررت إبقاءه ظاهرًا.", "/reviews");
         return reviewById(t, current.id);
       });
       if (kept) return ok(kept, "تم إغلاق البلاغ وإبقاء التقييم ظاهرًا");
@@ -171,7 +171,7 @@ export const reviewRoutes = [
         current.businessId,
         current.branchId,
         "review",
-        hidden ? "تم إخفاء تقييم بواسطة كارزن" : "تمت استعادة تقييم",
+        hidden ? "تم إخفاء تقييم بواسطة Wash Up" : "تمت استعادة تقييم",
         `${hidden ? "تمت مراجعة التقييم وإخفاؤه" : "عاد التقييم للظهور"} — تقييم المغسلة الآن ${rating}.`,
         "/reviews",
       );

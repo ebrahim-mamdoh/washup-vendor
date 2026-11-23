@@ -17,17 +17,45 @@ type Sql = postgres.Sql;
 const GLOBAL_KEY = "__CARZEN_PG__";
 type GlobalWithSql = typeof globalThis & { [GLOBAL_KEY]?: Sql };
 
+/**
+ * Session mode (pooler port 5432) keeps a Postgres backend for the life of the
+ * client, which postgres.js needs for parallel queries (`Promise.all`) on one
+ * connection. Transaction mode (6543) returns the backend after the first query
+ * and leaves later ones hanging in ClientRead.
+ *
+ * Supavisor's session pool is shared by every instance of both panels (15
+ * clients on this project), and one dashboard load fans out to ~6 parallel
+ * requests that Vercel may spread over several instances. So each instance
+ * holds ONE connection by default; postgres.js queues parallel queries on it.
+ * Raise DATABASE_POOL_MAX only if the Supabase pool size is raised too.
+ */
+function poolerUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    if (url.hostname.endsWith(".pooler.supabase.com") && url.port === "6543") {
+      url.port = "5432";
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
 function connect(): Sql {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set (required when CARZEN_DATA_SOURCE=supabase)");
-  return postgres(url, {
-    // Supabase's transaction pooler (port 6543) does not support prepared statements.
-    // Use the session pooler (port 5432): with the transaction pooler, a request running
-    // more parallel queries than connections (the admin dashboard) can hang for good.
+  return postgres(poolerUrl(url), {
     prepare: false,
-    max: Number(process.env.DATABASE_POOL_MAX) || 5,
-    idle_timeout: 20,
+    // fetch_types must stay enabled: with it false, JS arrays are sent as text
+    // and Postgres rejects them (`22P02 malformed array literal` → 422).
+    max: Number(process.env.DATABASE_POOL_MAX) || 1,
+    idle_timeout: 10,
     connect_timeout: 15,
+    max_lifetime: 60 * 5,
+    connection: {
+      // Kill stuck statements so a bad connection is not held forever under max.
+      statement_timeout: 15_000,
+    },
     transform: { undefined: null },
     types: {
       numeric: {

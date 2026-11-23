@@ -16,7 +16,7 @@ import { ok } from "../http";
 import { branchName, serviceName } from "../lookups";
 import { type VendorActor, vroute } from "../router";
 import type { MockDatabase } from "../schema";
-import { hoursFor, isOpenAt, onShiftAt, overdueMinutes, staffName } from "./engine";
+import { cairoDateParts, hoursFor, isOpenAt, onShiftAt, overdueMinutes, staffName } from "./engine";
 import { scopeBranches } from "./scope";
 
 const DAYS: Record<VendorPeriod, number> = { today: 1, "7d": 7, "30d": 30 };
@@ -238,10 +238,11 @@ export const vendorDashboardRoutes = [
 
     let revenueChart: { label: string; value: number }[];
     if (period === "today") {
-      const hours = Array.from({ length: Math.max(1, now().getHours() - 7) }, (_, i) => 8 + i);
+      const hourNow = cairoDateParts(now()).hour;
+      const hours = Array.from({ length: Math.max(1, hourNow - 7) }, (_, i) => 8 + i);
       revenueChart = hours.map((h) => ({
         label: `${h % 12 || 12}${h >= 12 ? "م" : "ص"}`,
-        value: paidRevenue(today.filter((o) => new Date(o.scheduledAt).getHours() === h)),
+        value: paidRevenue(today.filter((o) => cairoDateParts(new Date(o.scheduledAt)).hour === h)),
       }));
     } else {
       revenueChart = Array.from({ length: n }, (_, i) => {

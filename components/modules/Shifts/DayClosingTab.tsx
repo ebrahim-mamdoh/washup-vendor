@@ -175,7 +175,7 @@ function Blockers({ summary }: { summary: DayClosingSummary }) {
         <ul className="space-y-1 text-muted-foreground">
           {summary.inServiceOrders ? (
             <li>
-              <span className="num font-semibold text-foreground">{formatNumber(summary.inServiceOrders)}</span> طلب ما زال في الانتظار أو قيد التنفيذ
+              <span className="num font-semibold text-foreground">{formatNumber(summary.inServiceOrders)}</span> طلب ما زال «تم الوصول» أو «جارٍ التنفيذ»
             </li>
           ) : null}
           {summary.unpaidOrders ? (

@@ -79,6 +79,7 @@ export interface Order {
   createdAt: string;
   /** Set when an end-of-day closing locked this order (spec MG-08). */
   closedInDayId?: string | null;
+  branchLocale?: { symbol: string; decimals: number; timezone: string } | null;
 }
 
 export interface OrderListItem extends Order {

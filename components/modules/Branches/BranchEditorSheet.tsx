@@ -293,10 +293,10 @@ function BranchForm({ branch, onDone }: { branch: VendorBranch; onDone: () => vo
                       <Link href="/bookings?tab=upcoming" className="font-semibold underline underline-offset-2">
                         الحجوزات القادمة
                       </Link>
-                      . سيصل تنبيه لفريق كارزن بالإيقاف.
+                      . سيصل تنبيه لفريق Wash Up بالإيقاف.
                     </>
                   ) : (
-                    "لا توجد حجوزات قادمة. سيختفي الفرع من تطبيق العميل فور الحفظ وسيصل تنبيه لفريق كارزن."
+                    "لا توجد حجوزات قادمة. سيختفي الفرع من تطبيق العميل فور الحفظ وسيصل تنبيه لفريق Wash Up."
                   )}
                 </p>
               </div>
