@@ -659,18 +659,30 @@ export function prettyPhone(p: string): string {
 }
 
 export function recognize(db: MockDatabase, businessId: string, plate?: string | null, phone?: string | null): CustomerRecognition {
+  // Same rules as pg/vendor/engine.ts `recognize` (GAP-010): phone first; a plate alone only
+  // matches cars already served at this wash, and only when one customer owns it here.
   let vehicle: Vehicle | null = null;
   let customer: Customer | null = null;
-  if (plate && normalizePlate(plate).length >= 3) {
-    vehicle = db.vehicles.find((v) => v.plateNormalized === normalizePlate(plate)) ?? null;
-    if (vehicle) customer = db.customers.find((c) => c.id === vehicle!.customerId) ?? null;
-  }
-  if (!customer && phone && normalizePhone(phone).length >= 10) {
+  const plateKey = plate ? normalizePlate(plate) : "";
+  const hasPlate = plateKey.length >= 3;
+  const hasPhone = Boolean(phone && normalizePhone(phone).length >= 10);
+  if (hasPhone && phone) {
     customer = db.customers.find((c) => normalizePhone(c.phone) === normalizePhone(phone)) ?? null;
-    if (customer && !vehicle) vehicle = db.vehicles.find((v) => v.customerId === customer!.id && v.isDefault) ?? null;
+    if (customer) {
+      vehicle = hasPlate
+        ? db.vehicles.find((v) => v.customerId === customer!.id && v.plateNormalized === plateKey) ?? null
+        : db.vehicles.find((v) => v.customerId === customer!.id && v.isDefault) ?? null;
+    }
   }
-  if (vehicle && plate && normalizePlate(plate).length >= 3 && vehicle.plateNormalized !== normalizePlate(plate)) {
-    vehicle = null;
+  if (!customer && !hasPhone && hasPlate) {
+    const servedHere = db.vehicles.filter(
+      (v) => v.plateNormalized === plateKey && db.orders.some((o) => o.vehicleId === v.id && o.businessId === businessId),
+    );
+    if (servedHere.length && new Set(servedHere.map((v) => v.customerId)).size === 1) {
+      vehicle = servedHere[0];
+      customer = db.customers.find((c) => c.id === vehicle!.customerId) ?? null;
+      if (!customer) vehicle = null;
+    }
   }
   if (!customer) return { customer: null, vehicle, visits: 0, lastVisitAt: null, usualServiceId: null, usualServiceName: null };
 

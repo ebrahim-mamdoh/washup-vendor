@@ -360,6 +360,8 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       const staffId = payload.staffId ?? o.assignedStaffId ?? actor.staff.id;
       if (!staffId) throw new MockApiError("اختر الموظف المسؤول عن الخدمة", 422, { staffId: ["مطلوب"] });
       await assertAssignable(t, o.branchId, staffId);
+      // GAP-009: two "start" taps at once could both see a free bay; serialize per branch.
+      await t`select pg_advisory_xact_lock(hashtext(${`carzone_bays:${o.branchId}`}))`;
       const busy = await busyBays(t, o.branchId);
       if (busy >= branch.capacity) throw new MockApiError(`كل الأماكن مشغولة (${busy}/${branch.capacity}) — انتظر حتى يفرغ مكان`, 409);
       await moveStatus(t, o, "in_service", t`, assigned_staff_id = ${staffId}`);
@@ -482,21 +484,50 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
 
 // ── Creation & recognition ──────────────────────────────────
 
+/**
+ * Who is this walk-in / phone customer? (GAP-010)
+ *
+ * 1. Phone first: the number the customer gives is their own identifier. Among several rows with
+ *    that phone, the app account (`user_id` set) wins over rows created by walk-ins.
+ * 2. Plate only (no phone given): match only cars already served at THIS wash, and
+ *    only when exactly one customer owns that plate here. Plates are not unique across the platform
+ *    (anyone can add any plate in the customer app), so a platform-wide plate match could hand one
+ *    person's orders and notifications to whoever registered the plate first.
+ */
 export async function recognize(q: Q, businessId: string, plate?: string | null, phone?: string | null): Promise<CustomerRecognition> {
   let vehicle: Vehicle | null = null;
   let customer: Customer | null = null;
-  if (plate && normalizePlate(plate).length >= 3) {
-    [vehicle = null] = await vehiclesWhere(q, q`v.plate_normalized = ${normalizePlate(plate)}`, q`order by v.created_at, v.id limit 1`);
-    if (vehicle) [customer = null] = await customersWhere(q, q`cu.id = ${vehicle.customerId}`);
-  }
-  if (!customer && phone && normalizePhone(phone).length >= 10) {
-    [customer = null] = await customersWhere(q, q`cu.phone = ${e164(normalizePhone(phone))}`);
-    if (customer && !vehicle) {
-      [vehicle = null] = await vehiclesWhere(q, q`v.customer_id = ${customer.id} and v.is_default`, q`order by v.created_at, v.id limit 1`);
+  const plateKey = plate ? normalizePlate(plate) : "";
+  const hasPlate = plateKey.length >= 3;
+  const hasPhone = Boolean(phone && normalizePhone(phone).length >= 10);
+
+  if (hasPhone && phone) {
+    [customer = null] = await customersWhere(
+      q,
+      q`cu.phone = ${e164(normalizePhone(phone))}`,
+      q`order by (cu.user_id is null), cu.created_at, cu.id limit 1`,
+    );
+    if (customer) {
+      [vehicle = null] = hasPlate
+        ? await vehiclesWhere(q, q`v.customer_id = ${customer.id} and v.plate_normalized = ${plateKey}`, q`order by v.created_at, v.id limit 1`)
+        : await vehiclesWhere(q, q`v.customer_id = ${customer.id} and v.is_default`, q`order by v.created_at, v.id limit 1`);
     }
   }
-  if (vehicle && plate && normalizePlate(plate).length >= 3 && normalizePlate(vehicle.plate) !== normalizePlate(plate)) {
-    vehicle = null;
+
+  // A phone that is given but unknown is a new customer: never re-route it to the plate's owner.
+  if (!customer && !hasPhone && hasPlate) {
+    const servedHere = await vehiclesWhere(
+      q,
+      q`v.plate_normalized = ${plateKey}
+        and exists (select 1 from public.orders o where o.vehicle_id = v.id and o.business_id = ${businessId})`,
+      q`order by v.created_at, v.id limit 5`,
+    );
+    const owners = new Set(servedHere.map((v) => v.customerId));
+    if (servedHere.length && owners.size === 1) {
+      vehicle = servedHere[0];
+      [customer = null] = await customersWhere(q, q`cu.id = ${vehicle.customerId}`);
+      if (!customer) vehicle = null;
+    }
   }
   if (!customer) return { customer: null, vehicle, visits: 0, lastVisitAt: null, usualServiceId: null, usualServiceName: null };
 
@@ -539,6 +570,11 @@ export async function createOrder(t: Tx, actor: VendorActor, payload: CreateOrde
   if (!branch.active) throw new MockApiError("الفرع متوقف — فعّله أولًا لاستقبال الطلبات", 409);
   const plate = normalizePlate(payload.plate ?? "");
   if (plate.length < 3) throw new MockApiError("رقم اللوحة مطلوب", 422, { plate: ["مطلوب"] });
+
+  // GAP-009: same advisory key as the customer app's create_order / reschedule_order RPCs
+  // (`pg_advisory_xact_lock(hashtext('carzone_slot:' || branch_id))`), so a phone booking here and
+  // an app booking can no longer both take the last place in a slot. Held until this transaction ends.
+  await t`select pg_advisory_xact_lock(hashtext(${`carzone_slot:${branch.id}`}))`;
 
   const { preview: price, offerId } = await priceWithOffer(t, branch.id, payload.serviceIds);
   const isPhone = payload.source === "phone";
