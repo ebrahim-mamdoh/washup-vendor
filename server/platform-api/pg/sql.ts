@@ -23,8 +23,11 @@ type GlobalWithSql = typeof globalThis & { [GLOBAL_KEY]?: Sql };
  * connection. Transaction mode (6543) returns the backend after the first query
  * and leaves later ones hanging in ClientRead.
  *
- * Keep `max` small (2–3) so many Vercel instances do not exhaust Supavisor's
- * session pool. Override with DATABASE_POOL_MAX if needed.
+ * Supavisor's session pool is shared by every instance of both panels (15
+ * clients on this project), and one dashboard load fans out to ~6 parallel
+ * requests that Vercel may spread over several instances. So each instance
+ * holds ONE connection by default; postgres.js queues parallel queries on it.
+ * Raise DATABASE_POOL_MAX only if the Supabase pool size is raised too.
  */
 function poolerUrl(raw: string): string {
   try {
@@ -45,7 +48,7 @@ function connect(): Sql {
     prepare: false,
     // fetch_types must stay enabled: with it false, JS arrays are sent as text
     // and Postgres rejects them (`22P02 malformed array literal` → 422).
-    max: Number(process.env.DATABASE_POOL_MAX) || 3,
+    max: Number(process.env.DATABASE_POOL_MAX) || 1,
     idle_timeout: 10,
     connect_timeout: 15,
     max_lifetime: 60 * 5,

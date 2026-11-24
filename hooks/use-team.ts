@@ -63,7 +63,7 @@ export function useCurrentShift() {
 }
 
 export function useClockIn() {
-  return useVendorMutation((_: void) => clockIn(), { invalidate: [queryKeys.shiftsRoot] });
+  return useVendorMutation(() => clockIn(), { invalidate: [queryKeys.shiftsRoot] });
 }
 
 export function useClockOut() {

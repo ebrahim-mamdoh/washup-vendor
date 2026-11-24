@@ -205,21 +205,43 @@ function loadOnce(tag: "script" | "link", attr: string, value: string) {
   });
 }
 
+interface LeafletMap {
+  setView: (coords: [number, number], zoom: number) => LeafletMap;
+  remove: () => void;
+  on: (evt: string, cb: (e: { latlng: { lat: number; lng: number } }) => void) => void;
+}
+
+interface LeafletMarker {
+  addTo: (map: LeafletMap) => LeafletMarker;
+  on: (evt: string, cb: () => void) => void;
+  getLatLng: () => { lat: number; lng: number };
+  setLatLng: (p: [number, number] | { lat: number; lng: number }) => void;
+}
+
+interface LeafletStatic {
+  map: (el: HTMLElement, opts?: Record<string, unknown>) => LeafletMap;
+  tileLayer: (url: string, opts?: Record<string, unknown>) => { addTo: (m: LeafletMap) => void };
+  divIcon: (opts: Record<string, unknown>) => unknown;
+  marker: (coords: [number, number], opts?: Record<string, unknown>) => LeafletMarker;
+}
+
 /** Click-and-drag pin on OpenStreetMap when the Google Maps key is not configured. */
 function OsmLocationPicker({ value, onChange, fallbackCenter, className }: Pick<LocationPickerProps, "value" | "onChange" | "fallbackCenter" | "className">) {
   const host = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     const node = host.current;
     if (!node) return;
-    let map: any = null;
+    let map: LeafletMap | null = null;
     let cancelled = false;
     (async () => {
       await loadOnce("link", "href", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
       await loadOnce("script", "src", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js");
-      const L = (window as unknown as { L?: any }).L;
+      const L = (window as unknown as { L?: LeafletStatic }).L;
       if (cancelled || !L || !host.current) return;
       const center = value ?? fallbackCenter ?? CAIRO;
       map = L.map(host.current, { zoomControl: true }).setView([center.lat, center.lng], value ? 16 : 12);
@@ -231,7 +253,7 @@ function OsmLocationPicker({ value, onChange, fallbackCenter, className }: Pick<
         iconAnchor: [9, 9],
       });
       const marker = value ? L.marker([value.lat, value.lng], { icon, draggable: true }).addTo(map) : null;
-      const place = (lat: number, lng: number, existing: { setLatLng: (p: [number, number]) => void } | null) => {
+      const place = (lat: number, lng: number, existing: LeafletMarker | null) => {
         const p = { lat: round6(lat), lng: round6(lng) };
         if (existing) existing.setLatLng([p.lat, p.lng]);
         onChangeRef.current(p);
@@ -241,16 +263,17 @@ function OsmLocationPicker({ value, onChange, fallbackCenter, className }: Pick<
         place(p.lat, p.lng, marker);
       });
       map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
-        if (!marker) {
+        if (!marker && map) {
           const created = L.marker([e.latlng.lat, e.latlng.lng], { icon, draggable: true }).addTo(map);
           created.on("dragend", () => {
             const p = created.getLatLng();
             place(p.lat, p.lng, created);
           });
+          place(e.latlng.lat, e.latlng.lng, created);
         } else {
-          marker.setLatLng(e.latlng);
+          marker?.setLatLng(e.latlng);
+          place(e.latlng.lat, e.latlng.lng, marker);
         }
-        place(e.latlng.lat, e.latlng.lng, marker);
       });
     })().catch(() => undefined);
     return () => {

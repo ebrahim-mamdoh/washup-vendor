@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   LocateFixed,
   Lock,
@@ -42,48 +42,52 @@ export default function MapLocationPicker({
   const areaCenter = fallbackCenter;
 
   // Execute geolocation with smart fallback (GPS first, then Wi-Fi/Network)
-  const executeGetPosition = (highAccuracy: boolean) => {
-    setLocating(true);
+  const executeGetPosition = useCallback((highAccuracy: boolean) => {
+    function getPos(accurate: boolean) {
+      setLocating(true);
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const userLat = Number(pos.coords.latitude.toFixed(6));
-        const userLng = Number(pos.coords.longitude.toFixed(6));
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const userLat = Number(pos.coords.latitude.toFixed(6));
+          const userLng = Number(pos.coords.longitude.toFixed(6));
 
-        // The map follows the new value on its own.
-        onChange(userLat, userLng);
+          // The map follows the new value on its own.
+          onChange(userLat, userLng);
 
-        toast.success("تم تحديد موقعك بدقة على الخريطة 📍");
-        setLocating(false);
-        setShowPermissionDialog(false);
-      },
-      (err) => {
-        console.warn("[Geolocation Error]", err);
-        // If high accuracy times out or fails (e.g. PC without dedicated GPS chip), fallback to network triangulation
-        if (highAccuracy && (err.code === 2 || err.code === 3)) {
-          executeGetPosition(false);
-          return;
+          toast.success("تم تحديد موقعك بدقة على الخريطة 📍");
+          setLocating(false);
+          setShowPermissionDialog(false);
+        },
+        (err) => {
+          console.warn("[Geolocation Error]", err);
+          // If high accuracy times out or fails (e.g. PC without dedicated GPS chip), fallback to network triangulation
+          if (accurate && (err.code === 2 || err.code === 3)) {
+            getPos(false);
+            return;
+          }
+
+          setLocating(false);
+          if (err.code === 1) {
+            // Permission Denied
+            setShowPermissionDialog(true);
+          } else if (err.code === 2) {
+            toast.error("خدمة الموقع الجغرافي غير مفعلة على جهازك حالياً. يمكنك النقر على الخريطة لتحديد الموقع.");
+          } else if (err.code === 3) {
+            toast.error("استغرقت عملية تحديد الموقع وقتاً طويلاً. يرجى سحب المؤشر أو النقر على موقع المغسلة مباشرة.");
+          } else {
+            toast.error("تعذر تحديد موقعك الحالي. يرجى اختيار موقعك على الخريطة.");
+          }
+        },
+        {
+          enableHighAccuracy: accurate,
+          timeout: accurate ? 6000 : 10000,
+          maximumAge: 60000,
         }
+      );
+    }
 
-        setLocating(false);
-        if (err.code === 1) {
-          // Permission Denied
-          setShowPermissionDialog(true);
-        } else if (err.code === 2) {
-          toast.error("خدمة الموقع الجغرافي غير مفعلة على جهازك حالياً. يمكنك النقر على الخريطة لتحديد الموقع.");
-        } else if (err.code === 3) {
-          toast.error("استغرقت عملية تحديد الموقع وقتاً طويلاً. يرجى سحب المؤشر أو النقر على موقع المغسلة مباشرة.");
-        } else {
-          toast.error("تعذر تحديد موقعك الحالي. يرجى اختيار موقعك على الخريطة.");
-        }
-      },
-      {
-        enableHighAccuracy: highAccuracy,
-        timeout: highAccuracy ? 6000 : 10000,
-        maximumAge: 60000,
-      }
-    );
-  };
+    getPos(highAccuracy);
+  }, [onChange]);
 
   // Real-time listener for browser permission changes
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function MapLocationPicker({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [executeGetPosition]);
 
   // Quick Button for Current Location
   const handleLocateMe = async () => {

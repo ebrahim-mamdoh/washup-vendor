@@ -49,7 +49,10 @@ for (const [id, t] of dt) {
   const seen = new Set();
   for (let cur = id; cur !== undefined; cur = parent.get(cur)) {
     const l = label(byId.get(cur));
-    if (!seen.has(l)) incl.set(l, (incl.get(l) ?? 0) + t), seen.add(l);
+    if (!seen.has(l)) {
+      incl.set(l, (incl.get(l) ?? 0) + t);
+      seen.add(l);
+    }
   }
 }
 const pct = (t) => `${((t / total) * 100).toFixed(1)}%`;
