@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Switch } from "@/components/ui/switch";
 import { STAFF_ROLE } from "@/lib/constants/labels";
 import { cn } from "@/lib/utils";
-import { MAX_DISCOUNT_CAP, PERMISSIONS, defaultPermissions, isEgyptianMobile } from "@/components/modules/Staff/staff-constants";
+import { MAX_DISCOUNT_CAP, PERMISSIONS, defaultPermissions } from "@/components/modules/Staff/staff-constants";
+import { PHONE_INPUT_ERROR, isPhoneInput } from "@/lib/phone-input";
 import { useBranchScope } from "@/hooks/use-branch-scope";
 import { useCreateStaff, useUpdateStaff } from "@/hooks/use-team";
 import type { VendorStaffMember } from "@/types/vendor/team";
@@ -32,7 +33,7 @@ const permissionsSchema = z.object({
 function buildSchema(mode: "create" | "edit", maxPct: number) {
   return z.object({
     name: mode === "create" ? z.string().trim().min(1, "الاسم مطلوب").min(3, "الاسم 3 أحرف على الأقل") : z.string(),
-    phone: mode === "create" ? z.string().trim().min(1, "رقم الموبايل مطلوب").refine(isEgyptianMobile, "رقم موبايل مصري غير صحيح (مثال: 01001234567)") : z.string(),
+    phone: mode === "create" ? z.string().trim().min(1, "رقم الموبايل مطلوب").refine(isPhoneInput, PHONE_INPUT_ERROR) : z.string(),
     role: z.enum(["manager", "employee"]),
     branchId: z.string().min(1, "اختر الفرع"),
     maxDiscountPct: z

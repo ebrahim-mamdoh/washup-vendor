@@ -7,7 +7,8 @@ import type { Staff } from "@/types/washes";
 
 import { now } from "../db";
 import { serviceName } from "../lookups";
-import { cairoDateParts, clockToMin, minutesOfDay, nextActionFor, overdueMinutes } from "../vendor/engine";
+import { clockToMin, minutesOfDay, nextActionFor, overdueMinutes, zoneDateParts } from "../vendor/engine";
+import { hideCheckInCode } from "../vendor/privacy";
 import { staffWhere } from "./entities";
 import type { Q } from "./sql";
 
@@ -77,7 +78,7 @@ export async function toVendorItems(q: Q, orders: Order[], at: Date = now()): Pr
   const labels = new Map(vehicles.map((v) => [v.id, v.label]));
   const graceOf = new Map(graces.map((g) => [g.id, g.grace]));
   return items.map((o) => ({
-    ...o,
+    ...hideCheckInCode(o),
     staffName: (o.assignedStaffId && staff.get(o.assignedStaffId)) || null,
     vehicleLabel: (o.vehicleId && labels.get(o.vehicleId)) || null,
     nextAction: nextActionFor(o),
@@ -89,14 +90,18 @@ export async function toVendorItems(q: Q, orders: Order[], at: Date = now()): Pr
 
 /** Staff clocked in on the branch, plus those whose weekly pattern covers `at`. */
 export async function onShiftAt(q: Q, branchId: string, at: Date = now()): Promise<Staff[]> {
-  const m = minutesOfDay(at);
-  const weekday = cairoDateParts(at).weekday;
-  const [staff, open] = await Promise.all([
+  const [staff, open, [{ zone }]] = await Promise.all([
     staffWhere(q, q`st.branch_id = ${branchId} and st.status = 'active'`, q`order by st.id`),
     q<{ staffId: string }[]>`
       select staff_id as "staffId" from public.staff_shifts
       where branch_id = ${branchId} and review_status = 'open' and actual_end is null`,
+    // Shift patterns are wall-clock times of the branch's country (GAP-013).
+    q<{ zone: string }[]>`
+      select coalesce((select c.timezone from public.branches b join public.areas a on a.id = b.area_id
+                       join public.countries c on c.code = a.country_code where b.id = ${branchId}), 'Africa/Cairo') as zone`,
   ]);
+  const m = minutesOfDay(at, zone);
+  const weekday = zoneDateParts(at, zone).weekday;
   const openIds = new Set(open.map((r) => r.staffId));
   return staff.filter((s) => {
     if (openIds.has(s.id)) return true;

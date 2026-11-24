@@ -21,6 +21,7 @@ import { branchName, effectiveCommissionRate, serviceName } from "../lookups";
 import { vroute } from "../router";
 import type { MockDatabase } from "../schema";
 import { dayKey, hasManualDiscount, staffName, toVendorItem } from "./engine";
+import { customerForWash } from "./privacy";
 import { assertNotEmployee, scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
@@ -288,8 +289,11 @@ export const vendorInsightRoutes = [
     const completed = orders.filter((o) => o.status === "completed");
     const spent = completed.filter((o) => o.paymentStatus === "paid").reduce((s, o) => s + o.total, 0);
     const details: VendorCustomerDetails = {
-      customer,
-      vehicles: db.vehicles.filter((v) => v.customerId === customer.id),
+      customer: customerForWash(customer),
+      // Only the cars this wash has served (GAP-029).
+      vehicles: db.vehicles.filter(
+        (v) => v.customerId === customer.id && db.orders.some((o) => o.vehicleId === v.id && actor.branchIds.includes(o.branchId)),
+      ),
       orders: orders.map((o) => toVendorItem(db, o)),
       favoriteServices: favorite(orders),
       reviews: db.reviews.filter((r) => r.customerId === customer.id && actor.branchIds.includes(r.branchId)),

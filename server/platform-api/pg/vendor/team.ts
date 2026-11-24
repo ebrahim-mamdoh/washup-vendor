@@ -1,5 +1,7 @@
 import "server-only";
 
+import { parsePhone } from "../../phone";
+import { branchLocale } from "../locale";
 import type { Order, PaymentMethod } from "@/types/orders";
 import type { DayClosingSummary, MethodTotals, ShiftClosing, StaffPerformance, VendorStaffMember } from "@/types/vendor/team";
 import type { ShiftPattern, Staff, StaffPermissions, StaffRole } from "@/types/washes";
@@ -9,9 +11,9 @@ import { MockApiError, ok, requireText, sortBy } from "../../http";
 import type { VendorActor } from "../../router";
 import type { Shift } from "../../schema";
 import { defaultPermissions } from "../../seed";
-import { assertClosableDay, atMinutes, cairoDateParts, cleanShiftPatterns, clockToMin, dayKey, hasManualDiscount, isPlausibleDuration, normalizePhone } from "../../vendor/engine";
+import { assertClosableDay, atMinutes, cairoDateParts, cleanShiftPatterns, clockToMin, dayKey, hasManualDiscount, isPlausibleDuration } from "../../vendor/engine";
 import { createLogin, isLocalAuth, loginNotice } from "../auth";
-import { PHONE, auditWhere, dayClosingsWhere, e164, shiftsWhere, staffById, staffWhere } from "../entities";
+import { PHONE, auditWhere, dayClosingsWhere, shiftsWhere, staffById, staffWhere } from "../entities";
 import { dayBounds, paged, searchPattern } from "../list";
 import { branchNames, onShiftAt, staffNames } from "../lookups";
 import { logAudit } from "../platform";
@@ -225,22 +227,23 @@ export const vendorTeamRoutes = [
       const role: StaffRole = body.role === "manager" ? "manager" : "employee";
       if (role === "manager") assertOwner(actor, "إضافة مدير فرع");
       const name = requireText(body.name, "name", "الاسم", 3);
-      const phone = normalizePhone(String(body.phone ?? ""));
-      if (phone.length !== 10) throw new MockApiError("رقم موبايل غير صحيح", 422, { phone: ["رقم غير صحيح"] });
-      const [taken] = await t`select 1 from public.staff where phone = ${e164(phone)}`;
+      // National numbers take the branch's country code; "+…" keeps its own (GAP-013).
+      const phone = parsePhone(String(body.phone ?? ""), (await branchLocale(t, branchId)).dialCode);
+      if (!phone) throw new MockApiError("رقم موبايل غير صحيح", 422, { phone: ["رقم غير صحيح"] });
+      const [taken] = await t`select 1 from public.staff where phone = ${phone}`;
       if (taken) throw new MockApiError("هذا الرقم مسجل لحساب آخر", 409, { phone: ["مسجل بالفعل"] });
       const cap = Math.min(Number(body.maxDiscountPct ?? 10), actor.role === "owner" ? 50 : actor.staff.maxDiscountPct);
       const maxDiscountPct = Number.isNaN(cap) ? 10 : Math.round(cap);
 
       const [{ id }] = await t<{ id: string }[]>`
         insert into public.staff (business_id, branch_id, name, phone, role, status, max_discount_pct, permissions)
-        values (${actor.business.id}, ${branchId}, ${name}, ${e164(phone)}, ${role}, 'active', ${maxDiscountPct},
+        values (${actor.business.id}, ${branchId}, ${name}, ${phone}, ${role}, 'active', ${maxDiscountPct},
                 ${t.json(asJson(capPermissions(actor, parsePermissions(body.permissions, role))))})
         returning id`;
       await replacePatterns(t, id, [{ start: "09:00", end: "17:00", days: [0, 1, 2, 3, 4, 5, 6] }]);
       await audit(t, actor, "staff.create", "staff", id, branchId, null, `${name} · ${role}`);
       // Local auth accepts the demo password for every profile; otherwise create the Supabase Auth login and link it.
-      const login = isLocalAuth() ? null : await createLogin({ phone: e164(phone) });
+      const login = isLocalAuth() ? null : await createLogin({ phone });
       if (login && "userId" in login) await t`update public.staff set user_id = ${login.userId} where id = ${id}`;
       return { ...(await staffById(t, id)), login };
     });

@@ -16,7 +16,8 @@ import type { Branch, Business, Staff, WashService } from "@/types/washes";
 import type postgres from "postgres";
 
 import { MockApiError } from "../http";
-import { nationalPhone, prettyPhone } from "../vendor/engine";
+import { toE164 } from "../phone";
+import { prettyPhone } from "../vendor/engine";
 import type { Shift } from "../schema";
 import { ISO, type Q } from "./sql";
 
@@ -29,7 +30,8 @@ import { ISO, type Q } from "./sql";
  * on each function); `tail` is an optional `order by … limit …` fragment.
  *
  * Differences between storage and contract handled here:
- * - phones are E.164 in the database (`+201…`) and `+20 1XX XXX XXXX` in the API;
+ * - phones are E.164 in the database (`+201…`, `+9665…`) and `+20 1XX XXX XXXX` /
+ *   `+966 50 123 4567` in the API (GAP-013: any country of `public.countries`);
  * - nullable FKs the contract types as `string` come back as "" (staff.branch_id
  *   for owners, review.service_id, payment.collected_by, note authors);
  * - nested lists (order items/timeline/notes, branch hours/amenities/blocked
@@ -40,12 +42,16 @@ type Frag = postgres.Fragment;
 
 /** E.164 → the API display format (`+20 120 000 0007`, `+20 2 2555 0142`; same as the mock `prettyPhone`). */
 export const apiPhone = (p: string | null): string => (p ? prettyPhone(p) : "");
-/** Any Egyptian number (mobile or landline, with or without +20 / 0) → E.164. */
-export const e164 = (p: string): string => `+20${nationalPhone(p)}`;
+/**
+ * Any phone input → E.164. National numbers take `dialCode` (the branch's / business's country,
+ * e.g. "+966"); Egypt when omitted, as before. International input (+…, 00…) keeps its own code.
+ */
+export const e164 = (p: string, dialCode?: string): string => toE164(p, dialCode);
 
 /** SQL for `apiPhone(col)`: the national number (see `nationalPhone`) in `prettyPhone`'s groups. */
 export const PHONE = (col: string) =>
-  `(select case when d = '' then ''
+  `(select case when ${col} like '+%' and ${col} not like '+20%' then ${col}
+                when d = '' then ''
                 when length(d) = 10 and left(d, 1) = '1' then '+20 ' || substr(d, 1, 3) || ' ' || substr(d, 4, 3) || ' ' || substr(d, 7)
                 when length(d) = 9 and left(d, 1) in ('2', '3') then '+20 ' || substr(d, 1, 1) || ' ' || substr(d, 2, 4) || ' ' || substr(d, 6)
                 when length(d) >= 8 then '+20 ' || substr(d, 1, 2) || ' ' || substr(d, 3, 3) || ' ' || substr(d, 6)
@@ -75,6 +81,8 @@ export const businessById = (q: Q, id: string, label: string | null = "المغ�
 // ── Branches (alias br) ──────────────────────────────────────────────────────
 
 export const BRANCH_COLS = `br.id, br.business_id as "businessId", br.name, br.area_id as area, br.address, br.lat, br.lng,
+  coalesce((select c.timezone from public.areas a join public.countries c on c.code = a.country_code where a.id = br.area_id),
+           'Africa/Cairo') as timezone,
   ${PHONE("br.phone")} as phone,
   coalesce((select json_agg(ba.amenity_id order by ba.amenity_id) from public.branch_amenities ba where ba.branch_id = br.id), '[]') as amenities,
   br.capacity, br.active, br.featured,

@@ -15,6 +15,7 @@ import { useBranchScope } from "@/hooks/use-branch-scope";
 import { useServices } from "@/hooks/use-catalog";
 import { useAvailability, useCreateOrder, usePricePreview, useRecognition } from "@/hooks/use-operations";
 import { useUIStore, type NewOrderPrefill } from "@/lib/store/ui-store";
+import { PHONE_INPUT_ERROR, isPhoneInput } from "@/lib/phone-input";
 
 type Mode = "walk_in" | "phone";
 
@@ -77,9 +78,9 @@ function NewOrderForm({ prefill, initialMode, onDone }: { prefill: NewOrderPrefi
   });
 
   const plateOk = plate.replace(/[\s-]/g, "").length >= 3;
-  const phoneDigits = phone.replace(/\D/g, "");
-  const phoneOk = (phoneDigits.length === 11 && phoneDigits.startsWith("01")) || (phoneDigits.length === 10 && phoneDigits.startsWith("1"));
-  const phoneError = mode === "phone" && phone.length > 0 && !phoneOk ? "رقم الموبايل لازم 11 رقم ويبدأ بـ 01" : mode === "phone" && !phone.trim() ? "رقم الموبايل مطلوب للحجز الهاتفي" : null;
+  // Any country (GAP-013); the server reads national numbers in the branch's country.
+  const phoneOk = isPhoneInput(phone);
+  const phoneError = mode === "phone" && phone.length > 0 && !phoneOk ? PHONE_INPUT_ERROR : mode === "phone" && !phone.trim() ? "رقم الموبايل مطلوب للحجز الهاتفي" : null;
   const canSubmit = plateOk && Boolean(primaryId) && (mode === "walk_in" || (phoneOk && Boolean(slot)));
 
   const applyRecognition = () => {

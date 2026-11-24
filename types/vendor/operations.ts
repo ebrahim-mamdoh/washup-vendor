@@ -25,7 +25,8 @@ export type OrderAction =
 /** The single "next step" an order card offers (spec EM-06). */
 export type PrimaryAction = Extract<OrderAction, "confirm" | "check_in" | "start" | "complete" | "collect_payment">;
 
-export interface VendorOrderListItem extends OrderListItem {
+/** Vendor clients never receive the customer's check-in `code` (GAP-031). */
+export interface VendorOrderListItem extends Omit<OrderListItem, "code"> {
   staffName: string | null;
   vehicleLabel: string | null;
   nextAction: PrimaryAction | null;
@@ -55,7 +56,8 @@ export type VendorOrderListMeta = {
 };
 
 export interface VendorOrderDetails {
-  order: Order;
+  /** Without the customer's check-in `code` (GAP-031). */
+  order: Omit<Order, "code">;
   customer: Customer | null;
   vehicle: Vehicle | null;
   branch: Branch;

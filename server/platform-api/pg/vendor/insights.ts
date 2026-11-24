@@ -33,6 +33,7 @@ import { branchNames, staffNames, toVendorItems } from "../lookups";
 import { defaultCommissionPct, logAudit, pushAdminNotification } from "../platform";
 import { vroute } from "../router";
 import { type Q, db, tx } from "../sql";
+import { customerForWash } from "../../vendor/privacy";
 import { assertNotEmployee, scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
@@ -367,14 +368,20 @@ export const vendorInsightRoutes = [
     const [orders, [customer], vehicles, reviews] = await Promise.all([
       ordersWhere(sql, sql`o.customer_id = ${params.id} and o.branch_id = any(${actor.branchIds})`, sql`order by o.scheduled_at desc, o.id`),
       customersWhere(sql, sql`cu.id = ${params.id}`),
-      vehiclesWhere(sql, sql`v.customer_id = ${params.id}`, sql`order by v.created_at, v.id`),
+      // GAP-029: only the cars this wash has served, not every car the customer owns on the platform.
+      vehiclesWhere(
+        sql,
+        sql`v.customer_id = ${params.id}
+          and exists (select 1 from public.orders o where o.vehicle_id = v.id and o.branch_id = any(${actor.branchIds}))`,
+        sql`order by v.created_at, v.id`,
+      ),
       reviewsWhere(sql, sql`r.customer_id = ${params.id} and r.branch_id = any(${actor.branchIds})`, sql`order by r.created_at desc, r.id`),
     ]);
     if (!customer || !orders.length) throw new MockApiError("العميل غير موجود ضمن عملاء مغسلتك", 404);
     const completed = orders.filter((o) => o.status === "completed");
     const spent = completed.filter((o) => o.paymentStatus === "paid").reduce((s, o) => s + o.total, 0);
     const details: VendorCustomerDetails = {
-      customer,
+      customer: customerForWash(customer),
       vehicles,
       orders: await toVendorItems(sql, orders),
       favoriteServices: favorite(orders),

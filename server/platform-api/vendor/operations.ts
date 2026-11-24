@@ -32,6 +32,7 @@ import {
   recognize,
   toVendorItem,
 } from "./engine";
+import { hideCheckInCode } from "./privacy";
 import { assertBranch, findInScope, scopeBranches, singleBranch } from "./scope";
 
 const endOfToday = () => {
@@ -104,7 +105,7 @@ export const vendorOperationRoutes = [
     const branch = db.branches.find((b) => b.id === order.branchId)!;
     const staff = order.assignedStaffId ? db.staff.find((s) => s.id === order.assignedStaffId) : null;
     const details: VendorOrderDetails = {
-      order,
+      order: hideCheckInCode(order),
       customer: db.customers.find((c) => c.id === order.customerId) ?? null,
       vehicle: db.vehicles.find((v) => v.id === order.vehicleId) ?? null,
       branch,

@@ -13,7 +13,8 @@ import type postgres from "postgres";
 import { isSameDay, now } from "../../db";
 import { MockApiError, ok, requireText } from "../../http";
 import { serviceName } from "../../lookups";
-import { atMinutes, cleanOrderPayload, clockToMin, dayKey, hoursFor, nextActionFor, parseDay } from "../../vendor/engine";
+import { atMinutes, branchZone, cleanOrderPayload, clockToMin, dayKey, hoursFor, nextActionFor, parseDay } from "../../vendor/engine";
+import { businessLocale } from "../locale";
 import {
   PHONE,
   auditWhere,
@@ -46,6 +47,7 @@ import {
   priceServices,
   recognizeForWash,
 } from "./engine";
+import { hideCheckInCode } from "../../vendor/privacy";
 import { assertBranch, scopeBranches, singleBranch } from "./scope";
 
 type Frag = postgres.Fragment;
@@ -185,7 +187,7 @@ export const vendorOperationRoutes = [
     const staffName = order.assignedStaffId ? staff.get(order.assignedStaffId) : undefined;
 
     const details: VendorOrderDetails = {
-      order,
+      order: hideCheckInCode(order),
       customer: customer ?? null,
       vehicle: vehicle ?? null,
       branch,
@@ -255,9 +257,12 @@ export const vendorOperationRoutes = [
     return ok(await priceServices(db(), branchId, ids));
   }),
 
-  vroute("GET", "/vendor/recognize", async ({ query, actor }) =>
-    ok(await recognizeForWash(db(), actor.business.id, query.get("plate"), query.get("phone"))),
-  ),
+  vroute("GET", "/vendor/recognize", async ({ query, actor }) => {
+    const sql = db();
+    // National numbers are read in the wash's country (GAP-013).
+    const { dialCode } = await businessLocale(sql, actor.business.id);
+    return ok(await recognizeForWash(sql, actor.business.id, query.get("plate"), query.get("phone"), dialCode));
+  }),
 
   vroute("GET", "/vendor/availability", async ({ query, actor }) => {
     const sql = db();
@@ -328,7 +333,8 @@ export const vendorOperationRoutes = [
     const step = branch.settings.slotIntervalMin || 30;
     const slots: ScheduleDay["slots"] = [];
     if (!hours.closed) {
-      const slotStart = (m: number) => atMinutes(date, m);
+      const zone = branchZone(branch); // GAP-013: the branch's wall clock
+      const slotStart = (m: number) => atMinutes(date, m, zone);
       const open = clockToMin(hours.open);
       const close = clockToMin(hours.close, true);
       // One query for the day's occupying orders, then the same per-slot overlap as the mock.

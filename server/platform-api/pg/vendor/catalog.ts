@@ -1,5 +1,6 @@
 import "server-only";
 
+import { type Locale, branchLocale, businessLocale } from "../locale";
 import type { Offer } from "@/types/offers";
 import type { VendorBranch, VendorOffer, VendorService, VendorSettings } from "@/types/vendor/catalog";
 import type { BranchSettings, ServiceType } from "@/types/washes";
@@ -49,21 +50,36 @@ const LIVE_OFFER_STATUS = (q: Q, at: string) => q`
        when of.starts_at > ${at} then 'scheduled'
        else 'active' end`;
 
-function parseServiceBody(body: Record<string, unknown>) {
+/**
+ * Service price in the branch's currency (GAP-013). Egypt keeps the historic 10–5000 ج.م range;
+ * other currencies: above zero, at most the currency's decimals (SAR 29.5 ✓, KWD 1.250 ✓, IQD whole).
+ */
+function parsePrice(raw: unknown, loc: Locale): number {
+  const price = Number(raw);
+  const factor = 10 ** loc.decimals;
+  if (loc.currency === "EGP") {
+    if (Number.isNaN(price) || price < 10 || price > 5000) throw new MockApiError("السعر يجب أن يكون بين 10 و 5000 ج.م", 422, { price: ["قيمة غير صالحة"] });
+  } else if (!Number.isFinite(price) || price <= 0 || price > 10_000_000 || Math.abs(Math.round(price * factor) - price * factor) > 1e-6) {
+    const hint = loc.decimals ? `بحد أقصى ${loc.decimals} أرقام عشرية` : "بدون كسور";
+    throw new MockApiError(`السعر غير صالح — أكبر من صفر و${hint} (${loc.symbol})`, 422, { price: ["قيمة غير صالحة"] });
+  }
+  return Math.round(price * factor) / factor;
+}
+
+function parseServiceBody(body: Record<string, unknown>, loc: Locale) {
   const name = (body.name ?? {}) as { ar?: string; en?: string };
   const description = (body.description ?? {}) as { ar?: string; en?: string };
   const nameAr = requireText(name.ar, "name.ar", "اسم الخدمة بالعربية", 2);
   const nameEn = requireText(name.en, "name.en", "اسم الخدمة بالإنجليزية", 2);
-  const price = Number(body.price);
+  const price = parsePrice(body.price, loc);
   const durationMin = Number(body.durationMin);
-  if (Number.isNaN(price) || price < 10 || price > 5000) throw new MockApiError("السعر يجب أن يكون بين 10 و 5000 ج.م", 422, { price: ["قيمة غير صالحة"] });
   if (Number.isNaN(durationMin) || durationMin < 2 || durationMin > 240) throw new MockApiError("المدة بين 2 و 240 دقيقة", 422, { durationMin: ["قيمة غير صالحة"] });
   const type: ServiceType = body.type === "addon" ? "addon" : "primary";
   const category = CATEGORIES.includes(String(body.category)) ? String(body.category) : "exterior";
   return {
     name: { ar: nameAr, en: nameEn },
     description: { ar: String(description.ar ?? "").trim(), en: String(description.en ?? "").trim() },
-    price: Math.round(price),
+    price,
     durationMin: Math.round(durationMin),
     type,
     category,
@@ -114,13 +130,34 @@ async function ownOffer(q: Q, actor: VendorActor, id: string, notFound: string):
   return offer;
 }
 
-/** Optional map pin (both or neither), kept inside Egypt so a slip of the finger can't send customers abroad. */
-function branchLocation(body: Record<string, unknown>): { lat: number; lng: number } | null {
+const kmBetween = (aLat: number, aLng: number, bLat: number, bLng: number) => {
+  const rad = Math.PI / 180;
+  const h = Math.sin(((bLat - aLat) * rad) / 2) ** 2 + Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(((bLng - aLng) * rad) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
+/**
+ * Optional map pin (both or neither). A slip of the finger must not send customers to another
+ * country (GAP-013): the pin stays within 150 km of the branch's area centre, or 1500 km of its
+ * country's centre when the area has no coordinates. Egypt keeps its national box as before.
+ */
+async function branchLocation(q: Q, body: Record<string, unknown>, branchId: string): Promise<{ lat: number; lng: number } | null> {
   if (body.lat === undefined && body.lng === undefined) return null;
   const lat = Number(body.lat);
   const lng = Number(body.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 21.5 || lat > 31.8 || lng < 24.6 || lng > 37) {
-    throw new MockApiError("موقع الفرع على الخريطة يجب أن يكون داخل مصر", 422, { lat: ["قيمة غير صالحة"] });
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) {
+    throw new MockApiError("موقع الفرع على الخريطة غير صالح", 422, { lat: ["قيمة غير صالحة"] });
+  }
+  const loc = await branchLocale(q, branchId);
+  if (loc.country === "EG") {
+    if (lat < 21.5 || lat > 31.8 || lng < 24.6 || lng > 37) throw new MockApiError("موقع الفرع على الخريطة يجب أن يكون داخل مصر", 422, { lat: ["قيمة غير صالحة"] });
+  } else {
+    const [area] = await q<{ lat: number | null; lng: number | null }[]>`
+      select a.lat::float8 as lat, a.lng::float8 as lng from public.branches b join public.areas a on a.id = b.area_id where b.id = ${branchId}`;
+    const near = area?.lat != null && area?.lng != null
+      ? kmBetween(lat, lng, area.lat, area.lng) <= 150
+      : loc.lat == null || loc.lng == null || kmBetween(lat, lng, loc.lat, loc.lng) <= 1500;
+    if (!near) throw new MockApiError("موقع الفرع بعيد عن منطقته — تأكد من الدبوس على الخريطة", 422, { lat: ["قيمة غير صالحة"] });
   }
   return { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
 }
@@ -164,7 +201,7 @@ export const vendorCatalogRoutes = [
       if (!(await canEditServices(t, actor))) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
       const branchId = String(body.branchId ?? "");
       assertBranch(actor, branchId);
-      const data = parseServiceBody(body);
+      const data = parseServiceBody(body, await branchLocale(t, branchId));
       const [{ id }] = await t<{ id: string }[]>`
         insert into public.services (branch_id, type, category_id, name, description, price, duration_min, active)
         values (${branchId}, ${data.type}, ${data.category}, ${t.json(data.name)}, ${t.json(data.description)},
@@ -182,7 +219,7 @@ export const vendorCatalogRoutes = [
       if (!(await canEditServices(t, actor))) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
       const [row] = await servicesWhere(t, t`sv.id = ${params.id}`);
       const svc = inScope(actor, row, "الخدمة");
-      const data = parseServiceBody(body);
+      const data = parseServiceBody(body, await branchLocale(t, svc.branchId));
       const before = { name: svc.name.ar, price: svc.price, durationMin: svc.durationMin, active: svc.active };
       const priceChanged = data.price !== svc.price;
       if (!data.active && svc.active && svc.type === "primary") {
@@ -320,14 +357,14 @@ export const vendorCatalogRoutes = [
       const capacity = Number(body.capacity);
       if (Number.isNaN(capacity) || capacity < 1 || capacity > 30) throw new MockApiError("السعة بين 1 و 30 مكان", 422, { capacity: ["قيمة غير صالحة"] });
       const workingHours = cleanWorkingHours(body.workingHours === undefined ? target.workingHours : body.workingHours);
-      const location = branchLocation(body) ?? { lat: target.lat, lng: target.lng };
+      const location = (await branchLocation(t, body, target.id)) ?? { lat: target.lat, lng: target.lng };
       const before = { name: target.name.ar, capacity: target.capacity, active: target.active, lat: target.lat, lng: target.lng };
       const deactivating = target.active && body.active === false;
 
       const next = {
         name: { ar: requireText(name.ar, "name.ar", "اسم الفرع", 2), en: String(name.en ?? target.name.en).trim() || target.name.en },
         address: { ar: requireText(address.ar, "address.ar", "العنوان", 3), en: String(address.en ?? target.address.en).trim() || target.address.en },
-        phone: e164(String(body.phone ?? target.phone).trim()),
+        phone: e164(String(body.phone ?? target.phone).trim(), (await branchLocale(t, target.id)).dialCode),
         amenities: Array.isArray(body.amenities) ? [...new Set(body.amenities.map(String))] : target.amenities,
         capacity: Math.round(capacity),
         active: body.active !== false,
@@ -444,7 +481,7 @@ export const vendorCatalogRoutes = [
         const phone = String(b.phone ?? s.phone).trim();
         await t`update public.businesses set name = ${t.json(name)} where id = ${actor.business.id}`;
         await t`
-          update public.business_settings set contact_phone = ${phone ? e164(phone) : null}, contact_email = ${email || null}
+          update public.business_settings set contact_phone = ${phone ? e164(phone, (await businessLocale(t, actor.business.id)).dialCode) : null}, contact_email = ${email || null}
           where business_id = ${actor.business.id}`;
         changes.push("business");
       }

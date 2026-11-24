@@ -54,6 +54,8 @@ export interface Branch {
   businessId: string;
   name: Localized;
   area: string;
+  /** IANA zone of the branch's country (e.g. "Asia/Riyadh"); absent in the mock → Cairo. */
+  timezone?: string;
   address: Localized;
   lat: number;
   lng: number;

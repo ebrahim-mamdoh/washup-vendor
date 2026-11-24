@@ -19,6 +19,7 @@ import { MockApiError } from "../http";
 import { effectiveCommissionRate, toOrderListItem } from "../lookups";
 import type { VendorActor } from "../router";
 import type { MockDatabase } from "../schema";
+import { hideCheckInCode } from "./privacy";
 import { assertNotSuspended } from "./scope";
 
 /** Orders that occupy a bay or a slot. */
@@ -68,9 +69,14 @@ export function cairoDateParts(d: Date) {
   return zoneDateParts(d, CAIRO);
 }
 
-export function cairoDayKey(d: Date | string): string {
-  const p = cairoDateParts(new Date(d));
+/** "YYYY-MM-DD" of `d` in a branch time zone (GAP-013: branches outside Egypt keep their own calendar). */
+export function zoneDayKey(d: Date | string, timeZone = CAIRO): string {
+  const p = zoneDateParts(new Date(d), timeZone);
   return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
+export function cairoDayKey(d: Date | string): string {
+  return zoneDayKey(d, CAIRO);
 }
 
 /** Instant whose wall-clock in `timeZone` equals the given Y-M-D H:M. */
@@ -98,30 +104,37 @@ export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0,
   return zoneLocalToUtc(CAIRO, y, month, day, hour, minute);
 }
 
-export function minutesOfDay(d: Date): number {
-  const p = cairoDateParts(d);
+/** Minutes since local midnight in `timeZone` (Cairo unless a branch zone is given). */
+export function minutesOfDay(d: Date, timeZone = CAIRO): number {
+  const p = zoneDateParts(d, timeZone);
   return p.hour * 60 + p.minute;
 }
 
+/** The branch's time zone (from its country, see `BRANCH_COLS`); Cairo for the mock and legacy rows. */
+export function branchZone(branch: Pick<Branch, "timezone">): string {
+  return branch.timezone || CAIRO;
+}
+
 export function hoursFor(branch: Branch, date: Date): WorkingDay {
-  return branch.workingHours[cairoDateParts(date).weekday] ?? { open: "09:00", close: "21:00", closed: false };
+  return branch.workingHours[zoneDateParts(date, branchZone(branch)).weekday] ?? { open: "09:00", close: "21:00", closed: false };
 }
 
 export function isOpenAt(branch: Branch, at: Date = now()): boolean {
   if (!branch.active) return false;
   const h = hoursFor(branch, at);
   if (h.closed) return false;
-  const m = minutesOfDay(at);
+  const m = minutesOfDay(at, branchZone(branch));
   return m >= clockToMin(h.open) && m < clockToMin(h.close, true);
 }
 
-export function atMinutes(date: Date, minutes: number): Date {
-  const p = cairoDateParts(date);
+/** The instant at `minutes` after local midnight of `date`'s day in `timeZone` (Cairo by default). */
+export function atMinutes(date: Date, minutes: number, timeZone = CAIRO): Date {
+  const p = zoneDateParts(date, timeZone);
   const dayShift = Math.floor(minutes / 1440);
   const mins = minutes - dayShift * 1440;
-  const noon = cairoLocalToUtc(p.y, p.m, p.day, 12, 0);
-  const shifted = cairoDateParts(new Date(noon.getTime() + dayShift * 86400000));
-  return cairoLocalToUtc(shifted.y, shifted.m, shifted.day, Math.floor(mins / 60), mins % 60);
+  const noon = zoneLocalToUtc(timeZone, p.y, p.m, p.day, 12, 0);
+  const shifted = zoneDateParts(new Date(noon.getTime() + dayShift * 86400000), timeZone);
+  return zoneLocalToUtc(timeZone, shifted.y, shifted.m, shifted.day, Math.floor(mins / 60), mins % 60);
 }
 
 /** Owner of this wash, or an active manager/employee of the branch. */
@@ -279,7 +292,7 @@ export function overdueMinutes(o: Order, at: Date = now()): number {
 export function toVendorItem(db: MockDatabase, o: Order): VendorOrderListItem {
   const vehicle = o.vehicleId ? db.vehicles.find((v) => v.id === o.vehicleId) : null;
   return {
-    ...toOrderListItem(db, o),
+    ...hideCheckInCode(toOrderListItem(db, o)),
     staffName: staffName(db, o.assignedStaffId),
     vehicleLabel: vehicle ? `${vehicle.make} ${vehicle.model}` : null,
     nextAction: nextActionFor(o),
@@ -649,14 +662,9 @@ export function nationalPhone(p: string): string {
   return d.replace(/^0+/, "");
 }
 
-/** Display format: mobiles `+20 1XX XXX XXXX`, Cairo/Alex landlines `+20 2 XXXX XXXX`, others `+20 XX XXX XXXX`. */
-export function prettyPhone(p: string): string {
-  const d = nationalPhone(p);
-  if (d.length === 10 && d.startsWith("1")) return `+20 ${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
-  if (d.length === 9 && (d.startsWith("2") || d.startsWith("3"))) return `+20 ${d[0]} ${d.slice(1, 5)} ${d.slice(5)}`;
-  if (d.length >= 8) return `+20 ${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}`;
-  return d ? `+20 ${d}` : "";
-}
+/** Display format (Egypt's historic groups, `+966 50 123 4567` elsewhere) — see `../phone`. */
+import { prettyPhone } from "../phone";
+export { prettyPhone };
 
 export function recognize(db: MockDatabase, businessId: string, plate?: string | null, phone?: string | null): CustomerRecognition {
   // Same rules as pg/vendor/engine.ts `recognize` (GAP-010): phone first; a plate alone only

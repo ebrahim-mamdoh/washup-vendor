@@ -21,12 +21,11 @@ import {
   OCCUPYING,
   atMinutes,
   bookingHorizon,
-  cairoDayKey,
+  branchZone,
   clockToMin,
   discountAfterItemsChange,
   hoursFor,
   isStaffAssignable,
-  normalizePhone,
   normalizePlate,
   assertCheckInCode,
   offerAmount,
@@ -35,8 +34,11 @@ import {
   readableCancelReason,
   recognitionForWash,
   withManualDiscount,
+  zoneDayKey,
 } from "../../vendor/engine";
-import { branchById, customersWhere, e164, offersWhere, orderById, servicesWhere, vehiclesWhere } from "../entities";
+import { parsePhone } from "../../phone";
+import { branchLocale } from "../locale";
+import { branchById, customersWhere, offersWhere, orderById, servicesWhere, vehiclesWhere } from "../entities";
 import { staffNames } from "../lookups";
 import { defaultCommissionPct, logAudit } from "../platform";
 import type { Q } from "../sql";
@@ -137,11 +139,12 @@ export function overlapping<T extends Occupancy>(rows: T[], start: Date, end: Da
 
 export async function availability(q: Q, branch: Branch, date: Date, durationMin: number): Promise<AvailabilitySlot[]> {
   const h = hoursFor(branch, date);
-  if (h.closed || !branch.active || atMinutes(date, 0) > bookingHorizon(branch)) return [];
+  const zone = branchZone(branch); // GAP-013: the branch's own wall clock, not Cairo's
+  if (h.closed || !branch.active || atMinutes(date, 0, zone) > bookingHorizon(branch)) return [];
   try {
     const rows = await q<{ start: Date; free: number }[]>`
       select start_at as start, free_capacity as free
-      from public.get_branch_slots(${branch.id}, ${cairoDayKey(date)}::date, ${durationMin}, null, true)`;
+      from public.get_branch_slots(${branch.id}, ${zoneDayKey(date, zone)}::date, ${durationMin}, null, true)`;
     return rows.map((r) => ({
       start: new Date(r.start).toISOString(),
       free: Math.max(0, r.free),
@@ -154,10 +157,10 @@ export async function availability(q: Q, branch: Branch, date: Date, durationMin
     const open = clockToMin(h.open);
     const close = clockToMin(h.close, true);
     const earliest = now().getTime() + branch.settings.leadTimeMin * 60000;
-    const occupancy = await occupancyBetween(q, branch.id, atMinutes(date, open), atMinutes(date, close));
+    const occupancy = await occupancyBetween(q, branch.id, atMinutes(date, open, zone), atMinutes(date, close, zone));
     const slots: AvailabilitySlot[] = [];
     for (let m = open; m + durationMin <= close; m += step) {
-      const start = atMinutes(date, m);
+      const start = atMinutes(date, m, zone);
       const end = new Date(start.getTime() + durationMin * 60000);
       const occupied = overlapping(occupancy, start, end).length;
       const blocked = branch.blockedSlots.some((b) => new Date(b.start) < end && new Date(b.end) > start);
@@ -494,17 +497,25 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
  *    (anyone can add any plate in the customer app), so a platform-wide plate match could hand one
  *    person's orders and notifications to whoever registered the plate first.
  */
-export async function recognize(q: Q, businessId: string, plate?: string | null, phone?: string | null): Promise<CustomerRecognition> {
+export async function recognize(
+  q: Q,
+  businessId: string,
+  plate?: string | null,
+  phone?: string | null,
+  dialCode?: string,
+): Promise<CustomerRecognition> {
   let vehicle: Vehicle | null = null;
   let customer: Customer | null = null;
   const plateKey = plate ? normalizePlate(plate) : "";
   const hasPlate = plateKey.length >= 3;
-  const hasPhone = Boolean(phone && normalizePhone(phone).length >= 10);
+  // National numbers take the branch's country code; "+…" keeps its own (GAP-013).
+  const phoneE164 = phone ? parsePhone(phone, dialCode) : null;
+  const hasPhone = Boolean(phoneE164);
 
-  if (hasPhone && phone) {
+  if (phoneE164) {
     [customer = null] = await customersWhere(
       q,
-      q`cu.phone = ${e164(normalizePhone(phone))}`,
+      q`cu.phone = ${phoneE164}`,
       q`order by (cu.user_id is null), cu.created_at, cu.id limit 1`,
     );
     if (customer) {
@@ -555,8 +566,14 @@ export async function recognize(q: Q, businessId: string, plate?: string | null,
 }
 
 /** `recognize` as returned to the portal (see `recognitionForWash`). */
-export async function recognizeForWash(q: Q, businessId: string, plate?: string | null, phone?: string | null): Promise<CustomerRecognition> {
-  const rec = await recognize(q, businessId, plate, phone);
+export async function recognizeForWash(
+  q: Q,
+  businessId: string,
+  plate?: string | null,
+  phone?: string | null,
+  dialCode?: string,
+): Promise<CustomerRecognition> {
+  const rec = await recognize(q, businessId, plate, phone, dialCode);
   const known = rec.customer
     ? (await q`select 1 from public.orders where customer_id = ${rec.customer.id} and business_id = ${businessId} limit 1`).length > 0
     : false;
@@ -588,12 +605,18 @@ export async function createOrder(t: Tx, actor: VendorActor, payload: CreateOrde
   }
 
   // Customer & vehicle: reuse when recognized, create otherwise (phone is optional for walk-ins).
-  const rec = await recognize(t, actor.business.id, plate, payload.customerPhone);
+  // The customer's number is read in the branch's country (GAP-013).
+  const { dialCode } = await branchLocale(t, branch.id);
+  const customerPhone = payload.customerPhone ? parsePhone(payload.customerPhone, dialCode) : null;
+  if (payload.customerPhone?.trim() && !customerPhone) {
+    throw new MockApiError("رقم موبايل العميل غير صحيح", 422, { customerPhone: ["رقم غير صحيح"] });
+  }
+  const rec = await recognize(t, actor.business.id, plate, customerPhone, dialCode);
   let customerId = rec.customer?.id ?? null;
-  if (!customerId && payload.customerPhone && normalizePhone(payload.customerPhone).length === 10) {
+  if (!customerId && customerPhone) {
     const [row] = await t<{ id: string }[]>`
       insert into public.customers (name, phone, status)
-      values (${payload.customerName?.trim() || "عميل جديد"}, ${e164(normalizePhone(payload.customerPhone))}, 'active') returning id`;
+      values (${payload.customerName?.trim() || "عميل جديد"}, ${customerPhone}, 'active') returning id`;
     customerId = row.id;
   }
   if (isPhone && !customerId) throw new MockApiError("رقم موبايل العميل مطلوب للحجز الهاتفي", 422, { customerPhone: ["مطلوب"] });

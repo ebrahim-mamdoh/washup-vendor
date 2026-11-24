@@ -1,7 +1,6 @@
 import "server-only";
 
 import { MockApiError, ok } from "../../http";
-import { normalizePhone } from "../../vendor/engine";
 import {
   adminAttachEmail,
   adminUserEmail,
@@ -14,7 +13,7 @@ import {
   signInWithPassword,
   signOut,
 } from "../auth";
-import { e164 } from "../entities";
+import { staffPhoneFor } from "../locale";
 import { logAudit } from "../platform";
 import { vroute } from "../router";
 import { db } from "../sql";
@@ -25,14 +24,15 @@ export const vendorAuthRoutes = [
     "POST",
     "/vendor/auth/login",
     async ({ body }) => {
-      const phone = normalizePhone(String(body.phone ?? ""));
       const password = String(body.password ?? "");
-      if (phone.length !== 10 || !password) {
+      const sql = db();
+      // Any supported country (GAP-013): E.164 as typed, or a national number (see staffPhoneFor).
+      const phone = await staffPhoneFor(sql, String(body.phone ?? ""));
+      if (!phone || !password) {
         throw new MockApiError("رقم الموبايل وكلمة المرور مطلوبان", 422);
       }
-      const sql = db();
-      const [profile] = await sql<{ id: string }[]>`select id from public.staff where phone = ${e164(phone)}`;
-      const session = await signInWithPassword({ phone: e164(phone) }, password, profile?.id ?? null);
+      const [profile] = await sql<{ id: string }[]>`select id from public.staff where phone = ${phone}`;
+      const session = await signInWithPassword({ phone }, password, profile?.id ?? null);
       if (!session) throw new MockApiError("رقم الموبايل أو كلمة المرور غير صحيحة", 401);
 
       const [staff] = await sql<{ id: string; status: string; role: string; branch_id: string | null }[]>`
@@ -84,11 +84,11 @@ export const vendorAuthRoutes = [
     "POST",
     "/vendor/auth/forgot-password",
     async ({ body }) => {
-      const phone = normalizePhone(String(body.phone ?? ""));
-      if (phone.length !== 10) throw new MockApiError("رقم الموبايل مطلوب", 422, { phone: ["مطلوب"] });
       const sql = db();
+      const phone = await staffPhoneFor(sql, String(body.phone ?? ""));
+      if (!phone) throw new MockApiError("رقم الموبايل مطلوب", 422, { phone: ["مطلوب"] });
       const [staff] = await sql<{ userId: string | null; businessId: string }[]>`
-        select user_id as "userId", business_id as "businessId" from public.staff where phone = ${e164(phone)}`;
+        select user_id as "userId", business_id as "businessId" from public.staff where phone = ${phone}`;
       if (!staff?.userId) {
         throw new MockApiError("لا يمكن استرجاع كلمة المرور لهذا الحساب. تواصل مع الدعم.", 422);
       }
