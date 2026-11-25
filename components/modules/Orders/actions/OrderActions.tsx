@@ -206,7 +206,7 @@ export function OrderActions({ order, allowed, size = "sm", block, showMenu = tr
         open={dialog === "cancel"}
         onOpenChange={(o) => !o && setDialog(null)}
         title={`إلغاء الطلب ${order.number}`}
-        description="سيتم إبلاغ العميل بالإلغاء وتحرير الموعد. يُسجل السبب في سجل التدقيق."
+        description="يُحرَّر الموعد ويُبلَّغ العميل في التطبيق إن كان يستخدمه. يُسجل السبب في سجل التدقيق."
         presets={[
           { value: "طلب العميل", label: "بطلب العميل" },
           { value: "عطل في المعدات", label: "عطل في المعدات" },
@@ -224,7 +224,7 @@ export function OrderActions({ order, allowed, size = "sm", block, showMenu = tr
         open={dialog === "no_show"}
         onOpenChange={(o) => !o && setDialog(null)}
         title={`تسجيل عدم حضور — ${order.number}`}
-        description="انتهت مهلة الانتظار. سيتم إبلاغ العميل وتحرير المكان."
+        description="انتهت مهلة الانتظار. سيتم تحرير المكان — لا يصل للعميل إشعار تلقائي بعدم الحضور."
         textRequired={false}
         textLabel="ملاحظة"
         confirmLabel="تأكيد عدم الحضور"

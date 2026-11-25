@@ -266,6 +266,17 @@ async function moveStatus(t: Tx, o: Order, to: OrderStatus, extra?: postgres.Fra
   if (!rows.length) throw new MockApiError(CONFLICT, 409);
 }
 
+/**
+ * GAP-052 (vendor part): the status trigger notifies the customer only inside the customer app, so
+ * the message says "informed" only when the customer has an app account; otherwise it asks staff to
+ * tell the customer themselves.
+ */
+async function customerNoticeSuffix(t: Tx, o: Order): Promise<string> {
+  if (!o.customerId) return " — لا يوجد عميل مسجل، أبلغه بنفسك إن لزم";
+  const [row] = await t<{ app: boolean }[]>`select (user_id is not null) as app from public.customers where id = ${o.customerId}`;
+  return row?.app ? " وإبلاغ العميل في التطبيق" : " — العميل لا يستخدم التطبيق، أبلغه هاتفيًا";
+}
+
 async function dropPendingTransaction(t: Tx, o: Order) {
   await t`delete from public.transactions where order_id = ${o.id} and status = 'pending'`;
 }
@@ -342,7 +353,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await moveStatus(t, o, "confirmed");
       await pushTimeline(t, o, "confirmed", actor);
       await audit(t, actor, o, "order.confirm", from, "confirmed");
-      return `تم تأكيد الحجز ${o.number} وإبلاغ العميل`;
+      return `تم تأكيد الحجز ${o.number}${await customerNoticeSuffix(t, o)}`;
     }
     case "check_in": {
       const waiver = assertCheckInCode(actor, o.code, payload);
@@ -402,7 +413,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await pushTimeline(t, o, "cancelled", actor);
       await dropPendingTransaction(t, o);
       await audit(t, actor, o, "order.cancel", from, "cancelled", reason);
-      return `تم إلغاء الطلب ${o.number} وإبلاغ العميل`;
+      return `تم إلغاء الطلب ${o.number}${await customerNoticeSuffix(t, o)}`;
     }
     case "no_show": {
       await moveStatus(t, o, "no_show");

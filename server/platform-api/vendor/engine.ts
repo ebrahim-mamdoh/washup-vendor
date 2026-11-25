@@ -467,7 +467,7 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       o.status = "confirmed";
       pushTimeline(o, "confirmed", actor);
       audit(db, actor, o, "order.confirm", from, "confirmed");
-      return `تم تأكيد الحجز ${o.number} وإبلاغ العميل`;
+      return `تم تأكيد الحجز ${o.number}${o.source === "app" ? " وإبلاغ العميل في التطبيق" : " — أبلغ العميل هاتفيًا"}`;
     }
     case "check_in": {
       const waiver = assertCheckInCode(actor, o.code, payload);
@@ -531,7 +531,8 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       pushTimeline(o, "cancelled", actor);
       dropPendingTransaction(db, o);
       audit(db, actor, o, "order.cancel", from, "cancelled", reason);
-      return `تم إلغاء الطلب ${o.number} وإبلاغ العميل`;
+      // GAP-052: only app customers are notified (in the app); the mock uses the order source.
+      return `تم إلغاء الطلب ${o.number}${o.source === "app" ? " وإبلاغ العميل في التطبيق" : " — أبلغ العميل هاتفيًا"}`;
     }
     case "no_show": {
       o.status = "no_show";
