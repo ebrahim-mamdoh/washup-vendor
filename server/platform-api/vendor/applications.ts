@@ -4,7 +4,7 @@ import type { SubmitApplicationPayload, WashApplication } from "@/types/applicat
 import { nid, now, pushAdminNotification } from "../db";
 import { MockApiError, ok, requireText } from "../http";
 import { vroute } from "../router";
-import { phoneLookupView } from "./application-view";
+import { cleanApplicationDocuments, phoneLookupView } from "./application-view";
 import { normalizePhone } from "./engine";
 
 export const vendorApplicationRoutes = [
@@ -49,9 +49,7 @@ export const vendorApplicationRoutes = [
         ? data.workingHours
         : Array.from({ length: 7 }, () => ({ open: "09:00", close: "23:00", closed: false }));
 
-      const documents = Array.isArray(data.documents) && data.documents.length
-        ? data.documents.map(String)
-        : ["commercial_reg.pdf"];
+      const documents = cleanApplicationDocuments(data.documents);
 
       const id = `app_${nid("app")}`;
       const submittedAt = now().toISOString();

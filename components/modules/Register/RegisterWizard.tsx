@@ -530,8 +530,8 @@ export default function RegisterWizard() {
           body: uploadForm,
         });
 
-        const json = await res.json();
-        if (res.ok && json.status && json.data) {
+        const json = await res.json().catch(() => null);
+        if (res.ok && json?.status && json.data?.path) {
           setUploadedDocs((prev) =>
             prev.map((d) =>
               d.id === tempId
@@ -545,18 +545,14 @@ export default function RegisterWizard() {
           );
           toast.success(`تم رفع الملف "${file.name}" بنجاح 📁`);
         } else {
-          // If upload fails, keep filename for submission
-          setUploadedDocs((prev) =>
-            prev.map((d) => (d.id === tempId ? { ...d, uploading: false } : d))
-          );
-          toast.info(`تم إرفاق "${file.name}"`);
+          // GAP-042: a failed upload is NOT attached — the applicant must retry.
+          setUploadedDocs((prev) => prev.filter((d) => d.id !== tempId));
+          toast.error(`تعذر رفع "${file.name}"${json?.message ? ` — ${json.message}` : ""}. حاول مرة أخرى.`);
         }
       } catch (err) {
         console.warn("[Upload Error]", err);
-        setUploadedDocs((prev) =>
-          prev.map((d) => (d.id === tempId ? { ...d, uploading: false } : d))
-        );
-        toast.info(`تم إرفاق "${file.name}"`);
+        setUploadedDocs((prev) => prev.filter((d) => d.id !== tempId));
+        toast.error(`تعذر رفع "${file.name}" — تحقق من الاتصال وحاول مرة أخرى.`);
       }
     }
 

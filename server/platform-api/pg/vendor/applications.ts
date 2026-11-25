@@ -6,7 +6,7 @@ import { MockApiError, ok, requireText } from "../../http";
 import { applicationsWhere } from "../entities";
 import { isLegacyDefaultPin } from "../admin/geo";
 import { pushAdminNotification } from "../platform";
-import { phoneLookupView } from "../../vendor/application-view";
+import { cleanApplicationDocuments, phoneLookupView } from "../../vendor/application-view";
 import { vroute } from "../router";
 import { type Q, db } from "../sql";
 
@@ -146,8 +146,7 @@ export const vendorApplicationRoutes = [
       assertWorkingHours(data.workingHours);
       const workingHours = data.workingHours;
 
-      const documents = (Array.isArray(data.documents) ? data.documents.map(String) : []).filter((d) => d && d !== "commercial_reg.pdf");
-      if (!documents.length) throw new MockApiError("ارفع السجل التجاري أو البطاقة الضريبية", 422, { documents: ["السجل التجاري مطلوب"] });
+      const documents = cleanApplicationDocuments(data.documents);
 
       const customArea = String(data.customAreaName ?? "").trim();
       let area = String(data.area ?? "").trim();
