@@ -144,7 +144,9 @@ function StaffForm({ mode, member, onOpenChange }: StaffFormDialogProps) {
 
   // ── Success step: show the temporary password (create) ──
   if (mode === "create" && create.isSuccess && create.data) {
-    const password = create.data.message.match(/المؤقتة\s+(\S+)/)?.[1] ?? null;
+    // GAP-077: structured field; the message regex is only a fallback for an older server.
+    const login = create.data.data.login;
+    const password = login ? login.password : (create.data.message.match(/المؤقتة:?\s+(\S+)/)?.[1] ?? null);
     return (
       <div className="flex flex-col">
         <div className="flex flex-col items-center gap-3 px-6 pt-8 pb-6 text-center">
@@ -153,7 +155,14 @@ function StaffForm({ mode, member, onOpenChange }: StaffFormDialogProps) {
           </span>
           <DialogTitle className="text-base font-semibold">تمت إضافة {create.data.data.name}</DialogTitle>
           <DialogDescription>
-            يدخل تطبيق الموظفين برقم <bdi className="num inline-block font-medium text-foreground" dir="ltr">{create.data.data.phone}</bdi> وكلمة المرور المؤقتة، ثم يغيّرها من حسابه.
+            {password ? (
+              <>
+                يسجّل الدخول برقم <bdi className="num inline-block font-medium text-foreground" dir="ltr">{create.data.data.phone}</bdi> وكلمة المرور المؤقتة، ثم
+                يغيّرها من حسابه.
+              </>
+            ) : (
+              "تم حفظ بيانات الموظف، لكن لم يُنشأ له حساب دخول بعد — لن يستطيع تسجيل الدخول حتى يُحل ذلك."
+            )}
           </DialogDescription>
           {password ? (
             <div className="mt-2 flex w-full max-w-xs items-center justify-between gap-3 rounded-xl border border-dashed border-primary/40 bg-secondary/60 px-4 py-3">

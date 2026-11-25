@@ -2,6 +2,20 @@ import type { ListParams, Localized } from "../common";
 import type { PaymentMethod } from "../orders";
 import type { ShiftPattern, Staff, StaffPermissions, StaffRole } from "../washes";
 
+/**
+ * GAP-077: outcome of creating the sign-in of a new staff member, returned as `data.login`
+ * by POST /vendor/staff (the message keeps the same text for older clients).
+ * - created: a login with a one-time temporary `password` (shown once, never stored by us)
+ * - demo: local/mock auth, every account signs in with the demo `password`
+ * - taken / not_configured: NO login was created (`password` null) — the person cannot sign in yet
+ */
+export interface StaffLoginResult {
+  status: "created" | "demo" | "taken" | "not_configured";
+  password: string | null;
+}
+
+export type CreatedStaff = Staff & { login: StaffLoginResult };
+
 export interface StaffPerformance {
   completed: number;
   serviceValue: number;

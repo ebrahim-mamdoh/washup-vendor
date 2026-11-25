@@ -2,6 +2,8 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
+import type { StaffLoginResult } from "@/types/vendor/team";
+
 import { MockApiError } from "../http";
 
 /**
@@ -169,6 +171,13 @@ export async function createLogin(credentials: { phone: string } | { email: stri
   if (!res.ok) throw new Error(`Supabase Auth user creation failed: ${res.status}`);
   const user = (await res.json()) as { id: string };
   return { userId: user.id, password };
+}
+
+/** Structured twin of `loginNotice` (GAP-077): clients read the password from here, not from the message. */
+export function loginResult(login: NewLogin | null): StaffLoginResult {
+  if (!login) return { status: "demo", password: "demo1234" };
+  if ("userId" in login) return { status: "created", password: login.password };
+  return { status: login.skipped === "taken" ? "taken" : "not_configured", password: null };
 }
 
 /** The account-created message suffix for a `createLogin` result (null: local auth, demo password). */

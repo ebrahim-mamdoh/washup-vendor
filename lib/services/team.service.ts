@@ -5,6 +5,7 @@ import type { AuditLog } from "@/types/audit";
 import type { ApiEnvelope } from "@/types/common";
 import type { Staff } from "@/types/washes";
 import type {
+  CreatedStaff,
   DayClosing,
   DayClosingPayload,
   DayClosingSummary,
@@ -31,7 +32,7 @@ export async function fetchStaff(params: VendorStaffListParams): Promise<StaffRe
 }
 
 export function createStaff(payload: StaffPayload) {
-  return send<Staff>("post", "/vendor/staff", payload);
+  return send<CreatedStaff>("post", "/vendor/staff", payload);
 }
 
 export function updateStaff(id: string, payload: UpdateStaffPayload) {
