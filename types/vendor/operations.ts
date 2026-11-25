@@ -36,6 +36,8 @@ export interface VendorOrderListItem extends Omit<OrderListItem, "code"> {
   noShowGraceMin: number;
   /** True when the order is locked by a day closing. */
   locked: boolean;
+  /** Server-computed actions for the signed-in staff member (lists and live board, GAP-074). */
+  allowedActions?: OrderAction[];
 }
 
 export type BookingsTab = "today" | "upcoming" | "completed" | "cancelled" | "no_show";

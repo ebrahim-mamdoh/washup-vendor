@@ -537,7 +537,8 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       o.status = "no_show";
       pushTimeline(o, "no_show", actor);
       dropPendingTransaction(db, o);
-      audit(db, actor, o, "order.no_show", from, "no_show");
+      // GAP-073: the optional note from the no-show dialog is kept in the audit row.
+      audit(db, actor, o, "order.no_show", from, "no_show", optionalNote(payload.reason));
       return "تم تسجيل عدم الحضور وتحرير الموعد";
     }
     case "assign": {
@@ -961,6 +962,12 @@ export function pickServiceCategory(raw: unknown, active: string[], current?: st
   const value = raw === undefined || raw === null || raw === "" ? (current ?? list[0]) : String(raw);
   if (value === current || list.includes(value)) return value;
   throw new MockApiError("هذا التصنيف غير متاح حاليًا — اختر تصنيفًا آخر", 422, { category: ["تصنيف غير متاح"] });
+}
+
+/** Optional free-text note (trimmed, max 300 chars) or null. */
+export function optionalNote(value: unknown): string | null {
+  const text = typeof value === "string" ? value.trim().slice(0, 300) : "";
+  return text || null;
 }
 
 /**

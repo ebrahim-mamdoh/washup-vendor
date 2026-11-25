@@ -29,6 +29,7 @@ import {
   normalizePlate,
   assertCheckInCode,
   offerAmount,
+  optionalNote,
   parseDiscountValue,
   primaryPrice,
   readableCancelReason,
@@ -423,7 +424,8 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await moveStatus(t, o, "no_show");
       await pushTimeline(t, o, "no_show", actor);
       await dropPendingTransaction(t, o);
-      await audit(t, actor, o, "order.no_show", from, "no_show");
+      // GAP-073: the optional note from the no-show dialog is kept in the audit row.
+      await audit(t, actor, o, "order.no_show", from, "no_show", optionalNote(payload.reason));
       return "تم تسجيل عدم الحضور وتحرير الموعد";
     }
     case "assign": {

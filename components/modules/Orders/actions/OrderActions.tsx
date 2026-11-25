@@ -30,7 +30,7 @@ import {
 import { ORDER_ACTION } from "@/lib/constants/labels";
 import { cn } from "@/lib/utils";
 import { AddServiceDialog, CheckInDialog, DiscountDialog, NoteDialog, PaymentDialog, StaffDialog, type ActionTarget } from "@/components/modules/Orders/actions/action-dialogs";
-import { formatDate, formatTime } from "@/lib/format";
+import { formatDate, formatTime, serverNow } from "@/lib/format";
 import { useOrderAction } from "@/hooks/use-operations";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { OrderStatus, PaymentStatus } from "@/types/orders";
@@ -43,6 +43,8 @@ export type ActionableOrder = ActionTarget & {
   locked?: boolean;
   scheduledAt?: string;
   noShowGraceMin?: number;
+  /** Server-computed actions (lists and live board send them, GAP-074). */
+  allowedActions?: OrderAction[];
 };
 
 const ICONS: Record<OrderAction, typeof CheckCircle2> = {
@@ -60,7 +62,7 @@ const ICONS: Record<OrderAction, typeof CheckCircle2> = {
   refund: Undo2,
 };
 
-/** Client-side mirror of the server rules — only decides what to *show*; the API is the authority. */
+/** Fallback mirror of the server rules, used only when the payload has no `allowedActions`; the API is the authority. */
 function deriveAllowed(o: ActionableOrder, p: { cancelOrder: boolean; refund: boolean }): OrderAction[] {
   if (o.locked) return ["note"];
   const out: OrderAction[] = [];
@@ -69,7 +71,7 @@ function deriveAllowed(o: ActionableOrder, p: { cancelOrder: boolean; refund: bo
   if (o.status === "waiting" || o.status === "in_service") out.push("add_service");
   if (o.status === "completed" && o.paymentStatus === "pending") out.push("discount");
   out.push("note");
-  if (o.status === "confirmed" && noShowReady(o)) out.push("no_show");
+  if ((o.status === "confirmed" && noShowReady(o)) || o.status === "waiting") out.push("no_show");
   if (["pending", "confirmed", "waiting"].includes(o.status) && p.cancelOrder) out.push("cancel");
   if (o.status === "completed" && o.paymentStatus === "paid" && p.refund) out.push("refund");
   return out;
@@ -77,7 +79,7 @@ function deriveAllowed(o: ActionableOrder, p: { cancelOrder: boolean; refund: bo
 
 type OrderActionsProps = {
   order: ActionableOrder;
-  /** Server-computed actions (details page). Derived on the client when omitted (lists, board). */
+  /** Server-computed actions (details page). Falls back to `order.allowedActions`, then to a client mirror. */
   allowed?: OrderAction[];
   size?: "sm" | "default" | "lg";
   /** Stretch the primary button (board cards). */
@@ -92,13 +94,13 @@ type OpenDialog = Exclude<OrderAction, "confirm" | "complete"> | null;
 function noShowReady(o: ActionableOrder): boolean {
   if (!o.scheduledAt) return false;
   const at = new Date(o.scheduledAt).getTime() + (o.noShowGraceMin ?? 15) * 60000;
-  return Date.now() >= at;
+  return serverNow().getTime() >= at;
 }
 
 function noShowHint(o: ActionableOrder): string | null {
   if (o.status !== "confirmed" || !o.scheduledAt || noShowReady(o)) return null;
   const at = new Date(new Date(o.scheduledAt).getTime() + (o.noShowGraceMin ?? 15) * 60000);
-  const sameDay = at.toDateString() === new Date().toDateString();
+  const sameDay = at.toDateString() === serverNow().toDateString();
   return `متاح بعد ${sameDay ? formatTime(at) : `${formatDate(at)} ${formatTime(at)}`}`;
 }
 
@@ -110,7 +112,7 @@ export function OrderActions({ order, allowed, size = "sm", block, showMenu = tr
   const account = useAuthStore((s) => s.account);
   const [dialog, setDialog] = useState<OpenDialog>(null);
   const action = useOrderAction(() => setDialog(null));
-  const actions = allowed ?? deriveAllowed(order, account?.permissions ?? { cancelOrder: false, refund: false });
+  const actions = allowed ?? order.allowedActions ?? deriveAllowed(order, account?.permissions ?? { cancelOrder: false, refund: false });
   const primary = order.nextAction && actions.includes(order.nextAction) ? order.nextAction : null;
   const secondary = actions.filter((a) => a !== primary);
 
@@ -228,7 +230,7 @@ export function OrderActions({ order, allowed, size = "sm", block, showMenu = tr
         confirmLabel="تأكيد عدم الحضور"
         variant="destructive"
         isPending={action.isPending}
-        onConfirm={() => run("no_show")}
+        onConfirm={({ text }) => run("no_show", text.trim() ? { reason: text.trim() } : {})}
       />
       <ReasonDialog
         open={dialog === "refund"}

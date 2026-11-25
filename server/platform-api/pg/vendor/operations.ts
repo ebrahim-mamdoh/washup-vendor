@@ -31,6 +31,7 @@ import {
 } from "../entities";
 import { dayBounds, orderBy, paged, searchPattern } from "../list";
 import { onShiftAt, staffNames, toVendorItems } from "../lookups";
+import type { VendorActor } from "../../router";
 import { logAudit } from "../platform";
 import { vroute } from "../router";
 import { type Q, db, tx } from "../sql";
@@ -99,6 +100,16 @@ function dateWhere(q: Q, date: string | null): Frag {
 /** `?date=` of the schedule/availability screens (noon avoids DST edges), today by default. */
 const dayParam = (raw: string | null) => (raw ? parseDay(raw) : now());
 
+/** GAP-074: list and board items carry the server's allowed actions for this actor (same matrix as the details page). */
+async function vendorItemsFor(q: Q, actor: VendorActor, orders: Order[], at?: Date): Promise<VendorOrderListItem[]> {
+  const items = await toVendorItems(q, orders, at);
+  const byId = new Map(orders.map((o) => [o.id, o]));
+  return items.map((i) => {
+    const order = byId.get(i.id);
+    return order ? { ...i, allowedActions: allowedActions(actor, order, i.noShowGraceMin) } : i;
+  });
+}
+
 export const vendorOperationRoutes = [
   vroute("GET", "/vendor/orders", async ({ query, actor }) => {
     const sql = db();
@@ -146,7 +157,7 @@ export const vendorOperationRoutes = [
       "o.id",
     );
     const { items, pagination } = await paged(query, total, 15, async (limit, offset) =>
-      toVendorItems(sql, await ordersWhere(sql, filter, sql`${sort} limit ${limit} offset ${offset}`)),
+      vendorItemsFor(sql, actor, await ordersWhere(sql, filter, sql`${sort} limit ${limit} offset ${offset}`)),
     );
     return ok(items, "OK", {
       pagination,
@@ -303,7 +314,7 @@ export const vendorOperationRoutes = [
         .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
         .slice(0, 12),
     };
-    const items = new Map((await toVendorItems(sql, Object.values(columns).flat(), at)).map((i) => [i.id, i]));
+    const items = new Map((await vendorItemsFor(sql, actor, Object.values(columns).flat(), at)).map((i) => [i.id, i]));
     const map = (list: Order[]): VendorOrderListItem[] => list.map((o) => items.get(o.id)!);
     const board: LiveBoard = {
       branchId: query.get("branchId") ?? "all",

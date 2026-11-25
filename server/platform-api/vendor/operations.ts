@@ -84,7 +84,7 @@ export const vendorOperationRoutes = [
     const filtered = base.filter(TABS[tab]);
     const chronological = tab === "today" || tab === "upcoming" || tab === "waiting" || tab === "active";
     const items = sortBy(
-      filtered.map((o) => toVendorItem(db, o)),
+      filtered.map((o) => ({ ...toVendorItem(db, o), allowedActions: allowedActions(db, actor, o) })),
       query,
       {
         scheduledAt: (o) => o.scheduledAt,
@@ -184,7 +184,8 @@ export const vendorOperationRoutes = [
   vroute("GET", "/vendor/live", ({ db, query, actor }) => {
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const orders = db.orders.filter((o) => branchIds.includes(o.branchId));
-    const map = (list: Order[]): VendorOrderListItem[] => list.map((o) => toVendorItem(db, o));
+    // GAP-074: cards carry the server's allowed actions, so the board never guesses.
+    const map = (list: Order[]): VendorOrderListItem[] => list.map((o) => ({ ...toVendorItem(db, o), allowedActions: allowedActions(db, actor, o) }));
     const today = orders.filter((o) => isSameDay(o.scheduledAt, now()));
     const board: LiveBoard = {
       branchId: query.get("branchId") ?? "all",
