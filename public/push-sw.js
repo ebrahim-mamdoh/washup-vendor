@@ -30,7 +30,7 @@ self.addEventListener("push", (event) => {
         tag: data.id,
         dir: "rtl",
         lang: "ar",
-        icon: "/logo.svg",
+        icon: "/brand/icon.png", // GAP-085: /logo.svg does not exist
         data: { href: data.href || "/notifications" },
       });
     })(),
