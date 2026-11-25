@@ -9,18 +9,21 @@ import { branchName } from "../lookups";
 import { type VendorActor, vroute } from "../router";
 import type { MockDatabase } from "../schema";
 import { defaultPermissions } from "../seed";
-import { cleanWorkingHours } from "./engine";
+import { DEFAULT_CATEGORIES, cleanWorkingHours, pickServiceCategory } from "./engine";
 import { DEFAULT_NOTIFICATION_PREFS, cleanNotificationPrefs, slotInterval, vendorSettingsFor } from "./notify";
-import { assertBranch, assertCatalogEditable, assertOwner, findInScope, scopeBranches } from "./scope";
+import { assertBranch, assertCatalogEditable, assertOwner, findInScope, mayEditServices, scopeBranches } from "./scope";
 
-const CATEGORIES = ["exterior", "interior", "full", "deep"];
+/** GAP-048: ids of the admin catalog rows that are switched on. */
+function activeCatalogIds(db: MockDatabase, key: "serviceCategories" | "amenities"): string[] {
+  return (db.settings.catalogs?.[key] ?? []).filter((c) => c.active).map((c) => c.id);
+}
 
 function audit(db: MockDatabase, actor: VendorActor, action: string, entity: string, entityId: string, branchId: string | null, oldValue: unknown, newValue: unknown, reason?: string | null) {
   logAudit(db, { actorType: "staff", actorId: actor.staff.id, action, entity, entityId, branchId, oldValue, newValue, reason: reason ?? null });
 }
 
 function canEditServices(db: MockDatabase, actor: VendorActor) {
-  return actor.role === "owner" || (actor.role === "manager" && vendorSettingsFor(db, actor.business.id).managerCanEditServices);
+  return mayEditServices(actor, vendorSettingsFor(db, actor.business.id).managerCanEditServices);
 }
 
 function deriveOfferStatus(o: Offer): Offer["status"] {
@@ -31,7 +34,7 @@ function deriveOfferStatus(o: Offer): Offer["status"] {
   return "active";
 }
 
-function parseServiceBody(body: Record<string, unknown>) {
+function parseServiceBody(body: Record<string, unknown>, categories: string[], currentCategory?: string) {
   const name = (body.name ?? {}) as { ar?: string; en?: string };
   const description = (body.description ?? {}) as { ar?: string; en?: string };
   const nameAr = requireText(name.ar, "name.ar", "اسم الخدمة بالعربية", 2);
@@ -41,7 +44,7 @@ function parseServiceBody(body: Record<string, unknown>) {
   if (Number.isNaN(price) || price < 10 || price > 5000) throw new MockApiError("السعر يجب أن يكون بين 10 و 5000 ج.م", 422, { price: ["قيمة غير صالحة"] });
   if (Number.isNaN(durationMin) || durationMin < 2 || durationMin > 240) throw new MockApiError("المدة بين 2 و 240 دقيقة", 422, { durationMin: ["قيمة غير صالحة"] });
   const type: ServiceType = body.type === "addon" ? "addon" : "primary";
-  const category = CATEGORIES.includes(String(body.category)) ? String(body.category) : "exterior";
+  const category = pickServiceCategory(body.category, categories, currentCategory);
   return {
     name: { ar: nameAr, en: nameEn },
     description: { ar: String(description.ar ?? "").trim(), en: String(description.en ?? "").trim() },
@@ -94,7 +97,7 @@ export const vendorCatalogRoutes = [
     if (!canEditServices(db, actor)) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
     const branchId = String(body.branchId ?? "");
     assertBranch(actor, branchId);
-    const data = parseServiceBody(body);
+    const data = parseServiceBody(body, activeCatalogIds(db, "serviceCategories"));
     const svc = { id: nid("svc"), branchId, ...data };
     const { description, ...service } = svc;
     db.services.push(service);
@@ -107,12 +110,19 @@ export const vendorCatalogRoutes = [
     assertCatalogEditable(actor);
     if (!canEditServices(db, actor)) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
     const svc = findInScope(actor, db.services, params.id, "الخدمة");
-    const data = parseServiceBody(body);
+    const data = parseServiceBody(body, activeCatalogIds(db, "serviceCategories"), svc.category);
     const before = { name: svc.name.ar, price: svc.price, durationMin: svc.durationMin, active: svc.active };
     const priceChanged = data.price !== svc.price;
-    if (!data.active && svc.active && svc.type === "primary") {
+    // GAP-075: the last active primary can neither be deactivated nor turned into an add-on.
+    if (svc.active && svc.type === "primary" && (!data.active || data.type !== "primary")) {
       const remaining = db.services.filter((s) => s.branchId === svc.branchId && s.type === "primary" && s.active && s.id !== svc.id).length;
-      if (!remaining) throw new MockApiError("لا يمكن إيقاف آخر خدمة أساسية مفعّلة في الفرع", 409);
+      if (!remaining) {
+        throw new MockApiError(
+          data.active ? "لا يمكن تحويل آخر خدمة أساسية مفعّلة في الفرع إلى إضافة" : "لا يمكن إيقاف آخر خدمة أساسية مفعّلة في الفرع",
+          data.active ? 422 : 409,
+          data.active ? { type: ["يجب أن تبقى خدمة أساسية واحدة مفعّلة على الأقل"] } : undefined,
+        );
+      }
     }
     Object.assign(svc, { name: data.name, price: data.price, durationMin: data.durationMin, type: data.type, category: data.category, active: data.active });
     db.serviceDescriptions[svc.id] = data.description;
@@ -157,7 +167,7 @@ export const vendorCatalogRoutes = [
   vroute("POST", "/vendor/offers", ({ db, body, actor }) => {
     assertCatalogEditable(actor);
     assertOwner(actor, "إدارة العروض");
-    const data = parseOffer(actor, body);
+    const data = parseOffer(actor, body, activeCatalogIds(db, "serviceCategories"));
     const offer: Offer = { id: nid("of"), scope: "wash", businessId: actor.business.id, featured: false, status: body.publish ? "active" : "draft", ...data };
     offer.status = deriveOfferStatus(offer);
     db.offers.unshift(offer);
@@ -170,7 +180,7 @@ export const vendorCatalogRoutes = [
     assertOwner(actor, "إدارة العروض");
     const offer = db.offers.find((o) => o.id === params.id && o.businessId === actor.business.id && o.scope === "wash");
     if (!offer) throw new MockApiError("العرض غير موجود أو غير قابل للتعديل", 404);
-    const data = parseOffer(actor, body);
+    const data = parseOffer(actor, body, activeCatalogIds(db, "serviceCategories"));
     const before = { title: offer.title.ar, discount: offer.discountValue };
     Object.assign(offer, data);
     if (body.publish && offer.status === "draft") offer.status = "active";
@@ -227,7 +237,11 @@ export const vendorCatalogRoutes = [
     target.name = nextName;
     target.address = nextAddress;
     target.phone = String(body.phone ?? target.phone).trim();
-    target.amenities = Array.isArray(body.amenities) ? [...new Set(body.amenities.map(String))] : target.amenities;
+    // GAP-048: only amenities the admin keeps switched on.
+    const activeAmenities = activeCatalogIds(db, "amenities");
+    target.amenities = (Array.isArray(body.amenities) ? [...new Set(body.amenities.map(String))] : target.amenities).filter(
+      (a) => !activeAmenities.length || activeAmenities.includes(a),
+    );
     target.capacity = Math.round(capacity);
     target.workingHours = workingHours;
     target.active = body.active !== false;
@@ -309,6 +323,10 @@ export const vendorCatalogRoutes = [
       changes.push("business");
     }
     if (typeof body.managerCanEditServices === "boolean") {
+      // GAP-072: flipping the switch applies to every manager; the per-person toggle can then withdraw it.
+      if (body.managerCanEditServices !== s.managerCanEditServices) {
+        for (const m of db.staff) if (m.businessId === actor.business.id && m.role === "manager") m.permissions = { ...m.permissions, editServices: body.managerCanEditServices };
+      }
       s.managerCanEditServices = body.managerCanEditServices;
       changes.push("managerCanEditServices");
     }
@@ -322,7 +340,7 @@ export const vendorCatalogRoutes = [
   }),
 ];
 
-function parseOffer(actor: VendorActor, body: Record<string, unknown>) {
+function parseOffer(actor: VendorActor, body: Record<string, unknown>, categories: string[]) {
   const title = (body.title ?? {}) as { ar?: string; en?: string };
   const description = (body.description ?? {}) as { ar?: string; en?: string };
   const discountType = body.discountType === "fixed" ? "fixed" : "percent";
@@ -342,7 +360,7 @@ function parseOffer(actor: VendorActor, body: Record<string, unknown>) {
     startAt: startAt.toISOString(),
     endAt: endAt.toISOString(),
     branchIds,
-    serviceCategories: Array.isArray(body.serviceCategories) ? body.serviceCategories.map(String).filter((c) => CATEGORIES.includes(c)) : [],
+    serviceCategories: Array.isArray(body.serviceCategories) ? body.serviceCategories.map(String).filter((c) => (categories.length ? categories : DEFAULT_CATEGORIES).includes(c)) : [],
   };
 }
 

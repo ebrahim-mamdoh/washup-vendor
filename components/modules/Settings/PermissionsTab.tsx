@@ -65,7 +65,7 @@ export function PermissionsTab({ managerCanEditServices, roleMatrix, readOnly, o
             <span className="block text-sm font-semibold">السماح لمديري الفروع بتعديل الخدمات والأسعار</span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
               {value
-                ? "المدير يستطيع إضافة الخدمات وتعديل أسعارها ومددها وإيقافها في فرعه — كل تغيير يُسجل باسمه."
+                ? "المدير يستطيع إضافة الخدمات وتعديل أسعارها ومددها وإيقافها في فرعه — كل تغيير يُسجل باسمه. يمكنك سحبها من مدير بعينه من صفحة الموظفين."
                 : "المدير يرى قائمة الخدمات والأسعار للعرض فقط، والتعديل لك وحدك."}
             </span>
           </span>

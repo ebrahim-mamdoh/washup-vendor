@@ -6,6 +6,7 @@ import { MockApiError } from "../../http";
 import type { VendorActor } from "../../router";
 import type { Identity } from "../auth";
 import { branchesWhere, businessesWhere, staffWhere } from "../entities";
+import { mayEditServices } from "../../vendor/scope";
 import { vendorSettingsFor } from "../platform";
 import type { Q } from "../sql";
 
@@ -18,6 +19,7 @@ export {
   assertNotSuspended,
   assertOwner,
   capPermissions,
+  mayEditServices,
   scopeBranches,
   singleBranch,
   suspendedAllows,
@@ -78,7 +80,7 @@ export async function toVendorAccount(q: Q, actor: VendorActor): Promise<VendorA
     }),
     permissions: actor.staff.permissions,
     maxDiscountPct: actor.staff.maxDiscountPct,
-    canEditServices: actor.role === "owner" || (actor.role === "manager" && settings.managerCanEditServices),
+    canEditServices: mayEditServices(actor, settings.managerCanEditServices),
     lastLoginAt: null,
   };
 }

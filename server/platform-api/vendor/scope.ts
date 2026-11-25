@@ -9,6 +9,16 @@ import type { VendorActor } from "../router";
 import type { MockDatabase } from "../schema";
 import { vendorSettingsFor } from "./notify";
 
+/**
+ * GAP-072: who may edit services. The owner always; a manager only when the business allows
+ * managers to (`managerCanEditServices`) AND their own `editServices` permission is on.
+ * Turning the business switch on/off sets every manager's `editServices` (see PUT /vendor/settings),
+ * so the per-person toggle then lets the owner withdraw it from one manager.
+ */
+export function mayEditServices(actor: VendorActor, managerCanEditServices: boolean): boolean {
+  return actor.role === "owner" || (actor.role === "manager" && managerCanEditServices && actor.staff.permissions.editServices === true);
+}
+
 /** Token → signed-in owner/manager, or null when the session is invalid. */
 export function resolveVendorActor(db: MockDatabase, token: string): VendorActor | null {
   const staffId = db.vendorSessions[token];
@@ -41,7 +51,7 @@ export function toVendorAccount(db: MockDatabase, actor: VendorActor): VendorAcc
       .map((b) => ({ id: b.id, name: b.name, area: b.area, active: b.active, capacity: b.capacity })),
     permissions: actor.staff.permissions,
     maxDiscountPct: actor.staff.maxDiscountPct,
-    canEditServices: actor.role === "owner" || (actor.role === "manager" && settings.managerCanEditServices),
+    canEditServices: mayEditServices(actor, settings.managerCanEditServices),
     lastLoginAt: null,
   };
 }

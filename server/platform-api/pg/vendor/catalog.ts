@@ -9,14 +9,14 @@ import { daysAgo, now } from "../../db";
 import { MockApiError, ok, requireText } from "../../http";
 import type { VendorActor } from "../../router";
 import { defaultPermissions } from "../../seed";
-import { cleanWorkingHours } from "../../vendor/engine";
+import { DEFAULT_CATEGORIES, cleanWorkingHours, pickServiceCategory } from "../../vendor/engine";
 import { DEFAULT_NOTIFICATION_PREFS, cleanNotificationPrefs, slotInterval } from "../../vendor/notify";
 import { BRANCH_COLS, SERVICE_COLS, branchById, e164, offersWhere, servicesWhere } from "../entities";
 import { dayBounds, searchPattern } from "../list";
 import { defaultCommissionPct, logAudit, pushAdminNotification, vendorSettingsFor } from "../platform";
 import { vroute } from "../router";
 import { type Q, db, tx } from "../sql";
-import { assertBranch, assertCatalogEditable, assertOwner, inScope, scopeBranches } from "./scope";
+import { assertBranch, assertCatalogEditable, assertOwner, inScope, mayEditServices, scopeBranches } from "./scope";
 
 /**
  * Vendor catalog on Postgres: services (D8), wash offers (D9), branches and
@@ -24,7 +24,11 @@ import { assertBranch, assertCatalogEditable, assertOwner, inScope, scopeBranche
  * messages and audit entries as `../../vendor/catalog.ts`.
  */
 
-const CATEGORIES = ["exterior", "interior", "full", "deep"];
+/** GAP-048: ids of the admin catalog rows that are switched on. */
+async function activeCatalogIds(q: Q, table: "service_categories" | "amenities"): Promise<string[]> {
+  const rows = await q<{ id: string }[]>`select id from ${q("public." + table)} where active order by sort_order, id`;
+  return rows.map((r) => r.id);
+}
 const OFFER_STATUSES = ["draft", "scheduled", "active", "expired", "disabled"] as const;
 
 function audit(q: Q, actor: VendorActor, action: string, entity: string, entityId: string, branchId: string | null, oldValue: unknown, newValue: unknown, reason?: string | null) {
@@ -32,7 +36,8 @@ function audit(q: Q, actor: VendorActor, action: string, entity: string, entityI
 }
 
 async function canEditServices(q: Q, actor: VendorActor) {
-  return actor.role === "owner" || (actor.role === "manager" && (await vendorSettingsFor(q, actor.business.id)).managerCanEditServices);
+  if (actor.role === "owner") return true;
+  return mayEditServices(actor, (await vendorSettingsFor(q, actor.business.id)).managerCanEditServices);
 }
 
 function deriveOfferStatus(o: Pick<Offer, "status" | "startAt" | "endAt">): Offer["status"] {
@@ -66,7 +71,7 @@ function parsePrice(raw: unknown, loc: Locale): number {
   return Math.round(price * factor) / factor;
 }
 
-function parseServiceBody(body: Record<string, unknown>, loc: Locale) {
+function parseServiceBody(body: Record<string, unknown>, loc: Locale, categories: string[], currentCategory?: string) {
   const name = (body.name ?? {}) as { ar?: string; en?: string };
   const description = (body.description ?? {}) as { ar?: string; en?: string };
   const nameAr = requireText(name.ar, "name.ar", "اسم الخدمة بالعربية", 2);
@@ -75,7 +80,7 @@ function parseServiceBody(body: Record<string, unknown>, loc: Locale) {
   const durationMin = Number(body.durationMin);
   if (Number.isNaN(durationMin) || durationMin < 2 || durationMin > 240) throw new MockApiError("المدة بين 2 و 240 دقيقة", 422, { durationMin: ["قيمة غير صالحة"] });
   const type: ServiceType = body.type === "addon" ? "addon" : "primary";
-  const category = CATEGORIES.includes(String(body.category)) ? String(body.category) : "exterior";
+  const category = pickServiceCategory(body.category, categories, currentCategory);
   return {
     name: { ar: nameAr, en: nameEn },
     description: { ar: String(description.ar ?? "").trim(), en: String(description.en ?? "").trim() },
@@ -87,7 +92,7 @@ function parseServiceBody(body: Record<string, unknown>, loc: Locale) {
   };
 }
 
-function parseOffer(actor: VendorActor, body: Record<string, unknown>) {
+function parseOffer(actor: VendorActor, body: Record<string, unknown>, categories: string[]) {
   const title = (body.title ?? {}) as { ar?: string; en?: string };
   const description = (body.description ?? {}) as { ar?: string; en?: string };
   const discountType = body.discountType === "fixed" ? "fixed" : "percent";
@@ -108,7 +113,7 @@ function parseOffer(actor: VendorActor, body: Record<string, unknown>) {
     endAt: endAt.toISOString(),
     branchIds: [...new Set(branchIds)],
     serviceCategories: Array.isArray(body.serviceCategories)
-      ? [...new Set(body.serviceCategories.map(String).filter((c) => CATEGORIES.includes(c)))]
+      ? [...new Set(body.serviceCategories.map(String).filter((c) => (categories.length ? categories : DEFAULT_CATEGORIES).includes(c)))]
       : [],
   };
 }
@@ -202,7 +207,7 @@ export const vendorCatalogRoutes = [
       if (!(await canEditServices(t, actor))) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
       const branchId = String(body.branchId ?? "");
       assertBranch(actor, branchId);
-      const data = parseServiceBody(body, await branchLocale(t, branchId));
+      const data = parseServiceBody(body, await branchLocale(t, branchId), await activeCatalogIds(t, "service_categories"));
       const [{ id }] = await t<{ id: string }[]>`
         insert into public.services (branch_id, type, category_id, name, description, price, duration_min, active)
         values (${branchId}, ${data.type}, ${data.category}, ${t.json(data.name)}, ${t.json(data.description)},
@@ -221,14 +226,21 @@ export const vendorCatalogRoutes = [
       if (!(await canEditServices(t, actor))) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
       const [row] = await servicesWhere(t, t`sv.id = ${params.id}`);
       const svc = inScope(actor, row, "الخدمة");
-      const data = parseServiceBody(body, await branchLocale(t, svc.branchId));
+      const data = parseServiceBody(body, await branchLocale(t, svc.branchId), await activeCatalogIds(t, "service_categories"), svc.category);
       const before = { name: svc.name.ar, price: svc.price, durationMin: svc.durationMin, active: svc.active };
       const priceChanged = data.price !== svc.price;
-      if (!data.active && svc.active && svc.type === "primary") {
+      // GAP-075: the last active primary can neither be deactivated nor turned into an add-on.
+      if (svc.active && svc.type === "primary" && (!data.active || data.type !== "primary")) {
         const [{ n }] = await t<{ n: number }[]>`
           select count(*)::int as n from public.services
           where branch_id = ${svc.branchId} and type = 'primary' and active and id <> ${svc.id}`;
-        if (!n) throw new MockApiError("لا يمكن إيقاف آخر خدمة أساسية مفعّلة في الفرع", 409);
+        if (!n) {
+          throw new MockApiError(
+            data.active ? "لا يمكن تحويل آخر خدمة أساسية مفعّلة في الفرع إلى إضافة" : "لا يمكن إيقاف آخر خدمة أساسية مفعّلة في الفرع",
+            data.active ? 422 : 409,
+            data.active ? { type: ["يجب أن تبقى خدمة أساسية واحدة مفعّلة على الأقل"] } : undefined,
+          );
+        }
       }
       await t`
         update public.services set name = ${t.json(data.name)}, description = ${t.json(data.description)}, price = ${data.price},
@@ -281,7 +293,7 @@ export const vendorCatalogRoutes = [
     assertCatalogEditable(actor);
     assertOwner(actor, "إدارة العروض");
     const offer = await tx(async (t) => {
-      const data = parseOffer(actor, body);
+      const data = parseOffer(actor, body, await activeCatalogIds(t, "service_categories"));
       const status = deriveOfferStatus({ status: body.publish ? "active" : "draft", startAt: data.startAt, endAt: data.endAt });
       const [{ id }] = await t<{ id: string }[]>`
         insert into public.offers (scope, business_id, title, description, discount_type, discount_value, starts_at, ends_at, status, featured)
@@ -300,7 +312,7 @@ export const vendorCatalogRoutes = [
     assertOwner(actor, "إدارة العروض");
     const offer = await tx(async (t) => {
       const current = await ownOffer(t, actor, params.id, "العرض غير موجود أو غير قابل للتعديل");
-      const data = parseOffer(actor, body);
+      const data = parseOffer(actor, body, await activeCatalogIds(t, "service_categories"));
       const before = { title: current.title.ar, discount: current.discountValue };
       const status = deriveOfferStatus({
         status: body.publish && current.status === "draft" ? "active" : current.status,
@@ -366,12 +378,14 @@ export const vendorCatalogRoutes = [
       const location = (await branchLocation(t, body, target.id)) ?? { lat: target.lat, lng: target.lng };
       const before = { name: target.name.ar, capacity: target.capacity, active: target.active, lat: target.lat, lng: target.lng };
       const deactivating = target.active && body.active === false;
+      const activeAmenities = await activeCatalogIds(t, "amenities");
 
       const next = {
         name: { ar: requireText(name.ar, "name.ar", "اسم الفرع", 2), en: String(name.en ?? target.name.en).trim() || target.name.en },
         address: { ar: requireText(address.ar, "address.ar", "العنوان", 3), en: String(address.en ?? target.address.en).trim() || target.address.en },
         phone: e164(String(body.phone ?? target.phone).trim(), (await branchLocale(t, target.id)).dialCode),
-        amenities: Array.isArray(body.amenities) ? [...new Set(body.amenities.map(String))] : target.amenities,
+        // GAP-048: only amenities the admin keeps switched on.
+        amenities: (Array.isArray(body.amenities) ? [...new Set(body.amenities.map(String))] : target.amenities).filter((a) => !activeAmenities.length || activeAmenities.includes(a)),
         capacity: Math.round(capacity),
         active: body.active !== false,
       };
@@ -494,6 +508,12 @@ export const vendorCatalogRoutes = [
       }
       if (typeof body.managerCanEditServices === "boolean") {
         await t`update public.business_settings set manager_can_edit_services = ${body.managerCanEditServices} where business_id = ${actor.business.id}`;
+        // GAP-072: flipping the switch applies to every manager; the per-person toggle can then withdraw it.
+        if (body.managerCanEditServices !== s.managerCanEditServices) {
+          await t`
+            update public.staff set permissions = coalesce(permissions, '{}'::jsonb) || jsonb_build_object('editServices', ${body.managerCanEditServices}::boolean)
+            where business_id = ${actor.business.id} and role = 'manager'`;
+        }
         changes.push("managerCanEditServices");
       }
       if (body.notificationPrefs && typeof body.notificationPrefs === "object") {
