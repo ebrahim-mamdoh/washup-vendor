@@ -466,7 +466,8 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       const discount = withManualDiscount(o, offer ? offerAmount(offer, primaryPrice(o.items)) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       const total = await writeTotals(t, o, o.items, discount);
       await audit(t, actor, o, "order.discount", old, total, reason);
-      return `تم تطبيق الخصم — الإجمالي الآن ${total} ج.م`;
+      // GAP-082: say what was applied; clients show the returned order's subtotal/discount/total.
+      return `تم تطبيق خصم ${manual} ج.م — الإجمالي الآن ${total} ج.م`;
     }
     case "note": {
       const text = typeof payload.text === "string" ? payload.text.trim() : "";

@@ -567,7 +567,8 @@ export function performAction(db: MockDatabase, actor: VendorActor, o: Order, pa
       o.discount = withManualDiscount(o, offer ? offerAmount(offer, primaryPrice(o.items)) : null, manual, payload.discountType === "fixed" ? 0 : value, reason);
       recomputeTotals(db, o);
       audit(db, actor, o, "order.discount", old, o.total, reason);
-      return `تم تطبيق الخصم — الإجمالي الآن ${o.total} ج.م`;
+      // GAP-082: say what was applied; clients show the returned order's subtotal/discount/total.
+      return `تم تطبيق خصم ${manual} ج.م — الإجمالي الآن ${o.total} ج.م`;
     }
     case "note": {
       const text = typeof payload.text === "string" ? payload.text.trim() : "";
@@ -601,7 +602,8 @@ export function parseDiscountValue(
   const capped = discountType === "fixed" ? Math.min(value, subtotal) : value;
   const pct = discountType === "fixed" ? (subtotal > 0 ? (capped / subtotal) * 100 : 0) : value;
   if (pct > maxPct) {
-    throw new MockApiError(`الحد الأقصى لخصمك ${maxPct}٪ — هذا الخصم ${Math.round(pct)}٪`, 403);
+    // GAP-082: the limit is a share of the services subtotal (before offers), not of the total.
+    throw new MockApiError(`الحد الأقصى لخصمك ${maxPct}٪ من قيمة الخدمات (${subtotal}) قبل العروض — هذا الخصم ${Math.round(pct)}٪`, 403);
   }
   const manual = discountType === "fixed" ? capped : Math.round((subtotal * value) / 100);
   return { value, manual };
