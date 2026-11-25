@@ -1,4 +1,4 @@
--- NOT APPLIED — to be reviewed and applied by the lead
+-- APPLIED to tbcmgdwzarfdgzzmmele on 2026-11-26 by the lead (recorded as 20261126100100; renumbered from 20261126100000 to avoid colliding with super-admin admin_notification_reads).
 --
 -- GAP-072 (system audit). The per-person `editServices` permission was stored but never enforced:
 -- a manager could edit services whenever the business switch `manager_can_edit_services` was on.

@@ -1,4 +1,4 @@
--- NOT APPLIED — to be reviewed and applied by the lead
+-- APPLIED to tbcmgdwzarfdgzzmmele on 2026-11-26 by the lead (recorded in schema_migrations as 20261126110000).
 --
 -- GAP-095 (system audit). `vendor_notifications.read` is one flag shared by every staff member of a
 -- business: one person's "read all" cleared everyone's badge. This adds per-staff read receipts.
