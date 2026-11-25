@@ -948,6 +948,32 @@ export function isPlausibleDuration(d: number | null): d is number {
   return d !== null && d >= 0 && d <= 12 * 60;
 }
 
+/** Service categories the platform shipped with (used only when the admin catalog is empty). */
+export const DEFAULT_CATEGORIES = ["exterior", "interior", "full", "deep"];
+
+/**
+ * GAP-048: a service's category must be one the admin keeps switched on (`service_categories.active`).
+ * A service may keep the category it already has (renaming a service in a category the admin later
+ * disabled still works); missing → the current one, else the first active one.
+ */
+export function pickServiceCategory(raw: unknown, active: string[], current?: string): string {
+  const list = active.length ? active : DEFAULT_CATEGORIES;
+  const value = raw === undefined || raw === null || raw === "" ? (current ?? list[0]) : String(raw);
+  if (value === current || list.includes(value)) return value;
+  throw new MockApiError("هذا التصنيف غير متاح حاليًا — اختر تصنيفًا آخر", 422, { category: ["تصنيف غير متاح"] });
+}
+
+/**
+ * GAP-078: shift review rules (mock and Postgres). Nobody but the owner reviews their own
+ * shift; submitted → reviewed | flagged, and a flagged shift may be resolved → reviewed once.
+ * A reviewed shift is final.
+ */
+export function assertShiftReview(actor: VendorActor, shiftStaffId: string, from: string, to: "reviewed" | "flagged"): void {
+  if (shiftStaffId === actor.staff.id && actor.role !== "owner") throw new MockApiError("لا يمكنك مراجعة ورديتك بنفسك — يراجعها المدير أو المالك", 403);
+  if (from === "reviewed") throw new MockApiError("تمت مراجعة هذه الوردية بالفعل — لا يمكن تعديل المراجعة", 409);
+  if (from === "flagged" && to === "flagged") throw new MockApiError("الوردية مميزة للمتابعة بالفعل — أغلقها بـ «تمت المراجعة» بعد المتابعة", 409);
+}
+
 /** A day that may be closed: a valid "YYYY-MM-DD" that is today or earlier. */
 export function assertClosableDay(date: string): void {
   parseDay(date);

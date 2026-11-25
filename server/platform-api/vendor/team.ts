@@ -11,6 +11,7 @@ import type { MockDatabase } from "../schema";
 import { defaultPermissions } from "../seed";
 import {
   assertClosableDay,
+  assertShiftReview,
   atMinutes,
   cairoDateParts,
   cleanShiftPatterns,
@@ -254,9 +255,14 @@ export const vendorTeamRoutes = [
       const t = new Date(o.scheduledAt).getTime();
       return o.assignedStaffId === shift.staffId && o.status === "completed" && t >= start - 3600000 && t <= ended.getTime();
     });
-    const paid = orders.filter((o) => o.paymentStatus === "paid");
-    const cash = paid.filter((o) => o.paymentMethod === "cash").reduce((s, o) => s + o.total, 0);
-    const card = paid.filter((o) => o.paymentMethod === "card").reduce((s, o) => s + o.total, 0);
+    // GAP-041: the drawer holds what THIS person collected during the shift, not the totals of
+    // orders assigned to them.
+    const collected = db.payments.filter((p) => {
+      const t = new Date(p.collectedAt).getTime();
+      return p.collectedBy === shift.staffId && p.status === "paid" && t >= start && t <= ended.getTime();
+    });
+    const cash = round2(collected.filter((p) => p.method === "cash").reduce((s, p) => s + p.amount, 0));
+    const card = round2(collected.filter((p) => p.method === "card").reduce((s, p) => s + p.amount, 0));
     const difference = round2(actualCash - cash);
     const reasonText = typeof body.reason === "string" ? body.reason.trim() : "";
     if (difference !== 0 && reasonText.length < 3) throw new MockApiError("يوجد فرق في الصندوق — اكتب السبب", 422, { reason: ["مطلوب عند وجود فرق"] });
@@ -305,9 +311,18 @@ export const vendorTeamRoutes = [
     if (!shift || !actor.branchIds.includes(shift.branchId)) throw new MockApiError("الوردية غير موجودة", 404);
     const start = new Date(shift.actualStart ?? shift.scheduledStart).getTime();
     const end = new Date(shift.actualEnd ?? now()).getTime();
+    // Orders this person served in the window, plus orders whose payment they collected (GAP-041).
+    const collectedIds = new Set(
+      db.payments
+        .filter((p) => {
+          const t = new Date(p.collectedAt).getTime();
+          return p.collectedBy === shift.staffId && p.status === "paid" && t >= start && t <= end;
+        })
+        .map((p) => p.orderId),
+    );
     const orders = db.orders.filter((o) => {
       const t = new Date(o.scheduledAt).getTime();
-      return o.assignedStaffId === shift.staffId && o.status === "completed" && t >= start - 3600000 && t <= end;
+      return (o.assignedStaffId === shift.staffId && o.status === "completed" && t >= start - 3600000 && t <= end) || collectedIds.has(o.id);
     });
     return ok({
       shift: toClosing(db, shift),
@@ -322,6 +337,7 @@ export const vendorTeamRoutes = [
     if (!shift || !actor.branchIds.includes(shift.branchId)) throw new MockApiError("الوردية غير موجودة", 404);
     if (shift.reviewStatus === "open") throw new MockApiError("الوردية ما زالت مفتوحة — لا يمكن مراجعتها قبل الإغلاق", 409);
     const status = body.status === "flagged" ? "flagged" : "reviewed";
+    assertShiftReview(actor, shift.staffId, shift.reviewStatus, status);
     const note = requireText(body.note, "note", "ملاحظة المراجعة", 3);
     const old = shift.reviewStatus;
     shift.reviewStatus = status;

@@ -11,7 +11,7 @@ import { MockApiError, ok, requireText, sortBy } from "../../http";
 import type { VendorActor } from "../../router";
 import type { Shift } from "../../schema";
 import { defaultPermissions } from "../../seed";
-import { assertClosableDay, atMinutes, cairoDateParts, cleanShiftPatterns, clockToMin, dayKey, hasManualDiscount, isPlausibleDuration } from "../../vendor/engine";
+import { assertClosableDay, assertShiftReview, atMinutes, cairoDateParts, cleanShiftPatterns, clockToMin, dayKey, hasManualDiscount, isPlausibleDuration } from "../../vendor/engine";
 import { createLogin, isLocalAuth, loginNotice } from "../auth";
 import { PHONE, auditWhere, dayClosingsWhere, shiftsWhere, staffById, staffWhere } from "../entities";
 import { dayBounds, paged, searchPattern } from "../list";
@@ -361,16 +361,24 @@ export const vendorTeamRoutes = [
       if (!current) throw new MockApiError("لا توجد وردية مفتوحة لإنهائها", 409);
       const ended = now();
       const start = new Date(current.actualStart ?? current.scheduledStart).toISOString();
-      const stats = await t<{ n: number; cash: number; card: number }[]>`
-        select count(*)::int as n,
-               coalesce(sum(o.total) filter (where o.payment_status = 'paid' and o.payment_method = 'cash'), 0) as cash,
-               coalesce(sum(o.total) filter (where o.payment_status = 'paid' and o.payment_method = 'card'), 0) as card
-        from public.orders o
-        where o.assigned_staff_id = ${current.staffId} and o.status = 'completed'
-          and o.scheduled_at >= ${start}::timestamptz - interval '1 hour' and o.scheduled_at <= ${ended.toISOString()}::timestamptz`;
-      const cash = stats[0]?.cash ?? 0;
-      const card = stats[0]?.card ?? 0;
-      const n = stats[0]?.n ?? 0;
+      // GAP-041: the drawer holds what THIS person collected during the shift
+      // (payments.collected_by / collected_at), not the totals of orders assigned to them.
+      const [[served], [collected]] = await Promise.all([
+        t<{ n: number }[]>`
+          select count(*)::int as n
+          from public.orders o
+          where o.assigned_staff_id = ${current.staffId} and o.status = 'completed'
+            and o.scheduled_at >= ${start}::timestamptz - interval '1 hour' and o.scheduled_at <= ${ended.toISOString()}::timestamptz`,
+        t<{ cash: number; card: number }[]>`
+          select coalesce(sum(p.amount) filter (where p.method = 'cash'), 0) as cash,
+                 coalesce(sum(p.amount) filter (where p.method = 'card'), 0) as card
+          from public.payments p
+          where p.collected_by = ${current.staffId} and p.status = 'paid'
+            and p.collected_at >= ${start}::timestamptz and p.collected_at <= ${ended.toISOString()}::timestamptz`,
+      ]);
+      const cash = Number(collected?.cash ?? 0);
+      const card = Number(collected?.card ?? 0);
+      const n = served?.n ?? 0;
       const difference = round2(actualCash - cash);
       const reasonText = typeof body.reason === "string" ? body.reason.trim() : "";
       if (difference !== 0 && reasonText.length < 3) throw new MockApiError("يوجد فرق في الصندوق — اكتب السبب", 422, { reason: ["مطلوب عند وجود فرق"] });
@@ -439,10 +447,15 @@ export const vendorTeamRoutes = [
     const end = new Date(row.actualEnd ?? now()).toISOString();
     const [[shift], orders, auditLogs] = await Promise.all([
       toClosings(sql, [row]),
+      // Orders this person served in the window, plus orders whose payment they collected (GAP-041).
       sql<{ id: string; number: string; plate: string; total: number; method: PaymentMethod | null; paid: boolean; at: string }[]>`
         select o.id, o.number, o.plate, o.total, o.payment_method as method, (o.payment_status = 'paid') as paid, o.scheduled_at as at
         from public.orders o
-        where o.assigned_staff_id = ${row.staffId} and o.status = 'completed' and o.scheduled_at >= ${start} and o.scheduled_at <= ${end}
+        where (o.assigned_staff_id = ${row.staffId} and o.status = 'completed' and o.scheduled_at >= ${start} and o.scheduled_at <= ${end})
+           or exists (
+             select 1 from public.payments p
+             where p.order_id = o.id and p.collected_by = ${row.staffId} and p.status = 'paid'
+               and p.collected_at >= ${new Date(row.actualStart ?? row.scheduledStart).toISOString()} and p.collected_at <= ${end})
         order by o.scheduled_at, o.id`,
       auditWhere(sql, sql`al.entity_id = ${row.id}`, sql`order by al.at desc, al.id`),
     ]);
@@ -456,12 +469,13 @@ export const vendorTeamRoutes = [
       if (!current || !actor.branchIds.includes(current.branchId)) throw new MockApiError("الوردية غير موجودة", 404);
       if (current.reviewStatus === "open") throw new MockApiError("الوردية ما زالت مفتوحة — لا يمكن مراجعتها قبل الإغلاق", 409);
       const status = body.status === "flagged" ? "flagged" : "reviewed";
+      assertShiftReview(actor, current.staffId, current.reviewStatus, status);
       const note = requireText(body.note, "note", "ملاحظة المراجعة", 3);
-      // Guard in the WHERE clause: a shift reopened meanwhile can't be reviewed.
+      // Guard in the WHERE clause: the shift must still be in the state we checked.
       const updated = await t`
         update public.staff_shifts set review_status = ${status}, review_note = ${note}, reviewed_by = ${actor.staff.id}
-        where id = ${current.id} and review_status <> 'open' returning id`;
-      if (!updated.length) throw new MockApiError("الوردية ما زالت مفتوحة — لا يمكن مراجعتها قبل الإغلاق", 409);
+        where id = ${current.id} and review_status = ${current.reviewStatus} returning id`;
+      if (!updated.length) throw new MockApiError("تغيّرت حالة الوردية — حدّث الصفحة وحاول مرة أخرى", 409);
       await logAudit(t, {
         actorType: "staff",
         actorId: actor.staff.id,

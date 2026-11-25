@@ -202,6 +202,15 @@ function ReviewPanel({ details }: { details: ShiftDetails }) {
       </p>
     );
   }
+  // GAP-078 (server-enforced): a reviewed shift is final; only the owner reviews their own shift.
+  if (shift.status === "reviewed" || (shift.staffId === account.id && account.role !== "owner")) {
+    return (
+      <p className="flex items-start gap-2 border-t bg-muted/50 px-5 py-4 text-xs text-muted-foreground">
+        <Info className="mt-0.5 size-3.5 shrink-0" />
+        {shift.status === "reviewed" ? "تمت مراجعة هذه الوردية — المراجعة نهائية." : "لا يمكنك مراجعة ورديتك بنفسك — يراجعها المدير أو المالك."}
+      </p>
+    );
+  }
 
   const submit = (status: "reviewed" | "flagged") => handleSubmit((v) => review.mutate({ id: shift.id, status, note: v.note.trim() }))();
   const busy = (status: "reviewed" | "flagged") => review.isPending && review.variables?.status === status;
