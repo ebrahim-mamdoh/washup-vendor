@@ -19,6 +19,7 @@ import type { CsvColumn } from "@/lib/export-csv";
 import { formatAuditValue, formatDateTime, formatRelative } from "@/lib/format";
 import { useBranchScope } from "@/hooks/use-branch-scope";
 import { useAudit } from "@/hooks/use-insights";
+import { fetchAudit } from "@/lib/services/insights.service";
 import type { VendorAuditItem } from "@/types/vendor/insights";
 
 const CARZEN_ADMIN = "إدارة Wash Up";
@@ -83,15 +84,15 @@ export default function AuditPageContent() {
   const { branchId, isAll } = useBranchScope();
   const [state, setState] = useUrlState({ actorId: "all", action: "all", from: "", to: "", search: "", page: 1 });
 
-  const { data, isLoading, isFetching, error, refetch } = useAudit({
+  const listParams = {
     branchId,
     actorId: state.actorId,
     action: state.action,
     from: state.from || undefined,
     to: state.to || undefined,
     search: state.search,
-    page: state.page,
-  });
+  };
+  const { data, isLoading, isFetching, error, refetch } = useAudit({ ...listParams, page: state.page });
 
   const meta = data?.meta;
   const hasFilters = state.actorId !== "all" || state.action !== "all" || Boolean(state.from || state.to || state.search);
@@ -195,7 +196,12 @@ export default function AuditPageContent() {
       <PageHeader
         title="سجل التدقيق"
         description="كل إجراء على الطلبات والأسعار والخصومات والإلغاءات والتحصيل والورديات — من نفّذه، متى، في أي فرع، القيمة قبل وبعد، والسبب."
-        actions={<ExportCsvButton filename="washup-wash-audit" columns={CSV} rows={data?.items} />}
+        actions={<ExportCsvButton
+            filename="washup-wash-audit"
+            columns={CSV}
+            rows={data?.items}
+            fetchPage={(page, per_page) => fetchAudit({ ...listParams, page, per_page })}
+          />}
       />
 
       <div className="flex items-start gap-3 rounded-2xl border border-info/30 bg-info/5 p-4" role="note">

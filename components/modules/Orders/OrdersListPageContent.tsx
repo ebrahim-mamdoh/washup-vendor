@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { OrderActions } from "@/components/modules/Orders/actions/OrderActions";
 import { useBranchScope } from "@/hooks/use-branch-scope";
 import { useBulkConfirm, useOrders } from "@/hooks/use-operations";
+import { fetchOrders } from "@/lib/services/operations.service";
 import { useStaff } from "@/hooks/use-team";
 import { useUIStore } from "@/lib/store/ui-store";
 import type { OrderSource } from "@/types/orders";
@@ -97,7 +98,7 @@ export default function OrdersListPageContent({ view }: { view: View }) {
   const [selected, setSelected] = useState<string[]>([]);
   const bulk = useBulkConfirm(() => setSelected([]));
 
-  const { data, isLoading, isFetching, error, refetch } = useOrders({
+  const listParams = {
     branchId,
     view,
     tab: state.tab as never,
@@ -107,8 +108,8 @@ export default function OrdersListPageContent({ view }: { view: View }) {
     search: state.search,
     sort: state.sort,
     order: state.order as "asc" | "desc",
-    page: state.page,
-  });
+  };
+  const { data, isLoading, isFetching, error, refetch } = useOrders({ ...listParams, page: state.page });
   const staff = useStaff({ branchId, role: "all" });
   const staffOptions = (staff.data?.items ?? []).filter((s) => s.role !== "owner").map((s) => ({ value: s.id, label: s.name }));
 
@@ -206,7 +207,12 @@ export default function OrdersListPageContent({ view }: { view: View }) {
         description={COPY[view].description}
         actions={
           <>
-            <ExportCsvButton filename={`washup-${view}`} columns={CSV} rows={data?.items} />
+            <ExportCsvButton
+              filename={`washup-${view}`}
+              columns={CSV}
+              rows={data?.items}
+              fetchPage={(page, per_page) => fetchOrders({ ...listParams, page, per_page })}
+            />
             <Button size="lg" onClick={() => (view === "orders" ? setNewOrderOpen(true) : openNewOrder(undefined, "phone"))}>
               {view === "orders" ? <Footprints /> : <CalendarDays />}
               {view === "orders" ? "طلب جديد" : "حجز هاتفي"}

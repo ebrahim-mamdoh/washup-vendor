@@ -18,6 +18,7 @@ import { formatDate, formatMoney, formatNumber, formatRelative } from "@/lib/for
 import { PlateChip, SegmentBadge, SegmentLegend } from "@/components/modules/Customers/customer-bits";
 import { useBranchScope } from "@/hooks/use-branch-scope";
 import { useCustomers } from "@/hooks/use-insights";
+import { fetchCustomers } from "@/lib/services/insights.service";
 import type { CustomerSegment, VendorCustomer } from "@/types/vendor/insights";
 
 const SEGMENTS: (CustomerSegment | "all")[] = ["all", "new", "returning", "lost"];
@@ -91,14 +92,14 @@ export default function CustomersPageContent() {
   const { branchId, isAll, branchName } = useBranchScope();
   const [state, setState] = useUrlState({ segment: "all", search: "", sort: "lastVisitAt", order: "desc", page: 1 });
 
-  const { data, isLoading, isFetching, error, refetch } = useCustomers({
+  const listParams = {
     branchId,
     segment: state.segment as CustomerSegment | "all",
     search: state.search,
     sort: state.sort,
     order: state.order as "asc" | "desc",
-    page: state.page,
-  });
+  };
+  const { data, isLoading, isFetching, error, refetch } = useCustomers({ ...listParams, page: state.page });
 
   const hasFilters = state.segment !== "all" || Boolean(state.search);
   const clear = () => setState({ segment: "all", search: "" });
@@ -114,7 +115,12 @@ export default function CustomersPageContent() {
       <PageHeader
         title="العملاء"
         description={`كل من زار ${isAll ? "فروعك" : branchName(branchId)} — الزيارات والإنفاق والخدمة المفضلة. اعرف عملاءك المتكررين وتابع المنقطعين.`}
-        actions={<ExportCsvButton filename="washup-customers" columns={CSV} rows={data?.items} />}
+        actions={<ExportCsvButton
+            filename="washup-customers"
+            columns={CSV}
+            rows={data?.items}
+            fetchPage={(page, per_page) => fetchCustomers({ ...listParams, page, per_page })}
+          />}
       />
 
       <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-soft">
