@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp } from "@/server/platform-api/throttle";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ function sniff(head: Uint8Array): Kind | null {
 }
 
 function uploadThrottled(req: Request): boolean {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local";
+  const ip = clientIp(req); // GAP-064: never the client-sent first X-Forwarded-For entry
   const g = globalThis as typeof globalThis & { [THROTTLE_KEY]?: Map<string, number[]> };
   const map: Map<string, number[]> = (g[THROTTLE_KEY] ??= new Map<string, number[]>());
   const at = Date.now();

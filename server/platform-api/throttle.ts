@@ -16,6 +16,22 @@ function attempts(): Map<string, number[]> {
   return g[KEY];
 }
 
+/**
+ * GAP-064: the client IP used as throttle key. A client can send any `X-Forwarded-For`, so its
+ * first entry is never trusted:
+ * - on Vercel, the edge sets `x-vercel-forwarded-for` / `x-real-ip` from the connection itself
+ *   (client-sent values are overwritten);
+ * - elsewhere, the LAST `X-Forwarded-For` entry (added by the nearest proxy), then `x-real-ip`.
+ * Counters stay in this instance's memory (per serverless instance; Supabase Auth limits apply too).
+ */
+export function clientIp(req: Request): string {
+  const h = req.headers;
+  const first = (v: string | null) => v?.split(",")[0]?.trim() || "";
+  if (process.env.VERCEL) return first(h.get("x-vercel-forwarded-for")) || h.get("x-real-ip")?.trim() || "unknown";
+  const chain = (h.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  return chain[chain.length - 1] || h.get("x-real-ip")?.trim() || "local";
+}
+
 export function isLoginPath(segments: string[]): boolean {
   return segments.length === 3 && segments[1] === "auth" && (segments[2] === "login" || segments[2] === "forgot-password");
 }
@@ -38,7 +54,7 @@ export function isApplicationPhoneLookup(segments: string[]): boolean {
  * `bucket` keeps separate budgets (sign-in vs. application lookups) for the same IP.
  */
 export function loginThrottle(req: Request, bucket = "login"): number {
-  const ip = `${bucket}:${req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local"}`;
+  const ip = `${bucket}:${clientIp(req)}`;
   const at = Date.now();
   const map = attempts();
   const recent = (map.get(ip) ?? []).filter((t) => at - t < WINDOW_MS);

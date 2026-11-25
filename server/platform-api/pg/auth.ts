@@ -32,6 +32,21 @@ function cache(): Cache {
   return g[SESSIONS_KEY];
 }
 
+/** GAP-064: the token cache is bounded — expired entries go first, then the oldest. */
+const TOKEN_CACHE_MAX = 2000;
+function rememberToken(token: string, identity: Identity) {
+  const tokens = cache().tokens;
+  tokens.delete(token);
+  tokens.set(token, { identity, until: Date.now() + TOKEN_CACHE_MS });
+  if (tokens.size <= TOKEN_CACHE_MAX) return;
+  const at = Date.now();
+  for (const [k, v] of tokens) if (v.until <= at) tokens.delete(k);
+  for (const k of tokens.keys()) {
+    if (tokens.size <= TOKEN_CACHE_MAX) break;
+    tokens.delete(k);
+  }
+}
+
 export function isLocalAuth(): boolean {
   if (process.env.CARZEN_AUTH !== "local") return false;
   if (process.env.NODE_ENV === "production") {
@@ -62,7 +77,7 @@ type SupabaseTokenBody = { access_token: string; refresh_token: string; expires_
 
 function toSession(body: SupabaseTokenBody): Session {
   const identity: Identity = { kind: "supabase", userId: body.user.id };
-  cache().tokens.set(body.access_token, { identity, until: Date.now() + TOKEN_CACHE_MS });
+  rememberToken(body.access_token, identity);
   return { token: body.access_token, refreshToken: body.refresh_token, expiresIn: body.expires_in ?? null, identity };
 }
 
@@ -143,7 +158,7 @@ export async function identityFromToken(token: string): Promise<Identity | null>
   }
   const user = (await res.json()) as { id: string };
   const identity: Identity = { kind: "supabase", userId: user.id };
-  cache().tokens.set(token, { identity, until: Date.now() + TOKEN_CACHE_MS });
+  rememberToken(token, identity);
   return identity;
 }
 
