@@ -352,6 +352,8 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
   }
 
   const from = o.status;
+  // GAP-096: amounts in messages use the branch currency (ج.م, ر.س, …), not a hard-coded ج.م.
+  const cur = (await branchLocale(t, o.branchId)).symbol;
   switch (payload.action) {
     case "confirm": {
       await moveStatus(t, o, "confirmed");
@@ -385,14 +387,14 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await pushTimeline(t, o, "completed", actor);
       await ensurePendingTransaction(t, o);
       await audit(t, actor, o, "order.complete", from, "completed");
-      return `اكتملت الخدمة — بانتظار الدفع ${o.total} ج.م`;
+      return `اكتملت الخدمة — بانتظار الدفع ${o.total} ${cur}`;
     }
     case "collect_payment": {
       const method = payload.method;
       if (method !== "cash" && method !== "card") throw new MockApiError("اختر طريقة الدفع", 422);
       if (method === "cash") {
         const received = Number(payload.amountReceived ?? o.total);
-        if (Number.isNaN(received) || received < o.total) throw new MockApiError(`المبلغ المستلم أقل من الإجمالي (${o.total} ج.م)`, 422);
+        if (Number.isNaN(received) || received < o.total) throw new MockApiError(`المبلغ المستلم أقل من الإجمالي (${o.total} ${cur})`, 422);
       }
       const rows = await t`
         update public.orders set payment_status = 'paid', payment_method = ${method}
@@ -405,7 +407,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await t`update public.transactions set status = 'paid' where order_id = ${o.id}`;
       await audit(t, actor, o, "order.payment", "pending", `paid · ${PAYMENT_LABEL[method]} · ${o.total}`);
       const change = method === "cash" ? Number(payload.amountReceived ?? o.total) - o.total : 0;
-      return change > 0 ? `تم التحصيل — الباقي للعميل ${change} ج.م` : "تم تحصيل المبلغ بنجاح";
+      return change > 0 ? `تم التحصيل — الباقي للعميل ${change} ${cur}` : "تم تحصيل المبلغ بنجاح";
     }
     case "cancel": {
       const reason = readableCancelReason(requireReason(payload.reason, "سبب الإلغاء"));
@@ -456,7 +458,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
                 (select coalesce(max(position) + 1, 0) from public.order_items where order_id = ${o.id}))`;
       const total = await writeTotals(t, o, [...o.items, item], o.discount);
       await audit(t, actor, o, "order.add_service", oldTotal, `${total} (+${svc.name.ar})`);
-      return `تمت إضافة ${svc.name.ar} — الإجمالي ${total} ج.م`;
+      return `تمت إضافة ${svc.name.ar} — الإجمالي ${total} ${cur}`;
     }
     case "discount": {
       const reason = requireReason(payload.reason, "سبب الخصم");
@@ -467,7 +469,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       const total = await writeTotals(t, o, o.items, discount);
       await audit(t, actor, o, "order.discount", old, total, reason);
       // GAP-082: say what was applied; clients show the returned order's subtotal/discount/total.
-      return `تم تطبيق خصم ${manual} ج.م — الإجمالي الآن ${total} ج.م`;
+      return `تم تطبيق خصم ${manual} ${cur} — الإجمالي الآن ${total} ${cur}`;
     }
     case "note": {
       const text = typeof payload.text === "string" ? payload.text.trim() : "";
@@ -487,7 +489,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
         where id = (select id from public.payments where order_id = ${o.id} and status = 'paid' order by collected_at, id limit 1)`;
       await t`update public.transactions set status = 'refunded' where order_id = ${o.id}`;
       await audit(t, actor, o, "order.refund", "paid", "refunded", reason);
-      return `تم استرداد ${o.total} ج.م للعميل`;
+      return `تم استرداد ${o.total} ${cur} للعميل`;
     }
     default:
       throw new MockApiError(CONFLICT, 409);

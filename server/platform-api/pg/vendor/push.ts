@@ -6,7 +6,7 @@ import { vroute } from "../router";
 import { db } from "../sql";
 
 /** The signed-in staff member's Supabase Auth user (null with local auth). */
-async function staffUserId(staffId: string): Promise<string | null> {
+export async function staffUserId(staffId: string): Promise<string | null> {
   const [row] = await db()<{ userId: string | null }[]>`select user_id as "userId" from public.staff where id = ${staffId}`;
   return row?.userId ?? null;
 }

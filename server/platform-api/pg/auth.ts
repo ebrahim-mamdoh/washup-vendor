@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import type { StaffLoginResult } from "@/types/vendor/team";
+import type { StaffLoginResult, StaffLoginStatus } from "@/types/vendor/team";
 
 import { MockApiError } from "../http";
 
@@ -195,6 +195,12 @@ export function loginResult(login: NewLogin | null): StaffLoginResult {
   return { status: login.skipped === "taken" ? "taken" : "not_configured", password: null };
 }
 
+/** `data.login` plus its flat twins `tempPassword` / `loginStatus` (GAP-077). */
+export function loginFields(login: NewLogin | null): { login: StaffLoginResult; tempPassword: string | null; loginStatus: StaffLoginStatus } {
+  const result = loginResult(login);
+  return { login: result, tempPassword: result.password, loginStatus: result.status === "demo" ? "local" : result.status };
+}
+
 /** The account-created message suffix for a `createLogin` result (null: local auth, demo password). */
 export function loginNotice(login: NewLogin | null): string {
   if (!login) return "كلمة المرور المؤقتة demo1234";
@@ -236,7 +242,8 @@ function assertNewPassword(password: string) {
 export async function changePassword(accessToken: string, phoneE164: string, currentPassword: string, newPassword: string) {
   assertNewPassword(newPassword);
   const check = await signInWithPassword({ phone: phoneE164 }, currentPassword, null);
-  if (!check) throw new MockApiError("كلمة المرور الحالية غير صحيحة", 401);
+  // GAP-044: 422, not 401 — a 401 means "session ended" to the clients and signs the user out.
+  if (!check) throw new MockApiError("كلمة المرور الحالية غير صحيحة", 422, { currentPassword: ["غير صحيحة"] });
   // The check above opened a session of its own; close it (GAP-065).
   if (!isLocalAuth()) await signOut(check.token);
   if (isLocalAuth()) return;

@@ -61,7 +61,10 @@ export const vendorAuthRoutes = [
     const currentPassword = String(body.currentPassword ?? "");
     const newPassword = String(body.newPassword ?? "");
     if (newPassword.length < 8) throw new MockApiError("كلمة المرور الجديدة 8 أحرف على الأقل", 422);
-    if (db.staffPasswords[actor.staff.id] !== currentPassword) throw new MockApiError("كلمة المرور الحالية غير صحيحة", 401);
+    // GAP-044: 422, not 401 — a 401 means "session ended" to the clients and signs the user out.
+    if (db.staffPasswords[actor.staff.id] !== currentPassword) {
+      throw new MockApiError("كلمة المرور الحالية غير صحيحة", 422, { currentPassword: ["غير صحيحة"] });
+    }
     db.staffPasswords[actor.staff.id] = newPassword;
     return ok(null, "تم تغيير كلمة المرور");
   }),

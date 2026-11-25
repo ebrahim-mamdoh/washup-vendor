@@ -14,7 +14,10 @@ export interface StaffLoginResult {
   password: string | null;
 }
 
-export type CreatedStaff = Staff & { login: StaffLoginResult };
+/** Flat twins of `login` for the owner app: `tempPassword` = login.password, `loginStatus` ("local" = demo). */
+export type StaffLoginStatus = "created" | "taken" | "not_configured" | "local";
+
+export type CreatedStaff = Staff & { login: StaffLoginResult; tempPassword: string | null; loginStatus: StaffLoginStatus };
 
 export interface StaffPerformance {
   completed: number;

@@ -14,9 +14,11 @@ import {
   signOut,
 } from "../auth";
 import { staffPhoneFor } from "../locale";
+import { unregisterDevice } from "../push";
 import { logAudit } from "../platform";
 import { vroute } from "../router";
 import { db } from "../sql";
+import { staffUserId } from "./push";
 import { resolveVendorActor, toVendorAccount } from "./scope";
 
 export const vendorAuthRoutes = [
@@ -64,7 +66,11 @@ export const vendorAuthRoutes = [
 
   vroute("GET", "/vendor/auth/me", async ({ actor }) => ok(await toVendorAccount(db(), actor))),
 
-  vroute("POST", "/vendor/auth/logout", async ({ token }) => {
+  vroute("POST", "/vendor/auth/logout", async ({ token, body, actor }) => {
+    // GAP-049: forget THIS device's push token (same field as /vendor/push/unregister: `token`;
+    // `pushToken` also accepted). Only that row of this user is deleted, never other devices.
+    const pushToken = typeof body.pushToken === "string" ? body.pushToken : typeof body.token === "string" ? body.token : "";
+    if (pushToken) await unregisterDevice(db(), await staffUserId(actor.staff.id), { token: pushToken }).catch(() => undefined);
     if (token) await signOut(token);
     return ok(null, "تم تسجيل الخروج");
   }),

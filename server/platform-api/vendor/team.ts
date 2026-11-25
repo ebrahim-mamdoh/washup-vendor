@@ -154,7 +154,10 @@ export const vendorTeamRoutes = [
     db.staffPasswords[member.id] = "demo1234";
     audit(db, actor, "staff.create", "staff", member.id, branchId, null, `${name} · ${role}`);
     // GAP-077: the temporary password is also a structured field (`data.login`).
-    return ok({ ...member, login: { status: "demo" as const, password: "demo1234" } }, `تمت إضافة ${name} — كلمة المرور المؤقتة demo1234`);
+    return ok(
+      { ...member, login: { status: "demo" as const, password: "demo1234" }, tempPassword: "demo1234", loginStatus: "local" as const },
+      `تمت إضافة ${name} — كلمة المرور المؤقتة demo1234`,
+    );
   }),
 
   vroute("PATCH", "/vendor/staff/:id", ({ db, params, body, actor }) => {

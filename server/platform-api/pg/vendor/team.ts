@@ -12,7 +12,7 @@ import type { VendorActor } from "../../router";
 import type { Shift } from "../../schema";
 import { defaultPermissions } from "../../seed";
 import { assertClosableDay, assertShiftReview, atMinutes, cairoDateParts, cleanShiftPatterns, clockToMin, dayKey, hasManualDiscount, isPlausibleDuration } from "../../vendor/engine";
-import { createLogin, isLocalAuth, loginNotice, loginResult } from "../auth";
+import { createLogin, isLocalAuth, loginFields, loginNotice } from "../auth";
 import { PHONE, auditWhere, dayClosingsWhere, shiftsWhere, staffById, staffWhere } from "../entities";
 import { dayBounds, paged, searchPattern } from "../list";
 import { branchNames, onShiftAt, staffNames } from "../lookups";
@@ -249,7 +249,7 @@ export const vendorTeamRoutes = [
     });
     const { login, ...staff } = member;
     // GAP-077: the temporary password is also a structured field (`data.login`).
-    return ok({ ...staff, login: loginResult(login) }, `تمت إضافة ${staff.name} — ${loginNotice(login)}`);
+    return ok({ ...staff, ...loginFields(login) }, `تمت إضافة ${staff.name} — ${loginNotice(login)}`);
   }),
 
   vroute("PATCH", "/vendor/staff/:id", async ({ params, body, actor }) => {
