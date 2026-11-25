@@ -13,8 +13,8 @@ import type postgres from "postgres";
 import { isSameDay, now } from "../../db";
 import { MockApiError, ok, requireText } from "../../http";
 import { serviceName } from "../../lookups";
-import { atMinutes, branchZone, cleanOrderPayload, clockToMin, dayKey, hoursFor, nextActionFor, parseDay } from "../../vendor/engine";
-import { businessLocale } from "../locale";
+import { atMinutes, branchZone, cleanOrderPayload, clockToMin, hoursFor, nextActionFor, parseDay, zoneDayKey } from "../../vendor/engine";
+import { branchLocale, businessLocale } from "../locale";
 import {
   PHONE,
   auditWhere,
@@ -29,7 +29,7 @@ import {
   staffWhere,
   vehiclesWhere,
 } from "../entities";
-import { dayBounds, orderBy, paged, searchPattern } from "../list";
+import { orderBy, paged, searchPattern } from "../list";
 import { onShiftAt, staffNames, toVendorItems } from "../lookups";
 import type { VendorActor } from "../../router";
 import { logAudit } from "../platform";
@@ -57,8 +57,9 @@ const BOOKING_TABS = ["today", "upcoming", "completed", "cancelled", "no_show"];
 const ORDER_TABS = ["active", "waiting", "in_service", "payment_pending", "paid", "all"];
 
 /** Tab predicates for the two list views (spec D4 bookings / D5 orders), as SQL over alias o. */
-function tabWhere(q: Q, tab: string): Frag {
-  const [todayStart, todayEnd] = dayBounds(now());
+function tabWhere(q: Q, tab: string, zone: string): Frag {
+  // GAP-069: "today" is the branch's day, not the server's.
+  const [todayStart, todayEnd] = zoneDayBounds(now(), zone);
   const endOfToday = new Date(new Date(todayEnd).getTime() - 1).toISOString();
   switch (tab) {
     // bookings view (app + phone)
@@ -88,17 +89,35 @@ function tabWhere(q: Q, tab: string): Frag {
   }
 }
 
-/** `?date=YYYY-MM-DD` → the server-local day, as an `o.scheduled_at` range (an invalid date matches nothing, like the mock). */
-function dateWhere(q: Q, date: string | null): Frag {
+/** [start, end) of the calendar day of `at` in `zone` (GAP-069), as ISO strings. */
+function zoneDayBounds(at: Date, zone: string): [string, string] {
+  return [atMinutes(at, 0, zone).toISOString(), atMinutes(at, 1440, zone).toISOString()];
+}
+
+/** "YYYY-MM-DD" → noon UTC of that date (the same calendar day in every zone within ±11 h), or null. */
+function utcNoonOf(date: string): Date | null {
+  const d = new Date(`${date}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== date ? null : d;
+}
+
+/**
+ * `?date=YYYY-MM-DD` → that day in the branch's time zone (GAP-069), as an `o.scheduled_at` range
+ * (an invalid date matches nothing, like the mock).
+ */
+function dateWhere(q: Q, date: string | null, zone: string): Frag {
   if (!date) return q``;
-  const start = new Date(`${date}T00:00:00`);
-  if (Number.isNaN(start.getTime()) || dayKey(start) !== date) return q`and false`;
-  const [from, to] = dayBounds(start);
+  const noon = utcNoonOf(date);
+  if (!noon) return q`and false`;
+  const [from, to] = zoneDayBounds(noon, zone);
   return q`and o.scheduled_at >= ${from} and o.scheduled_at < ${to}`;
 }
 
-/** `?date=` of the schedule/availability screens (noon avoids DST edges), today by default. */
-const dayParam = (raw: string | null) => (raw ? parseDay(raw) : now());
+/** `?date=` of the schedule/availability screens: that date read in the branch's zone (GAP-069), today by default. */
+const dayParam = (raw: string | null) => {
+  if (!raw) return now();
+  parseDay(raw); // 422 on an invalid date
+  return utcNoonOf(raw)!;
+};
 
 /** GAP-074: list and board items carry the server's allowed actions for this actor (same matrix as the details page). */
 async function vendorItemsFor(q: Q, actor: VendorActor, orders: Order[], at?: Date): Promise<VendorOrderListItem[]> {
@@ -106,7 +125,10 @@ async function vendorItemsFor(q: Q, actor: VendorActor, orders: Order[], at?: Da
   const byId = new Map(orders.map((o) => [o.id, o]));
   return items.map((i) => {
     const order = byId.get(i.id);
-    return order ? { ...i, allowedActions: allowedActions(actor, order, i.noShowGraceMin) } : i;
+    if (!order) return i;
+    const allowed = allowedActions(actor, order, i.noShowGraceMin);
+    // The card's primary button only when this account may actually do it.
+    return { ...i, allowedActions: allowed, nextAction: i.nextAction && allowed.includes(i.nextAction) ? i.nextAction : null };
   });
 }
 
@@ -121,13 +143,15 @@ export const vendorOperationRoutes = [
     const staffId = query.get("staffId");
     const search = searchPattern(query);
     const rawSearch = query.get("search")?.trim() ?? "";
+    // GAP-069: day filters follow the (first) branch in scope's time zone.
+    const zone = branchIds.length ? (await branchLocale(sql, branchIds[0])).timezone : "Africa/Cairo";
 
     const base = sql`
       o.branch_id = any(${branchIds})
       ${view === "bookings" ? sql`and o.source <> 'walk_in'` : sql``}
       ${source && source !== "all" ? sql`and o.source::text = ${source}` : sql``}
       ${staffId && staffId !== "all" ? sql`and o.assigned_staff_id = ${staffId}` : sql``}
-      ${dateWhere(sql, query.get("date"))}
+      ${dateWhere(sql, query.get("date"), zone)}
       ${
         search
           ? sql`and (o.number ilike ${search} or o.code ilike ${search} or o.plate ilike ${search}
@@ -136,11 +160,11 @@ export const vendorOperationRoutes = [
                 or ${sql.unsafe(PHONE("cu.phone"))} ilike ${search} or replace(${sql.unsafe(PHONE("cu.phone"))}, ' ', '') ilike ${search})))`
           : sql``
       }`;
-    const filter = sql`${base} and ${tabWhere(sql, tab)}`;
+    const filter = sql`${base} and ${tabWhere(sql, tab, zone)}`;
 
     const [[counts], [{ total, amount }]] = await Promise.all([
       sql<Record<string, number>[]>`
-        select count(*)::int as "__all" ${tabs.map((t) => sql`, (count(*) filter (where ${tabWhere(sql, t)}))::int as ${sql(t)}`)}
+        select count(*)::int as "__all" ${tabs.map((t) => sql`, (count(*) filter (where ${tabWhere(sql, t, zone)}))::int as ${sql(t)}`)}
         from public.orders o where ${base}`,
       sql<{ total: number; amount: number }[]>`
         select count(*)::int as total, coalesce(sum(o.total), 0) as amount from public.orders o where ${filter}`,
@@ -290,7 +314,9 @@ export const vendorOperationRoutes = [
     const sql = db();
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const at = now();
-    const [todayStart, todayEnd] = dayBounds(at);
+    // GAP-069: the board's "today" is the branch's day.
+    const zone = branchIds.length ? (await branchLocale(sql, branchIds[0])).timezone : "Africa/Cairo";
+    const [todayStart, todayEnd] = zoneDayBounds(at, zone);
     // Only what the board shows: today's orders plus every car still inside or unpaid.
     const [orders, branches, shifts] = await Promise.all([
       ordersWhere(
@@ -372,12 +398,12 @@ export const vendorOperationRoutes = [
     }
     const day: ScheduleDay = {
       branchId,
-      date: dayKey(date),
+      date: zoneDayKey(date, branchZone(branch)),
       capacity: branch.capacity,
       slotIntervalMin: step,
       hours,
       slots,
-      blocks: branch.blockedSlots.filter((b) => dayKey(b.start) === dayKey(date)),
+      blocks: branch.blockedSlots.filter((b) => zoneDayKey(b.start, branchZone(branch)) === zoneDayKey(date, branchZone(branch))),
     };
     return ok(day);
   }),

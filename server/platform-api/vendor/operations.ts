@@ -11,7 +11,8 @@ import type {
 import { isSameDay, logAudit, nid, now } from "../db";
 import { MockApiError, matchesSearch, ok, paginate, requireText, sortBy } from "../http";
 import { serviceName } from "../lookups";
-import { vroute } from "../router";
+import { type VendorActor, vroute } from "../router";
+import type { MockDatabase } from "../schema";
 import {
   allowedActions,
   atMinutes,
@@ -34,6 +35,13 @@ import {
 } from "./engine";
 import { hideCheckInCode } from "./privacy";
 import { assertBranch, findInScope, scopeBranches, singleBranch } from "./scope";
+
+/** GAP-074: list/board item with this account's allowed actions; `nextAction` only when allowed. */
+function withAllowed(db: MockDatabase, actor: VendorActor, o: Order): VendorOrderListItem {
+  const item = toVendorItem(db, o);
+  const allowed = allowedActions(db, actor, o);
+  return { ...item, allowedActions: allowed, nextAction: item.nextAction && allowed.includes(item.nextAction) ? item.nextAction : null };
+}
 
 const endOfToday = () => {
   const d = new Date(now());
@@ -84,7 +92,7 @@ export const vendorOperationRoutes = [
     const filtered = base.filter(TABS[tab]);
     const chronological = tab === "today" || tab === "upcoming" || tab === "waiting" || tab === "active";
     const items = sortBy(
-      filtered.map((o) => ({ ...toVendorItem(db, o), allowedActions: allowedActions(db, actor, o) })),
+      filtered.map((o) => withAllowed(db, actor, o)),
       query,
       {
         scheduledAt: (o) => o.scheduledAt,
@@ -185,7 +193,7 @@ export const vendorOperationRoutes = [
     const branchIds = scopeBranches(actor, query.get("branchId"));
     const orders = db.orders.filter((o) => branchIds.includes(o.branchId));
     // GAP-074: cards carry the server's allowed actions, so the board never guesses.
-    const map = (list: Order[]): VendorOrderListItem[] => list.map((o) => ({ ...toVendorItem(db, o), allowedActions: allowedActions(db, actor, o) }));
+    const map = (list: Order[]): VendorOrderListItem[] => list.map((o) => withAllowed(db, actor, o));
     const today = orders.filter((o) => isSameDay(o.scheduledAt, now()));
     const board: LiveBoard = {
       branchId: query.get("branchId") ?? "all",
