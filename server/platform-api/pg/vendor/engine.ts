@@ -42,7 +42,7 @@ import { branchLocale } from "../locale";
 import { branchById, customersWhere, offersWhere, orderById, servicesWhere, vehiclesWhere } from "../entities";
 import { staffNames } from "../lookups";
 import { logAudit } from "../platform";
-import type { Q } from "../sql";
+import { type Q, guarded, inTenantScope } from "../sql";
 import { SUSPENDED_ACTION_MESSAGE, assertNotSuspended, suspendedAllows } from "./scope";
 
 /**
@@ -143,9 +143,13 @@ export async function availability(q: Q, branch: Branch, date: Date, durationMin
   const zone = branchZone(branch); // GAP-013: the branch's own wall clock, not Cairo's
   if (h.closed || !branch.active || atMinutes(date, 0, zone) > bookingHorizon(branch)) return [];
   try {
-    const rows = await q<{ start: Date; free: number }[]>`
-      select start_at as start, free_capacity as free
-      from public.get_branch_slots(${branch.id}, ${zoneDayKey(date, zone)}::date, ${durationMin}, null, true)`;
+    // GAP-027: inside a tenant transaction a failure here must not abort it (savepoint), so the fallback can run.
+    const rows = await guarded(
+      q,
+      (s) => s<{ start: Date; free: number }[]>`
+        select start_at as start, free_capacity as free
+        from public.get_branch_slots(${branch.id}, ${zoneDayKey(date, zone)}::date, ${durationMin}, null, true)`,
+    );
     return rows.map((r) => ({
       start: new Date(r.start).toISOString(),
       free: Math.max(0, r.free),
@@ -521,13 +525,17 @@ export async function recognize(
     // have no confirmed phone), so an unverified app account is never matched by phone — otherwise
     // whoever registers a stranger's number would receive that stranger's walk-in orders and pushes.
     // Preference: already served at this wash, then a verified app phone, then rows staff created.
+    // GAP-027: the tenant role has no access to auth.users; it asks a SECURITY DEFINER helper with the same rule.
+    const confirmedAppPhone = inTenantScope()
+      ? q`public.vendor_panel_app_phone_confirmed(cu.user_id::text, cu.phone)`
+      : q`exists (select 1 from auth.users u where u.id = cu.user_id and u.phone_confirmed_at is not null
+                     and '+' || ltrim(u.phone, '+') = cu.phone)`;
     [customer = null] = await customersWhere(
       q,
       q`cu.phone = ${phoneE164} and (
           cu.user_id is null
           or exists (select 1 from public.orders o where o.customer_id = cu.id and o.business_id = ${businessId})
-          or exists (select 1 from auth.users u where u.id = cu.user_id and u.phone_confirmed_at is not null
-                     and '+' || ltrim(u.phone, '+') = cu.phone))`,
+          or ${confirmedAppPhone})`,
       q`order by exists (select 1 from public.orders o where o.customer_id = cu.id and o.business_id = ${businessId}) desc,
                (cu.user_id is not null) desc, cu.created_at, cu.id limit 1`,
     );

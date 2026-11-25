@@ -116,6 +116,28 @@ server/platform-api/                # server-only API: index.ts (dispatcher), ve
 - Owner-only: branch editing & booking rules, settings, staff role/permission edits, offers editing.
   Managers edit services only when `settings.managerCanEditServices` is on (`canEdit` flag).
 
+### Database tenant role (GAP-027, flag `CARZEN_DB_TENANT_ROLE=1`, default off)
+
+- The server connects as `postgres` (BYPASSRLS), so the checks above are the only isolation unless the flag
+  is on. With it on, `pg/index.ts` runs each vendor request in **one transaction** (`withTenantScope` in
+  `pg/sql.ts`): `set local role washup_vendor_panel` (NOBYPASSRLS), then `set_config('app.user_id' | 'app.staff_id'
+  | 'app.business_id' | 'app.branch_ids', …, true)` (`pg/vendor/tenant.ts`). The identity's own staff row is
+  readable by `user_id`, which gives the business; `resolveVendorActor` then runs under RLS and the context is
+  set to the actor. If the role switch fails the request fails with 500 — it never continues as `postgres`.
+- Inside that transaction `db()` returns it and `tx()` opens a savepoint (AsyncLocalStorage), so handlers are
+  unchanged. Use `guarded(q, fn)` around a statement whose failure you catch and recover from. Work after the
+  response (`after()` push delivery) gets the normal pool again.
+- Policies (`supabase/migrations/20261127110000_vendor_panel_tenant_role.sql`, `vendor_panel_<table>_<cmd>`) scope
+  by **business** (managers' branch limits stay in code); customers/vehicles are readable platform-wide in a
+  tenant context (walk-in recognition); registration (`/vendor/geo`, `/vendor/applications*`) runs in the public
+  context (no business). Cross-tenant questions go through SECURITY DEFINER helpers that answer true/false
+  (`vendor_panel_staff_phone_taken`, `vendor_panel_app_phone_confirmed`; the code calls them only under the flag).
+- Exempt (still `postgres`): sign-in, refresh, forgot/reset password (they find the account by phone across
+  businesses before a tenant exists) and the DB push hook (`TENANT_EXEMPT` in `pg/index.ts`).
+- A new table or column the vendor code writes needs a GRANT + policy in a migration, or it fails (42501 → 500)
+  under the flag. Verify with `…tenant_role.test.sql` (rolls back). Rollout: migration → test SQL → flag on a
+  Preview deploy → watch `[tenant]` / `[api:supabase]` errors → Production.
+
 ## 5. Modules and routes
 
 | Route | Module | Spec | Notes |

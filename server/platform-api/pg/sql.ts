@@ -1,5 +1,7 @@
 import "server-only";
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import postgres from "postgres";
 
 /**
@@ -86,10 +88,66 @@ function connect(): Sql {
   }) as unknown as Sql;
 }
 
-export function db(): Sql {
+function pool(): Sql {
   const g = globalThis as GlobalWithSql;
   g[GLOBAL_KEY] ??= connect();
   return g[GLOBAL_KEY];
+}
+
+/**
+ * GAP-027 tenant scope. With `CARZEN_DB_TENANT_ROLE=1` each vendor request runs in ONE transaction
+ * that switched to the RLS-bound role `washup_vendor_panel` (see `withTenantScope` and
+ * `pg/vendor/tenant.ts`). While that transaction is open, `db()` returns it and `tx()` opens a
+ * savepoint in it, so handler code is unchanged. Without the flag nothing here is used.
+ */
+type TenantScope = { sql: postgres.TransactionSql | null; open: boolean };
+const SCOPE_KEY = "__CARZEN_PG_TENANT_SCOPE__";
+type GlobalWithScope = typeof globalThis & { [SCOPE_KEY]?: AsyncLocalStorage<TenantScope> };
+
+function scopes(): AsyncLocalStorage<TenantScope> {
+  const g = globalThis as GlobalWithScope;
+  g[SCOPE_KEY] ??= new AsyncLocalStorage<TenantScope>();
+  return g[SCOPE_KEY];
+}
+
+function openScope(): postgres.TransactionSql | null {
+  if (!tenantRoleEnabled()) return null;
+  const scope = scopes().getStore();
+  return scope?.open ? scope.sql : null;
+}
+
+/** The database role vendor requests run as when the flag is on (migration 20261127110000). */
+export const TENANT_ROLE = "washup_vendor_panel";
+
+/** `CARZEN_DB_TENANT_ROLE=1` (default off): vendor requests run as `TENANT_ROLE` under RLS. */
+export function tenantRoleEnabled(): boolean {
+  return process.env.CARZEN_DB_TENANT_ROLE === "1";
+}
+
+/** True inside a request's tenant transaction. */
+export function inTenantScope(): boolean {
+  return openScope() !== null;
+}
+
+/**
+ * Runs `fn` in one transaction and makes it the current request's database handle (`db()` / `tx()`)
+ * until `fn` settles. Calls made after that (e.g. `after()` push delivery) get the pool again.
+ */
+export async function withTenantScope<T>(fn: (t: postgres.TransactionSql) => Promise<T>): Promise<T> {
+  return (await pool().begin(async (t) => {
+    const scope: TenantScope = { sql: t, open: true };
+    try {
+      return await scopes().run(scope, () => fn(t));
+    } finally {
+      scope.open = false;
+    }
+  })) as T;
+}
+
+export function db(): Sql {
+  const scoped = openScope();
+  if (scoped) return scoped as unknown as Sql;
+  return pool();
 }
 
 /** A connection or an open transaction — repositories accept either. */
@@ -97,7 +155,19 @@ export type Q = Sql | postgres.TransactionSql;
 
 /** Runs `fn` in one transaction (all writes of a request commit or roll back together). */
 export function tx<T>(fn: (t: postgres.TransactionSql) => Promise<T>): Promise<T> {
-  return db().begin(fn) as Promise<T>;
+  const scoped = openScope();
+  if (scoped) return scoped.savepoint(fn) as Promise<T>;
+  return pool().begin(fn) as Promise<T>;
+}
+
+/**
+ * For a statement whose failure the caller catches and recovers from: inside a tenant transaction
+ * it runs in a savepoint, so the failure does not abort the request's transaction. Outside one it
+ * is exactly `fn(q)`.
+ */
+export function guarded<T>(q: Q, fn: (q: Q) => Promise<T>): Promise<T> {
+  if (inTenantScope() && "savepoint" in q) return q.savepoint((s) => fn(s)) as Promise<T>;
+  return fn(q);
 }
 
 /**

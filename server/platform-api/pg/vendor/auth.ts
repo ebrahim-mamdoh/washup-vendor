@@ -17,7 +17,7 @@ import { staffPhoneFor } from "../locale";
 import { unregisterDevice } from "../push";
 import { logAudit } from "../platform";
 import { vroute } from "../router";
-import { db } from "../sql";
+import { db, guarded } from "../sql";
 import { staffUserId } from "./push";
 import { resolveVendorActor, toVendorAccount } from "./scope";
 
@@ -70,7 +70,11 @@ export const vendorAuthRoutes = [
     // GAP-049: forget THIS device's push token (same field as /vendor/push/unregister: `token`;
     // `pushToken` also accepted). Only that row of this user is deleted, never other devices.
     const pushToken = typeof body.pushToken === "string" ? body.pushToken : typeof body.token === "string" ? body.token : "";
-    if (pushToken) await unregisterDevice(db(), await staffUserId(actor.staff.id), { token: pushToken }).catch(() => undefined);
+    if (pushToken) {
+      const userId = await staffUserId(actor.staff.id);
+      // guarded (GAP-027): a failure is ignored without aborting the request's tenant transaction.
+      await guarded(db(), (q) => unregisterDevice(q, userId, { token: pushToken })).catch(() => undefined);
+    }
     if (token) await signOut(token);
     return ok(null, "تم تسجيل الخروج");
   }),

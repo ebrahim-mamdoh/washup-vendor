@@ -8,9 +8,10 @@ import { resolveAdmin } from "./admin/auth";
 import { ADMIN_ROUTES } from "./admin";
 import { identityFromToken } from "./auth";
 import type { PgAdminContext, PgRouteDef, PgVendorContext } from "./router";
-import { db } from "./sql";
+import { db, tenantRoleEnabled, withTenantScope } from "./sql";
 import { VENDOR_ROUTES } from "./vendor";
 import { resolveVendorActor } from "./vendor/scope";
+import { enterVendorTenant } from "./vendor/tenant";
 
 async function readBody(req: Request): Promise<Record<string, unknown>> {
   if (req.method === "GET" || req.method === "DELETE") return {};
@@ -23,6 +24,20 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
 }
 
 const EXPIRED = "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى";
+
+/**
+ * GAP-027: vendor routes that keep the server role even with CARZEN_DB_TENANT_ROLE=1. They run
+ * before any tenant exists and must find the account by phone / auth user across every business
+ * (sign-in, session refresh, password reset), or fan a notification out to its recipients for the
+ * database push trigger (secret-authenticated). They take no business or branch id from the client.
+ */
+const TENANT_EXEMPT = new Set([
+  "POST /vendor/auth/login",
+  "POST /vendor/auth/refresh",
+  "POST /vendor/auth/forgot-password",
+  "POST /vendor/auth/reset-password",
+  "POST /vendor/push/hook",
+]);
 
 /**
  * `/api/v1/*` on the Supabase data source (CARZEN_DATA_SOURCE=supabase): same
@@ -52,6 +67,17 @@ export async function handleSupabaseRequest(req: Request, segments: string[]): P
   const base = { params: matched.params, query: new URL(req.url).searchParams, body: await readBody(req), token, headers: req.headers };
 
   try {
+    if (isVendor && tenantRoleEnabled() && !TENANT_EXEMPT.has(`${method} ${matched.def.path}`)) {
+      // GAP-027: the whole request runs in one transaction as the RLS-bound tenant role.
+      const def = matched.def as PgRouteDef<PgVendorContext>;
+      // Public routes always run in the public context (no business), even with a token.
+      const identity = token && !def.isPublic ? await identityFromToken(token) : null;
+      return await withTenantScope(async (t) => {
+        const actor = await enterVendorTenant(t, identity);
+        if (!def.isPublic && !actor) return fail(EXPIRED, 401);
+        return def.handler({ ...base, actor: actor! });
+      });
+    }
     const sql = db();
     const identity = token ? await identityFromToken(token) : null;
     if (isVendor) {

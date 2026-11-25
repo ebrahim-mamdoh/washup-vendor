@@ -18,7 +18,7 @@ import { dayBounds, paged, searchPattern } from "../list";
 import { branchNames, onShiftAt, staffNames } from "../lookups";
 import { logAudit } from "../platform";
 import { vroute } from "../router";
-import { type Q, db, tx } from "../sql";
+import { type Q, db, inTenantScope, tx } from "../sql";
 import { assertBranch, assertOwner, capPermissions, scopeBranches, singleBranch } from "./scope";
 
 /**
@@ -230,7 +230,11 @@ export const vendorTeamRoutes = [
       // National numbers take the branch's country code; "+…" keeps its own (GAP-013).
       const phone = parsePhone(String(body.phone ?? ""), (await branchLocale(t, branchId)).dialCode);
       if (!phone) throw new MockApiError("رقم موبايل غير صحيح", 422, { phone: ["رقم غير صحيح"] });
-      const [taken] = await t`select 1 from public.staff where phone = ${phone}`;
+      // GAP-027: under the tenant role other businesses' staff are invisible, so the platform-wide
+      // uniqueness check goes through a SECURITY DEFINER helper that answers true/false only.
+      const [taken] = inTenantScope()
+        ? await t`select 1 where public.vendor_panel_staff_phone_taken(${phone})`
+        : await t`select 1 from public.staff where phone = ${phone}`;
       if (taken) throw new MockApiError("هذا الرقم مسجل لحساب آخر", 409, { phone: ["مسجل بالفعل"] });
       const cap = Math.min(Number(body.maxDiscountPct ?? 10), actor.role === "owner" ? 50 : actor.staff.maxDiscountPct);
       const maxDiscountPct = Number.isNaN(cap) ? 10 : Math.round(cap);
