@@ -1,4 +1,4 @@
--- NOT APPLIED — to be reviewed and applied by the lead
+-- APPLIED to tbcmgdwzarfdgzzmmele on 2026-11-27 (role + 81 policies on 36 tables; the {branches} subquery fixed with ::text[]). NOT yet recorded in schema_migrations, and the .test.sql was NOT run: keep CARZEN_DB_TENANT_ROLE off until it passes.
 --
 -- GAP-027 (system audit): defence-in-depth tenant isolation for the vendor portal API.
 --
@@ -266,7 +266,7 @@ returns void language plpgsql as $$
 declare
   expand constant text[][] := array[
     ['{biz}', '(select public.vendor_panel_business_id())'],
-    ['{branches}', '(select public.vendor_panel_business_branches())'],
+    ['{branches}', '((select public.vendor_panel_business_branches())::text[])'],
     ['{user}', '(select public.vendor_panel_user_id())'],
     ['{staff}', '(select public.vendor_panel_staff_id())']];
   pair text[];
