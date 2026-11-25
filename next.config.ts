@@ -28,7 +28,8 @@ const nextConfig: NextConfig = {
       value: "private, no-store, no-cache, max-age=0, must-revalidate",
     } as const;
 
-    // Baseline hardening. The CSP only forbids framing (clickjacking); a script CSP would need nonces.
+    // Baseline hardening. This CSP covers the API and static files; pages get the full nonce-based
+    // script CSP from proxy.ts (GAP-063), which replaces it on their responses.
     const security = [
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "DENY" },

@@ -9,7 +9,7 @@ import { AlertCircle, Eye, EyeOff, LockKeyhole, Smartphone, Store, UserCog, User
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuthReady, useLogin } from "@/hooks/use-auth";
+import { useAuthReady, useLogin, useMe } from "@/hooks/use-auth";
 import { resolveUserFacingError } from "@/lib/api/api-error-handler";
 import { PHONE_INPUT_ERROR, isPhoneInput } from "@/lib/phone-input";
 
@@ -33,7 +33,7 @@ const PERSONAS = [
 ] as const;
 
 function safeNext(raw: string | null) {
-  return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
+  return raw && raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\") ? raw : "/dashboard";
 }
 
 export default function LoginForm() {
@@ -42,6 +42,10 @@ export default function LoginForm() {
   const next = safeNext(searchParams.get("next"));
   const { isAuthenticated, account } = useAuthReady();
   const login = useLogin();
+  // GAP-063: an account remembered on this browser is not proof of a session (the httpOnly cookies may
+  // be gone — that's why proxy.ts sent the user here). Confirm it before leaving the login page, or the
+  // two would bounce the user back and forth; a 401 that can't be renewed clears the account.
+  const me = useMe(isAuthenticated && !login.isSuccess);
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -56,10 +60,10 @@ export default function LoginForm() {
   });
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !(login.isSuccess || me.isSuccess)) return;
     const dest = next === "/dashboard" && account?.role === "employee" ? "/live" : next;
     router.replace(dest);
-  }, [isAuthenticated, account?.role, next, router]);
+  }, [isAuthenticated, login.isSuccess, me.isSuccess, account?.role, next, router]);
 
   const onSubmit = handleSubmit((values) => login.mutate(values));
   const serverError = login.error ? resolveUserFacingError(login.error, "تعذر تسجيل الدخول") : null;

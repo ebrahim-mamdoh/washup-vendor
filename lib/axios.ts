@@ -3,65 +3,68 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
 import { createApiFailureError, isApiFailureEnvelope } from "@/lib/api/api-error-handler";
+import { WEB_CLIENT_HEADER, WEB_CLIENT_VALUE } from "@/lib/auth/web-session";
 import { getApiBaseUrl } from "@/lib/config/api-base-url";
 import { setServerNow } from "@/lib/format";
-import { getAuthAccessToken, getAuthTokenType, useAuthStore } from "@/lib/store/auth-store";
-import type { SessionTokens } from "@/types/auth";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 const REFRESH_PATH = "/vendor/auth/refresh";
 /** Renew the access token this long before it expires, so requests never race the expiry. */
 const RENEW_BEFORE_MS = 60_000;
 
-/** Bearer-authenticated vendor (wash owner/manager) client. Token is read from the auth store per request. */
+/**
+ * Vendor (wash owner/manager) client. GAP-063: the session is in httpOnly cookies set by the
+ * same-origin API, so no token is handled here; `X-Washup-Client: web` asks the API to use them
+ * (and to keep the tokens out of login/refresh responses).
+ */
+const WEB_HEADERS = {
+  "Content-Type": "application/json",
+  Accept: "application/json",
+  [WEB_CLIENT_HEADER]: WEB_CLIENT_VALUE,
+};
+
 export const apiClient = axios.create({
   baseURL: getApiBaseUrl(),
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
-  withCredentials: false,
+  headers: WEB_HEADERS,
 });
 
 const isAuthCall = (url: string) =>
   url.includes("/auth/login") || url.includes("/auth/refresh") || url.includes("/auth/forgot-password") || url.includes("/auth/reset-password");
 
-let refreshing: Promise<string | null> | null = null;
+const isSignedIn = () => useAuthStore.getState().account !== null;
 
-async function requestNewToken(): Promise<string | null> {
-  const { refreshToken, setTokens, clearAuth } = useAuthStore.getState();
-  if (!refreshToken) return null;
+let refreshing: Promise<boolean> | null = null;
+
+async function requestNewSession(): Promise<boolean> {
+  const { setSessionExpiry, clearAuth } = useAuthStore.getState();
   try {
-    // Plain axios: the refresh call must not go through these interceptors.
-    const { data } = await axios.post<{ status: boolean; data: SessionTokens | null }>(
+    // Plain axios: the refresh call must not go through these interceptors. The refresh token is the cookie.
+    const { data } = await axios.post<{ status: boolean; data: { expires_in?: number | null } | null }>(
       `${getApiBaseUrl()}${REFRESH_PATH}`,
-      { refresh_token: refreshToken },
-      { headers: { "Content-Type": "application/json", Accept: "application/json" } },
+      {},
+      { headers: WEB_HEADERS },
     );
-    if (!data?.status || !data.data?.access_token) throw new Error("refresh failed");
-    setTokens(data.data);
-    return data.data.access_token;
+    if (!data?.status) throw new Error("refresh failed");
+    setSessionExpiry(data.data?.expires_in);
+    return true;
   } catch (error) {
     // A rejected refresh token ends the session; a network error keeps it for the next try.
     if (!axios.isAxiosError(error) || error.response) clearAuth();
-    return null;
+    return false;
   }
 }
 
-/** Renews the session once for every caller waiting on it; null when it can't be renewed. */
-function refreshAccessToken(): Promise<string | null> {
-  if (!refreshing) refreshing = requestNewToken().finally(() => (refreshing = null));
+/** Renews the session once for every caller waiting on it; false when it can't be renewed. */
+function refreshSession(): Promise<boolean> {
+  if (!refreshing) refreshing = requestNewSession().finally(() => (refreshing = null));
   return refreshing;
 }
 
 apiClient.interceptors.request.use(async (config) => {
   config.baseURL = getApiBaseUrl();
-  const { expiresAt, refreshToken } = useAuthStore.getState();
-  if (!isAuthCall(String(config.url ?? "")) && refreshToken && expiresAt && Date.now() > expiresAt - RENEW_BEFORE_MS) {
-    await refreshAccessToken();
-  }
-  const token = getAuthAccessToken();
-  if (token) {
-    config.headers.Authorization = `${getAuthTokenType()} ${token}`;
+  const { expiresAt } = useAuthStore.getState();
+  if (!isAuthCall(String(config.url ?? "")) && isSignedIn() && expiresAt && Date.now() > expiresAt - RENEW_BEFORE_MS) {
+    await refreshSession();
   }
   return config;
 });
@@ -80,18 +83,14 @@ apiClient.interceptors.response.use(
     const status = error?.response?.status;
     const config = error?.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
     const url = String(config?.url ?? "");
-    const hadAuth = Boolean(config?.headers?.Authorization);
-    if (status === 401 && hadAuth && config && !isAuthCall(url)) {
-      // An expired token: renew it once and replay the request; otherwise the session is over.
-      if (!config._retried && useAuthStore.getState().refreshToken) {
-        const token = await refreshAccessToken();
-        if (token) {
-          config._retried = true;
-          config.headers.Authorization = `${getAuthTokenType()} ${token}`;
-          return apiClient(config);
-        }
+    if (status === 401 && config && !isAuthCall(url) && isSignedIn()) {
+      // An expired access cookie: renew it once (refresh cookie) and replay the request;
+      // otherwise the session is over and the portal gate sends the user to /login.
+      if (!config._retried && (await refreshSession())) {
+        config._retried = true;
+        return apiClient(config);
       }
-      useAuthStore.getState().clearAuth();
+      if (isSignedIn()) useAuthStore.getState().clearAuth();
     }
     return Promise.reject(error);
   },

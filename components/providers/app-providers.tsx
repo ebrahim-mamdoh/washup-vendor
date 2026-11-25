@@ -11,11 +11,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 type AppProvidersProps = {
   children: ReactNode;
+  /** CSP nonce for next-themes' inline script (GAP-063). */
+  nonce?: string;
 };
 
-export function AppProviders({ children }: AppProvidersProps) {
+export function AppProviders({ children, nonce }: AppProvidersProps) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+    <ThemeProvider nonce={nonce} attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
       <QueryProvider>
         <AuthBootstrap>
           <TooltipProvider delay={250}>

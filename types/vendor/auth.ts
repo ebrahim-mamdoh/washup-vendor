@@ -47,5 +47,11 @@ export interface VendorLoginResponse extends SessionTokens {
   account: VendorAccount;
 }
 
+/**
+ * GAP-063: what the browser portal gets (`X-Washup-Client: web`): the tokens are set as httpOnly
+ * cookies instead, the body keeps the rest. Other clients (owner app) get `VendorLoginResponse`.
+ */
+export type VendorWebLoginResponse = Omit<VendorLoginResponse, "access_token" | "refresh_token">;
+
 /** Branch filter shared by every vendor list: a branch id, or "all" (owners only). */
 export type BranchScope = string;

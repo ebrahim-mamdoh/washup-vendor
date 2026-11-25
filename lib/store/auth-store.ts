@@ -3,58 +3,49 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { SessionTokens } from "@/types/auth";
 import type { VendorAccount } from "@/types/vendor/auth";
 
 export const AUTH_STORE_KEY = "carzen-vendor-auth-v1";
 
+/**
+ * GAP-063: the session tokens live in httpOnly cookies set by the API (never readable here).
+ * This store keeps only what the UI needs: the signed-in account and when the access token
+ * expires (to renew it in time). Neither is a secret.
+ */
 export type EstablishSessionInput = {
   account: VendorAccount;
-  tokens: SessionTokens;
+  /** Seconds until the access token expires; null/undefined = no expiry. */
+  expiresIn?: number | null;
 };
 
 type AuthState = {
   account: VendorAccount | null;
-  accessToken: string | null;
-  tokenType: string;
-  /** Renews the access token (Supabase tokens last an hour); null when the API has none. */
-  refreshToken: string | null;
   /** Epoch ms the access token expires at; null = no expiry. */
   expiresAt: number | null;
   /** True once the persisted session has been read from storage. */
   hasHydrated: boolean;
   establishSession: (session: EstablishSessionInput) => void;
-  setTokens: (tokens: SessionTokens) => void;
+  setSessionExpiry: (expiresIn: number | null | undefined) => void;
   setAccount: (account: VendorAccount) => void;
   clearAuth: () => void;
 };
 
-function tokenState(tokens: SessionTokens) {
-  return {
-    accessToken: tokens.access_token,
-    tokenType: tokens.token_type || "Bearer",
-    refreshToken: tokens.refresh_token ?? null,
-    expiresAt: tokens.expires_in ? Date.now() + tokens.expires_in * 1000 : null,
-  };
-}
+const expiryFrom = (expiresIn: number | null | undefined) => (expiresIn ? Date.now() + expiresIn * 1000 : null);
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       account: null,
-      accessToken: null,
-      tokenType: "Bearer",
-      refreshToken: null,
       expiresAt: null,
       hasHydrated: false,
-      establishSession: ({ account, tokens }) => set({ account, ...tokenState(tokens) }),
-      setTokens: (tokens) => set(tokenState(tokens)),
+      establishSession: ({ account, expiresIn }) => set({ account, expiresAt: expiryFrom(expiresIn) }),
+      setSessionExpiry: (expiresIn) => set({ expiresAt: expiryFrom(expiresIn) }),
       setAccount: (account) => set({ account }),
       clearAuth: () => {
         // GAP-049: any end of session (also expiry / failed refresh) stops this browser's pushes.
         // Loaded on demand; a no-op unless push was enabled here.
         void import("@/lib/push/web-push").then((m) => m.forgetPushDevice("vendor")).catch(() => undefined);
-        set({ account: null, accessToken: null, tokenType: "Bearer", refreshToken: null, expiresAt: null });
+        set({ account: null, expiresAt: null });
       },
     }),
     {
@@ -62,11 +53,13 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => localStorage),
       // Rehydrated manually after mount (AuthBootstrap) to avoid SSR mismatches.
       skipHydration: true,
+      // v1 (GAP-063): tokens moved to httpOnly cookies. A v0 value still holds the old Bearer and
+      // refresh tokens: they are dropped (the migrated state is written back right away) and the
+      // user signs in again, which creates the cookie session.
+      version: 1,
+      migrate: () => ({ account: null, expiresAt: null }),
       partialize: (state) => ({
         account: state.account,
-        accessToken: state.accessToken,
-        tokenType: state.tokenType,
-        refreshToken: state.refreshToken,
         expiresAt: state.expiresAt,
       }),
       onRehydrateStorage: () => () => {
@@ -75,11 +68,3 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
-
-export function getAuthAccessToken(): string | null {
-  return useAuthStore.getState().accessToken;
-}
-
-export function getAuthTokenType(): string {
-  return useAuthStore.getState().tokenType || "Bearer";
-}

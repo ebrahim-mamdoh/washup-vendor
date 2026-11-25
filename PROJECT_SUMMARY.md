@@ -66,19 +66,40 @@ hooks/                              # use-auth, use-branch-scope, use-vendor-mut
                                     # use-catalog, use-team, use-insights, use-nav-badges, use-url-state, use-debounced-value
 lib/
   utils.ts, format.ts, export-csv.ts, constants/labels.ts   # design-system helpers (status labels/colors, money, dates)
-  axios.ts                          # Bearer, envelope check, 401 → clearAuth, X-Demo-Now → setServerNow
+  axios.ts                          # X-Washup-Client: web (cookie session), envelope check, 401 → refresh once → clearAuth, X-Demo-Now → setServerNow
+  auth/web-session.ts               # cookie / header names shared by axios, the API route and proxy.ts (GAP-063)
   api/request.ts, api/api-error-handler.ts, config/api-base-url.ts, cache/ttl.ts
   config/pages.ts                   # Arabic page metadata
   vendor-nav.ts                     # sidebar groups (spec B2 order), badges, ownerOnly, navFor(role)
   query-keys.ts                     # every key carries branchId → switching branch never shows stale data
   services/{auth,operations,catalog,team,insights}.service.ts
-  store/auth-store.ts               # `carzen-vendor-auth-v1` (account + token, skipHydration)
+  store/auth-store.ts               # `carzen-vendor-auth-v1` v1 (account + expiresAt only — no tokens; skipHydration)
   store/ui-store.ts                 # sidebarCollapsed, selectedBranchId, mobileNavOpen, commandOpen, newOrderOpen
 styles/theme.css                    # tokens, dark mode, utilities
 types/                              # API contracts (admin domains + vendor/*), imported as @/types/<file>
 server/platform-api/                # server-only API: index.ts (dispatcher), vendor/* + handlers/* (mock),
                                     # pg/* (Supabase Postgres), seed.ts, db.ts (mock file store + demo clock)
 ```
+
+### Sessions & CSP (GAP-063)
+
+- **Browser portal:** axios sends `X-Washup-Client: web`. For those requests `app/api/v1/[...path]/route.ts`
+  (`server/web-session.ts`) moves `access_token`/`refresh_token` of login/refresh responses into httpOnly cookies
+  `wu_vendor_at` (max-age = `expires_in`) / `wu_vendor_rt` (30 days) — `SameSite=Lax`, `Path=/`, `Secure` except on
+  plain-http localhost — uses them when the request has no `Authorization` (and for refresh without a body token),
+  and clears both on logout or a rejected refresh. A cookie **without** the header authenticates nothing (CSRF
+  defence: the custom header needs a CORS preflight, which this API never grants). Nothing secret is in
+  `localStorage`; the old v0 store value (with tokens) is wiped on load.
+- **Other clients (owner mobile app):** unchanged — tokens in the JSON body, `Authorization: Bearer`.
+- **`proxy.ts`:** pages without either cookie redirect to `/login?next=…` (public: `/login`, `/register`,
+  `/forgot-password`, `/reset-password`); `PortalAuthGate` stays as the second check. It also sets a per-request
+  nonce CSP (`script-src 'self' 'nonce-…' 'strict-dynamic'`); every page is therefore rendered dynamically.
+  External origins allowed: Google Maps / Places, Firebase (Analytics, Cloud Messaging), OpenStreetMap + unpkg
+  (Leaflet fallback), `SUPABASE_URL` (storage images) and `NEXT_PUBLIC_API_URL` if absolute. A new third-party
+  script / API / image host must be added in `proxy.ts`. `'unsafe-eval'` is on in dev, and in production only when
+  `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set (Google's documented Maps CSP includes it).
+- The cookie session needs the API on the **same origin** as the portal (the bundled `/api/v1`). Pointing
+  `NEXT_PUBLIC_API_URL` at another origin would need CORS with credentials and a cookie domain.
 
 ## 4. Branch scope & permissions (the core concept)
 

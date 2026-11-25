@@ -8,14 +8,17 @@ import { disablePush } from "@/lib/push/web-push";
 import { useAuthStore } from "@/lib/store/auth-store";
 import type { VendorLoginPayload } from "@/types/vendor/auth";
 
-/** `isReady` = persisted session read; `isAuthenticated` = token + account present. */
+/**
+ * `isReady` = persisted session read; `isAuthenticated` = an account is signed in on this browser.
+ * GAP-063: the tokens are httpOnly cookies (invisible here); the server checks them on every call
+ * and a 401 that can't be renewed clears the account.
+ */
 export function useAuthReady() {
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
-  const accessToken = useAuthStore((s) => s.accessToken);
   const account = useAuthStore((s) => s.account);
   return {
     isReady: hasHydrated,
-    isAuthenticated: hasHydrated && Boolean(accessToken) && account !== null,
+    isAuthenticated: hasHydrated && account !== null,
     account,
   };
 }
@@ -29,7 +32,7 @@ export function useLogin() {
     meta: { skipErrorToast: true },
     onSuccess: ({ data }) => {
       queryClient.clear();
-      establishSession({ account: data.account, tokens: data });
+      establishSession({ account: data.account, expiresIn: data.expires_in });
     },
   });
 }

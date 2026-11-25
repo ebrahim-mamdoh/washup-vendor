@@ -7,9 +7,10 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { useAuthReady, useMe } from "@/hooks/use-auth";
 
 /**
- * Client-side gate (aroma's DashboardAuthGate model): the Bearer token lives
- * in the persisted Zustand store, so we wait for rehydration, then render the
- * portal or send the visitor to /login with a return path.
+ * Second line of defence (GAP-063): `proxy.ts` already sends visitors without a session cookie to
+ * /login, but the cookie session may have expired since. The signed-in account lives in the
+ * persisted Zustand store (the tokens are httpOnly cookies), so we wait for rehydration, then render
+ * the portal or send the visitor to /login with a return path.
  */
 export function PortalAuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();

@@ -1,8 +1,8 @@
 import { getData, send } from "@/lib/api/request";
-import type { VendorAccount, VendorLoginPayload, VendorLoginResponse } from "@/types/vendor/auth";
+import type { VendorAccount, VendorLoginPayload, VendorWebLoginResponse } from "@/types/vendor/auth";
 
 export function login(payload: VendorLoginPayload) {
-  return send<VendorLoginResponse>("post", "/vendor/auth/login", payload, "تعذر تسجيل الدخول");
+  return send<VendorWebLoginResponse>("post", "/vendor/auth/login", payload, "تعذر تسجيل الدخول");
 }
 
 export function fetchMe() {
