@@ -124,13 +124,16 @@ export default function FinancePageContent() {
     if (locale?.currencySymbol) {
       return formatMoney(value, { symbol: locale.currencySymbol, fractionDigits: locale.currencyDecimals ?? 2 });
     }
+    // Branches in different currencies: the totals are in the first branch's currency (server, GAP-011).
+    const main = data?.currencies?.[0];
+    if (main) return formatMoney(value, { symbol: main.symbol, fractionDigits: main.decimals });
     return formatMoney(value, opts);
   };
 
   const header = (
     <PageHeader
       title="المالية"
-      description={`${scopeLabel} — الإيراد المحصّل وعمولة Wash Up وصافي المغسلة والمدفوعات المعلّقة والتحويلات.`}
+      description={`${scopeLabel} — الإيراد المحصّل وعمولة Wash Up وصافي المغسلة والمدفوعات المعلّقة ومستحقات Wash Up.`}
       actions={
         <>
           <FilterTabs items={PERIODS} value={period} onChange={(p) => setState({ period: p })} aria-label="الفترة" />
@@ -155,6 +158,9 @@ export default function FinancePageContent() {
 
   const d = data;
   const rate = d?.commissionRate ?? 0;
+  // A settlement is in its own currency (GAP-011).
+  const settlementMoney = (p: { currencySymbol?: string | null; currencyDecimals?: number | null }, value: number) =>
+    p.currencySymbol ? formatMoney(value, { symbol: p.currencySymbol, fractionDigits: p.currencyDecimals ?? 2 }) : showMoney(value, { decimals: true });
   const methodTotal = d ? d.byMethod.reduce((s, m) => s + m.amount, 0) : 0;
   const branchTotal = d ? d.byBranch.reduce((s, b) => s + b.revenue, 0) : 0;
   const discountCount = d ? d.discountsByStaff.reduce((s, x) => s + x.count, 0) : 0;
@@ -178,8 +184,8 @@ export default function FinancePageContent() {
           icon: <Percent />,
           tone: TONES.violet,
           value: showMoney(d.commission, { decimals: true }),
-          hint: `${formatPercent(rate)} من الإيراد`,
-          definition: `نسبة Wash Up (${formatPercent(rate)}) من إيراد الطلبات المدفوعة فقط — لا عمولة على الطلبات غير المدفوعة أو الملغاة.`,
+          hint: "المسجّلة على الطلبات المدفوعة",
+          definition: `عمولة Wash Up المسجّلة على كل طلب مدفوع بالنسبة السارية وقت إنشائه (النسبة الحالية ${formatPercent(rate)}) — لا عمولة على الطلبات غير المدفوعة أو الملغاة أو المستردة.`,
           emphasis: true,
         },
         {
@@ -235,6 +241,14 @@ export default function FinancePageContent() {
             ))
           : Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-[112px] rounded-2xl" />)}
       </div>
+      {d?.currencies && d.currencies.length > 1 ? (
+        <p role="note" className="rounded-xl bg-muted/60 px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
+          الفروع بعملات مختلفة — الأرقام أعلاه بـ {d.currencies[0].symbol} فقط، ولا تُجمع العملات معًا:{" "}
+          {d.currencies
+            .map((c) => `${c.currency}: إيراد ${formatMoney(c.revenue, { symbol: c.symbol, fractionDigits: c.decimals })} · عمولة ${formatMoney(c.commission, { symbol: c.symbol, fractionDigits: c.decimals })}`)
+            .join(" — ")}
+        </p>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-3">
         {/* (a) Daily revenue */}
@@ -495,9 +509,9 @@ export default function FinancePageContent() {
             {[
               {
                 term: "عمولة Wash Up",
-                desc: `تُحسب على الطلبات المدفوعة فقط بنسبة ${d ? formatPercent(rate) : "—"} من قيمة الطلب بعد الخصم — لا عمولة على الطلبات غير المدفوعة أو الملغاة أو المستردة.`,
+                desc: `تُسجَّل على كل طلب عند إنشائه بالنسبة السارية وقتها (الحالية ${d ? formatPercent(rate) : "—"}) من قيمة الطلب بعد الخصم، وتُحتسب على الطلبات المدفوعة فقط — لا عمولة على الطلبات غير المدفوعة أو الملغاة أو المستردة.`,
               },
-              { term: "صافي المغسلة", desc: "الإيراد المحصّل ناقص عمولة Wash Up، وهو أساس التحويلات المستحقة لك." },
+              { term: "صافي المغسلة", desc: "الإيراد المحصّل ناقص عمولة Wash Up. العميل يدفع للمغسلة مباشرة، والمغسلة تسدّد عمولة Wash Up في التسويات الدورية." },
               { term: "المدفوعات المعلّقة", desc: "طلبات مكتملة لم يُسجَّل تحصيلها بعد — تدخل الإيراد بعد التحصيل وتمنع إغلاق اليوم." },
               { term: "الخصومات", desc: "الخصومات اليدوية من الموظفين في حدود صلاحياتهم، منفصلة عن عروض التطبيق." },
             ].map((x) => (
@@ -510,25 +524,25 @@ export default function FinancePageContent() {
         </SectionCard>
       </div>
 
-      {/* (f) Payouts from Carzen */}
+      {/* (f) Settlements: commission the wash owes Wash Up (customers pay the wash directly) */}
       <SectionCard
         flush
         icon={<Landmark />}
-        title="التحويلات من Wash Up"
-        description="تتم التسوية والتحويل بواسطة فريق مالية Wash Up — للاستفسار تواصل مع الدعم. التحويلات على مستوى المغسلة (كل الفروع)."
+        title="مستحقات Wash Up"
+        description="عمولة Wash Up المستحقة على المغسلة عن كل فترة تسوية (أسبوعية) من الطلبات المدفوعة. «مستحقة» = مطلوب سدادها لـ Wash Up، «مدفوعة» = تم تحصيلها. على مستوى المغسلة (كل الفروع) — للاستفسار تواصل مع الدعم."
       >
         {!d ? (
           <ListSkeleton rows={3} className="px-5 pb-5" />
         ) : !d.payouts.length ? (
-          <EmptyState icon={<Landmark />} title="لا توجد تحويلات بعد" description="ستظهر هنا فترات التسوية والمبالغ المستحقة والمدفوعة." className="py-10" />
+          <EmptyState icon={<Landmark />} title="لا توجد تسويات بعد" description="ستظهر هنا فترات التسوية وعمولة Wash Up المستحقة والمسدّدة." className="py-10" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
               <thead>
                 <tr>
                   <th scope="col" className={cn(TH, "text-start")}>الفترة</th>
-                  <th scope="col" className={cn(TH, "text-end")}>المستحق</th>
-                  <th scope="col" className={cn(TH, "text-end")}>المدفوع</th>
+                  <th scope="col" className={cn(TH, "text-end")}>المستحق لـ Wash Up</th>
+                  <th scope="col" className={cn(TH, "text-end")}>المسدَّد</th>
                   <th scope="col" className={cn(TH, "text-start")}>الحالة</th>
                   <th scope="col" className={cn(TH, "text-start")}>المرجع</th>
                   <th scope="col" className={cn(TH, "text-start")}>تاريخ الدفع</th>
@@ -540,8 +554,8 @@ export default function FinancePageContent() {
                     <td className={cn(TD, "num whitespace-nowrap")}>
                       {formatDate(p.periodStart)} – {formatDate(p.periodEnd, { withYear: true })}
                     </td>
-                    <td className={cn(TD, "num text-end font-semibold")}>{showMoney(p.amountDue, { decimals: true })}</td>
-                    <td className={cn(TD, "num text-end")}>{p.amountPaid ? showMoney(p.amountPaid, { decimals: true }) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className={cn(TD, "num text-end font-semibold")}>{settlementMoney(p, p.amountDue)}</td>
+                    <td className={cn(TD, "num text-end")}>{p.amountPaid ? settlementMoney(p, p.amountPaid) : <span className="text-muted-foreground">—</span>}</td>
                     <td className={TD}>
                       <StatusBadge meta={PAYOUT_STATUS[p.status]} size="sm" />
                     </td>

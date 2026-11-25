@@ -14,7 +14,7 @@ import type {
 import type { Branch } from "@/types/washes";
 import type postgres from "postgres";
 
-import { isSameDay, now, round2 } from "../../db";
+import { isSameDay, now } from "../../db";
 import { MockApiError } from "../../http";
 import type { VendorActor } from "../../router";
 import {
@@ -41,7 +41,7 @@ import { parsePhone } from "../../phone";
 import { branchLocale } from "../locale";
 import { branchById, customersWhere, offersWhere, orderById, servicesWhere, vehiclesWhere } from "../entities";
 import { staffNames } from "../lookups";
-import { defaultCommissionPct, logAudit } from "../platform";
+import { logAudit } from "../platform";
 import type { Q } from "../sql";
 import { SUSPENDED_ACTION_MESSAGE, assertNotSuspended, suspendedAllows } from "./scope";
 
@@ -270,21 +270,10 @@ async function dropPendingTransaction(t: Tx, o: Order) {
   await t`delete from public.transactions where order_id = ${o.id} and status = 'pending'`;
 }
 
-/** Ledger row is created when the service completes (still pending until collect_payment). */
-async function ensurePendingTransaction(t: Tx, o: Order) {
-  const [existing] = await t<{ id: string }[]>`select id from public.transactions where order_id = ${o.id} limit 1`;
-  if (existing) return;
-  const [biz] = await t<{ rate: number | null }[]>`select commission_rate as rate from public.businesses where id = ${o.businessId}`;
-  const rate = biz?.rate ?? (await defaultCommissionPct(t));
-  const commission = round2((o.total * rate) / 100);
-  await t`
-    insert into public.transactions (id, order_id, business_id, gross, commission_rate, commission, net_to_wash, date, status)
-    values (${`txn_${o.id}`}, ${o.id}, ${o.businessId}, ${o.total}, ${rate}, ${commission},
-            ${round2(o.total - commission)}, ${o.scheduledAt}, 'pending')
-    on conflict (order_id) do nothing`;
-}
-
-/** Recomputes subtotal/duration/discount/total like the mock `recomputeTotals` and writes them (plus a pending transaction). */
+/**
+ * Recomputes subtotal/duration/discount/total like the mock `recomputeTotals` and writes them.
+ * GAP-019: the ledger row follows the new total through the database trigger `order_ledger`.
+ */
 async function writeTotals(t: Tx, o: Order, items: OrderItem[], discount: Order["discount"]) {
   const subtotal = items.reduce((s, it) => s + it.price, 0);
   const durationMin = items.reduce((s, it) => s + it.durationMin, 0);
@@ -296,12 +285,6 @@ async function writeTotals(t: Tx, o: Order, items: OrderItem[], discount: Order[
       discount_pct = ${d ? d.pct : null}, discount_reason = ${d?.reason ?? null}, total = ${total}
     where id = ${o.id} and status = ${o.status} and closed_in_day_id is null returning id`;
   if (!rows.length) throw new MockApiError(CONFLICT, 409);
-  const [txn] = await t<{ id: string; rate: number }[]>`
-    select id, commission_rate as rate from public.transactions where order_id = ${o.id} and status = 'pending'`;
-  if (txn) {
-    const commission = round2((total * txn.rate) / 100);
-    await t`update public.transactions set gross = ${total}, commission = ${commission}, net_to_wash = ${round2(total - commission)} where id = ${txn.id}`;
-  }
   return total;
 }
 
@@ -385,7 +368,6 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
     case "complete": {
       await moveStatus(t, o, "completed");
       await pushTimeline(t, o, "completed", actor);
-      await ensurePendingTransaction(t, o);
       await audit(t, actor, o, "order.complete", from, "completed");
       return `اكتملت الخدمة — بانتظار الدفع ${o.total} ${cur}`;
     }
@@ -403,7 +385,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       await t`
         insert into public.payments (order_id, amount, method, collected_by, status)
         values (${o.id}, ${o.total}, ${method}, ${actor.staff.id}, 'paid')`;
-      await ensurePendingTransaction(t, { ...o, status: "completed" });
+      // GAP-019: the ledger row exists since the order was created (trigger); only its status changes here.
       await t`update public.transactions set status = 'paid' where order_id = ${o.id}`;
       await audit(t, actor, o, "order.payment", "pending", `paid · ${PAYMENT_LABEL[method]} · ${o.total}`);
       const change = method === "cash" ? Number(payload.amountReceived ?? o.total) - o.total : 0;

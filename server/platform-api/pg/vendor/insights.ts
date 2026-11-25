@@ -9,21 +9,23 @@ import type {
   VendorCustomer,
   VendorCustomerDetails,
   VendorFinance,
+  VendorFinanceCurrency,
   VendorReport,
   VendorReportType,
   VendorReview,
   VendorSearchResult,
+  VendorSettlement,
 } from "@/types/vendor/insights";
 
 import { daysAgo, isSameDay, now, round2 } from "../../db";
 import { MockApiError, ok, requireText } from "../../http";
 import { dayKey, hasManualDiscount } from "../../vendor/engine";
 import {
+  PAYOUT_COLS,
   PHONE,
   REVIEW_COLS,
   customersWhere,
   ordersWhere,
-  payoutsWhere,
   reviewsWhere,
   vehiclesWhere,
   vendorNotificationsWhere,
@@ -601,14 +603,59 @@ export const vendorInsightRoutes = [
         sql`o.branch_id = any(${branchIds}) and o.status = 'completed' and o.payment_status = 'pending'`,
         sql`order by o.scheduled_at desc, o.id`,
       ),
-      payoutsWhere(sql, sql`po.business_id = ${actor.business.id}`, sql`order by po.period_end desc, po.id`),
+      // Settlements: the commission this wash owes Wash Up per period (GAP-020), in their own currency.
+      sql<VendorSettlement[]>`
+        select ${sql.unsafe(PAYOUT_COLS)}, po.currency,
+          (select c.currency_symbol ->> 'ar' from public.countries c where c.currency = po.currency order by c.code limit 1) as "currencySymbol",
+          (select c.currency_decimals::int from public.countries c where c.currency = po.currency order by c.code limit 1) as "currencyDecimals"
+        from public.payouts po where po.business_id = ${actor.business.id}
+        order by po.period_end desc, po.id`,
       branchNames(sql, branchIds),
       actor.business.commissionRate ?? defaultCommissionPct(sql),
     ]);
 
     const paid = inRange.filter((o) => o.paymentStatus === "paid");
-    const revenue = paid.reduce((s, o) => s + o.total, 0);
-    const commission = round2((revenue * rate) / 100);
+
+    // GAP-019/011: commission is what the ledger RECORDED per order (rate at creation, rounded to the
+    // currency's decimals) — not today's rate — and amounts of different currencies are never added.
+    const [ledger, money] = await Promise.all([
+      paid.length
+        ? sql<{ branchId: string; commission: number; currency: string | null }[]>`
+            select o.branch_id as "branchId", t.commission, t.currency
+            from public.transactions t join public.orders o on o.id = t.order_id
+            where o.id = any(${paid.map((o) => o.id)}) and t.status <> 'refunded'`
+        : Promise.resolve([]),
+      sql<{ id: string; currency: string; symbol: string; decimals: number }[]>`
+        select b.id, c.currency, c.currency_symbol ->> 'ar' as symbol, c.currency_decimals::int as decimals
+        from public.branches b join public.areas a on a.id = b.area_id join public.countries c on c.code = a.country_code
+        where b.id = any(${branchIds})`,
+    ]);
+    const branchMoney = new Map(money.map((m) => [m.id, m]));
+    const moneyOf = (branchId: string) => branchMoney.get(branchId) ?? { currency: "EGP", symbol: "ج.م", decimals: 2 };
+    const byCurrency = new Map<string, VendorFinanceCurrency>();
+    const bucket = (currency: string, branchId: string) => {
+      let row = byCurrency.get(currency);
+      if (!row) {
+        const m = [...branchMoney.values()].find((x) => x.currency === currency) ?? moneyOf(branchId);
+        row = { currency, symbol: m.symbol, decimals: Number(m.decimals), revenue: 0, commission: 0, net: 0 };
+        byCurrency.set(currency, row);
+      }
+      return row;
+    };
+    branchIds.forEach((id) => bucket(moneyOf(id).currency, id)); // scope order: the first branch's currency first
+    for (const o of paid) bucket(moneyOf(o.branchId).currency, o.branchId).revenue += Number(o.total);
+    for (const l of ledger) bucket(l.currency ?? moneyOf(l.branchId).currency, l.branchId).commission += Number(l.commission);
+    const currencies = [...byCurrency.values()]
+      .map((c) => {
+        const f = 10 ** c.decimals;
+        const revenue = Math.round(c.revenue * f) / f;
+        const commission = Math.round(c.commission * f) / f;
+        return { ...c, revenue, commission, net: Math.round((revenue - commission) * f) / f };
+      })
+      .filter((c, i) => i === 0 || c.revenue || c.commission);
+    const main = currencies[0];
+    const revenue = main?.revenue ?? 0;
+    const commission = main?.commission ?? 0;
     const discounted = inRange.filter((o) => hasManualDiscount(o as Order) && o.status !== "cancelled");
 
     // Who gave each manual discount: the latest `order.discount` audit entry, else the assigned employee.
@@ -635,7 +682,9 @@ export const vendorInsightRoutes = [
       revenue,
       commissionRate: rate,
       commission,
-      net: round2(revenue - commission),
+      net: main?.net ?? 0,
+      currency: main?.currency,
+      currencies,
       refunds: inRange.filter((o) => o.paymentStatus === "refunded").reduce((s, o) => s + o.total, 0),
       discounts: discounted.reduce((s, o) => s + (o.discount?.amount ?? 0), 0),
       paidOrders: paid.length,

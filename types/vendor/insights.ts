@@ -95,12 +95,34 @@ export interface VendorReport {
 
 // ── Financials ─────────────────────────────────────────────
 
-export interface VendorFinance {
-  period: VendorPeriod;
+/** Money of one currency in the finance scope (GAP-019/011: never summed across currencies). */
+export interface VendorFinanceCurrency {
+  currency: string;
+  symbol: string;
+  decimals: number;
   revenue: number;
-  commissionRate: number;
   commission: number;
   net: number;
+}
+
+/**
+ * A settlement (`payouts` row): the Wash Up commission the wash owes for a period (customers pay the
+ * wash). `due` = to pay to Wash Up, `paid` = collected by Wash Up.
+ */
+export type VendorSettlement = Payout & { currency: string | null; currencySymbol: string | null; currencyDecimals?: number | null };
+
+export interface VendorFinance {
+  period: VendorPeriod;
+  /** Totals below are in `currency` (the first branch's when the scope mixes currencies — see `currencies`). */
+  revenue: number;
+  /** The business's CURRENT rate (info). Commission itself is the rate recorded on each order's ledger row. */
+  commissionRate: number;
+  /** Sum of the recorded `transactions.commission` of the paid orders in the period. */
+  commission: number;
+  net: number;
+  currency?: string;
+  /** One row per currency in scope; more than one only when branches are in different countries. */
+  currencies?: VendorFinanceCurrency[];
   refunds: number;
   discounts: number;
   paidOrders: number;
@@ -109,7 +131,7 @@ export interface VendorFinance {
   byMethod: { method: PaymentMethod; amount: number; count: number }[];
   byBranch: { branchId: string; name: Localized; revenue: number; orders: number }[];
   discountsByStaff: { staffId: string; name: string; count: number; amount: number }[];
-  payouts: Payout[];
+  payouts: VendorSettlement[];
 }
 
 // ── Audit & notifications ──────────────────────────────────

@@ -411,7 +411,14 @@ export const vendorInsightRoutes = [
     const paid = inRange.filter((o) => o.paymentStatus === "paid");
     const revenue = paid.reduce((s, o) => s + o.total, 0);
     const rate = effectiveCommissionRate(db, actor.business.id);
-    const commission = round2((revenue * rate) / 100);
+    // GAP-019: commission recorded on each order's ledger row (the mock simulates the DB trigger;
+    // an order without a row falls back to today's rate).
+    const commission = round2(
+      paid.reduce((s, o) => {
+        const txn = db.transactions.find((t) => t.orderId === o.id && t.status !== "refunded");
+        return s + (txn ? txn.commission : (o.total * rate) / 100);
+      }, 0),
+    );
     const pending = scoped.filter((o) => o.status === "completed" && o.paymentStatus === "pending");
     const discounted = inRange.filter((o) => hasManualDiscount(o) && o.status !== "cancelled");
     const byStaff = new Map<string, { staffId: string; name: string; count: number; amount: number }>();
@@ -429,6 +436,8 @@ export const vendorInsightRoutes = [
       commissionRate: rate,
       commission,
       net: round2(revenue - commission),
+      currency: "EGP",
+      currencies: [{ currency: "EGP", symbol: "ج.م", decimals: 2, revenue, commission, net: round2(revenue - commission) }],
       refunds: inRange.filter((o) => o.paymentStatus === "refunded").reduce((s, o) => s + o.total, 0),
       discounts: discounted.reduce((s, o) => s + (o.discount?.amount ?? 0), 0),
       paidOrders: paid.length,
@@ -446,7 +455,11 @@ export const vendorInsightRoutes = [
         return { branchId: id, name: branchName(db, id), revenue: list.reduce((s, o) => s + o.total, 0), orders: list.length };
       }),
       discountsByStaff: [...byStaff.values()].sort((a, b) => b.amount - a.amount),
-      payouts: db.payouts.filter((p) => p.businessId === actor.business.id).sort((a, b) => b.periodEnd.localeCompare(a.periodEnd)),
+      // Settlements: the commission the wash owes Wash Up per period (mock: Egypt only).
+      payouts: db.payouts
+        .filter((p) => p.businessId === actor.business.id)
+        .sort((a, b) => b.periodEnd.localeCompare(a.periodEnd))
+        .map((p) => ({ ...p, currency: "EGP", currencySymbol: "ج.م", currencyDecimals: 2 })),
     };
     return ok(finance);
   }),
