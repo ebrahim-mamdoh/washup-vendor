@@ -37,6 +37,23 @@ import { customerForWash } from "../../vendor/privacy";
 import { assertNotEmployee, scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
+
+const RECEIPTS_KEY = "__WASHUP_VENDOR_NOTIFICATION_RECEIPTS__";
+type GlobalWithReceipts = typeof globalThis & { [RECEIPTS_KEY]?: { present: boolean; at: number } };
+
+/**
+ * GAP-095: per-staff read receipts (`vendor_notification_reads`, migration 20261126110000) when the
+ * table exists, else the shared `vendor_notifications.read` flag. Re-checked every 5 minutes, so the
+ * API switches over by itself once the migration is applied.
+ */
+async function hasReadReceipts(q: Q): Promise<boolean> {
+  const g = globalThis as GlobalWithReceipts;
+  const cached = g[RECEIPTS_KEY];
+  if (cached && Date.now() - cached.at < 300_000) return cached.present;
+  const [row] = await q<{ present: boolean }[]>`select to_regclass('public.vendor_notification_reads') is not null as present`;
+  g[RECEIPTS_KEY] = { present: Boolean(row?.present), at: Date.now() };
+  return Boolean(row?.present);
+}
 /** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة Wash Up" actor (admin names stay internal). */
 const CARZEN_ACTOR = "carzen";
 const PERIOD_DAYS: Record<VendorPeriod, number> = { today: 1, "7d": 7, "30d": 30 };
@@ -690,39 +707,68 @@ export const vendorInsightRoutes = [
     const mine = sql`vn.business_id = ${actor.business.id}
       and (vn.branch_id is null or vn.branch_id = any(${actor.branchIds}))
       and (vn.staff_id is null or vn.staff_id = ${actor.staff.id})`;
+    const receipts = await hasReadReceipts(sql);
+    const isRead = receipts
+      ? sql`exists (select 1 from public.vendor_notification_reads r where r.notification_id = vn.id and r.staff_id = ${actor.staff.id})`
+      : sql`vn.read`;
     const cond =
-      filter === "unread" ? sql`${mine} and not vn.read` : filter && filter !== "all" ? sql`${mine} and vn.type::text = ${filter}` : mine;
+      filter === "unread" ? sql`${mine} and not ${isRead}` : filter && filter !== "all" ? sql`${mine} and vn.type::text = ${filter}` : mine;
     const [{ total, unread }] = await sql<{ total: number; unread: number }[]>`
-      select (count(*) filter (where ${cond}))::int as total, (count(*) filter (where not vn.read))::int as unread
+      select (count(*) filter (where ${cond}))::int as total, (count(*) filter (where not ${isRead}))::int as unread
       from public.vendor_notifications vn where ${mine}`;
-    const { items, pagination } = await paged(query, total, 20, (limit, offset) =>
-      vendorNotificationsWhere(sql, cond, sql`order by vn.created_at desc, vn.id limit ${limit} offset ${offset}`),
-    );
+    const { items, pagination } = await paged(query, total, 20, async (limit, offset) => {
+      const rows = await vendorNotificationsWhere(sql, cond, sql`order by vn.created_at desc, vn.id limit ${limit} offset ${offset}`);
+      if (!receipts || !rows.length) return rows;
+      const read = await sql<{ id: string }[]>`
+        select notification_id::text as id from public.vendor_notification_reads
+        where staff_id = ${actor.staff.id} and notification_id::text = any(${rows.map((n) => String(n.id))})`;
+      const readIds = new Set(read.map((r) => r.id));
+      return rows.map((n) => ({ ...n, read: readIds.has(String(n.id)) }));
+    });
     return ok(items, "OK", { pagination, meta: { unread } });
   }),
 
   vroute("POST", "/vendor/notifications/:id/read", async ({ params, actor }) => {
+    const receipts = await hasReadReceipts(db());
     const notification = await tx(async (t) => {
-      const updated = await t`
-        update public.vendor_notifications set read = true
-        where id = ${params.id} and business_id = ${actor.business.id}
+      const inScope = t`id = ${params.id} and business_id = ${actor.business.id}
           and (branch_id is null or branch_id = any(${actor.branchIds}))
-          and (staff_id is null or staff_id = ${actor.staff.id})
-        returning id`;
-      if (!updated.length) throw new MockApiError("الإشعار غير موجود", 404);
+          and (staff_id is null or staff_id = ${actor.staff.id})`;
+      // GAP-095: with receipts, only THIS staff member's read state changes.
+      const updated = receipts
+        ? await t`
+            insert into public.vendor_notification_reads (notification_id, staff_id)
+            select id, ${actor.staff.id} from public.vendor_notifications where ${inScope}
+            on conflict do nothing
+            returning notification_id`
+        : await t`update public.vendor_notifications set read = true where ${inScope} returning id`;
+      if (!updated.length) {
+        const [exists] = await t`select 1 from public.vendor_notifications where ${inScope}`;
+        if (!exists) throw new MockApiError("الإشعار غير موجود", 404);
+      }
       const [row] = await vendorNotificationsWhere(t, t`vn.id = ${params.id}`);
-      return row;
+      return { ...row, read: true };
     });
     return ok(notification);
   }),
 
   vroute("POST", "/vendor/notifications/read-all", async ({ actor }) => {
-    await tx(
-      (t) => t`
-        update public.vendor_notifications set read = true
-        where business_id = ${actor.business.id} and not read
-          and (branch_id is null or branch_id = any(${actor.branchIds}))
-          and (staff_id is null or staff_id = ${actor.staff.id})`,
+    const receipts = await hasReadReceipts(db());
+    await tx((t) =>
+      receipts
+        ? // GAP-095: marks everything read for THIS staff member only.
+          t`
+            insert into public.vendor_notification_reads (notification_id, staff_id)
+            select id, ${actor.staff.id} from public.vendor_notifications
+            where business_id = ${actor.business.id}
+              and (branch_id is null or branch_id = any(${actor.branchIds}))
+              and (staff_id is null or staff_id = ${actor.staff.id})
+            on conflict do nothing`
+        : t`
+            update public.vendor_notifications set read = true
+            where business_id = ${actor.business.id} and not read
+              and (branch_id is null or branch_id = any(${actor.branchIds}))
+              and (staff_id is null or staff_id = ${actor.staff.id})`,
     );
     return ok(null, "تم تعليم كل الإشعارات كمقروءة");
   }),

@@ -97,6 +97,11 @@ export interface MockDatabase {
   /** vendor access token → staff id */
   vendorSessions: Record<string, string>;
   vendorNotifications: VendorNotification[];
+  /**
+   * GAP-095: notification id → staff ids who read it (twin of `vendor_notification_reads`).
+   * A notification whose shared `read` flag is set (seed / before receipts) counts as read by all.
+   */
+  vendorNotificationReads?: Record<string, string[]>;
   vendorSettings: Record<string, VendorBusinessSettings>;
   dayClosings: DayClosing[];
   /** Customer-facing service descriptions (the shared WashService has none). */

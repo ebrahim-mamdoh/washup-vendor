@@ -25,6 +25,17 @@ import { customerForWash } from "./privacy";
 import { assertNotEmployee, scopeBranches } from "./scope";
 
 const LOST_AFTER_DAYS = 60;
+
+/** GAP-095: per-staff read state (the shared flag only for notifications already read before receipts). */
+function readBy(db: MockDatabase, n: { id: string; read: boolean }, staffId: string): boolean {
+  return n.read || Boolean(db.vendorNotificationReads?.[n.id]?.includes(staffId));
+}
+
+function markRead(db: MockDatabase, id: string, staffId: string) {
+  db.vendorNotificationReads ??= {};
+  const list = (db.vendorNotificationReads[id] ??= []);
+  if (!list.includes(staffId)) list.push(staffId);
+}
 /** Pseudo actor id: every Carzen admin is shown to washes as one "إدارة Wash Up" actor (admin names stay internal). */
 const CARZEN_ACTOR = "carzen";
 const NEW_WITHIN_DAYS = 30;
@@ -487,9 +498,11 @@ export const vendorInsightRoutes = [
   // ── Notifications (D18 / OW-21) ──────────────────────────
   vroute("GET", "/vendor/notifications", ({ db, query, actor }) => {
     const filter = query.get("filter");
+    // GAP-095: read state is per staff member.
     const mine = db.vendorNotifications
       .filter((n) => n.businessId === actor.business.id && (n.branchId === null || actor.branchIds.includes(n.branchId)))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((n) => ({ ...n, read: readBy(db, n, actor.staff.id) }));
     const list = mine.filter((n) => (filter === "unread" ? !n.read : filter && filter !== "all" ? n.type === filter : true));
     const { items, pagination } = paginate(list, query, 20);
     return ok(items, "OK", { pagination, meta: { unread: mine.filter((n) => !n.read).length } });
@@ -500,12 +513,14 @@ export const vendorInsightRoutes = [
       (x) => x.id === params.id && x.businessId === actor.business.id && (x.branchId === null || actor.branchIds.includes(x.branchId)),
     );
     if (!n) throw new MockApiError("الإشعار غير موجود", 404);
-    n.read = true;
-    return ok(n);
+    markRead(db, n.id, actor.staff.id);
+    return ok({ ...n, read: true });
   }),
 
   vroute("POST", "/vendor/notifications/read-all", ({ db, actor }) => {
-    db.vendorNotifications.filter((n) => n.businessId === actor.business.id && (n.branchId === null || actor.branchIds.includes(n.branchId))).forEach((n) => (n.read = true));
+    db.vendorNotifications
+      .filter((n) => n.businessId === actor.business.id && (n.branchId === null || actor.branchIds.includes(n.branchId)))
+      .forEach((n) => markRead(db, n.id, actor.staff.id));
     return ok(null, "تم تعليم كل الإشعارات كمقروءة");
   }),
 
