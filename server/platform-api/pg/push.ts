@@ -49,13 +49,18 @@ async function recipientsOf(q: Q, target: PushTarget, id: string): Promise<{ row
       from public.vendor_notifications where id = ${id}`;
     if (!n) return null;
     // Owner and the branch's managers (every manager for a business-wide notice), or the one addressee.
+    // GAP-050: booking notices of a branch also reach its employees allowed to confirm bookings
+    // (front desk), so app bookings get confirmed before they auto-cancel.
     const tokens = await q<{ token: string }[]>`
       select distinct d.token from public.push_devices d
       join public.staff s on s.user_id = d.user_id
       where d.app = 'partner' and s.business_id = ${n.businessId} and s.status = 'active'
         and (${n.staffId}::text is not null and s.id = ${n.staffId}
              or ${n.staffId}::text is null and (s.role = 'owner'
-                or s.role = 'manager' and (${n.branchId}::text is null or s.branch_id = ${n.branchId})))`;
+                or s.role = 'manager' and (${n.branchId}::text is null or s.branch_id = ${n.branchId})
+                or s.role = 'employee' and ${n.branchId}::text is not null and s.branch_id = ${n.branchId}
+                   and ${n.type} in ('new_booking', 'booking_cancelled')
+                   and coalesce((s.permissions ->> 'confirmBooking')::boolean, false)))`;
     return { row: n, tokens: tokens.map((t) => t.token) };
   }
   const [n] = await q<PushRow[]>`select id, type::text as type, title, body, href from public.admin_notifications where id = ${id}`;

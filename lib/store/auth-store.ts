@@ -50,7 +50,12 @@ export const useAuthStore = create<AuthState>()(
       establishSession: ({ account, tokens }) => set({ account, ...tokenState(tokens) }),
       setTokens: (tokens) => set(tokenState(tokens)),
       setAccount: (account) => set({ account }),
-      clearAuth: () => set({ account: null, accessToken: null, tokenType: "Bearer", refreshToken: null, expiresAt: null }),
+      clearAuth: () => {
+        // GAP-049: any end of session (also expiry / failed refresh) stops this browser's pushes.
+        // Loaded on demand; a no-op unless push was enabled here.
+        void import("@/lib/push/web-push").then((m) => m.forgetPushDevice("vendor")).catch(() => undefined);
+        set({ account: null, accessToken: null, tokenType: "Bearer", refreshToken: null, expiresAt: null });
+      },
     }),
     {
       name: AUTH_STORE_KEY,

@@ -2,6 +2,7 @@
 
 import { send } from "@/lib/api/request";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 /**
  * Browser push (Firebase Cloud Messaging) for the panel. Firebase is loaded on
@@ -28,22 +29,39 @@ export function pushAvailability(): PushAvailability {
   return "ready";
 }
 
-function storedToken(ns: PushNamespace): string | null {
+/**
+ * GAP-049: the saved token remembers WHICH account registered it (`{ token, owner }`), so a
+ * different account signing in on this browser re-binds the device to itself on the server.
+ * (Older values were the bare token: treated as "owner unknown" → registered again.)
+ */
+type StoredPush = { token: string; owner: string | null };
+
+function stored(ns: PushNamespace): StoredPush | null {
   try {
-    return localStorage.getItem(tokenKey(ns));
+    const raw = localStorage.getItem(tokenKey(ns));
+    if (!raw) return null;
+    if (!raw.startsWith("{")) return { token: raw, owner: null };
+    const v = JSON.parse(raw) as Partial<StoredPush>;
+    return typeof v.token === "string" ? { token: v.token, owner: typeof v.owner === "string" ? v.owner : null } : null;
   } catch {
     return null;
   }
 }
 
-function storeToken(ns: PushNamespace, token: string | null) {
+function storedToken(ns: PushNamespace): string | null {
+  return stored(ns)?.token ?? null;
+}
+
+function storeToken(ns: PushNamespace, token: string | null, owner: string | null = null) {
   try {
-    if (token) localStorage.setItem(tokenKey(ns), token);
+    if (token) localStorage.setItem(tokenKey(ns), JSON.stringify({ token, owner }));
     else localStorage.removeItem(tokenKey(ns));
   } catch {
     // Private mode: the server keeps the device either way.
   }
 }
+
+const currentOwner = () => useAuthStore.getState().account?.id ?? null;
 
 async function messaging() {
   const [{ getMessaging, isSupported }, { getFirebaseApp }] = await Promise.all([
@@ -63,9 +81,12 @@ async function registerToken(ns: PushNamespace): Promise<string> {
   const { getToken } = await import("firebase/messaging");
   const token = await getToken(await messaging(), { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
   if (!token) throw new Error("no token");
-  if (token !== storedToken(ns)) {
+  const owner = currentOwner();
+  const saved = stored(ns);
+  // Re-register when the token rotated OR another account is signed in now (GAP-049).
+  if (token !== saved?.token || !owner || saved.owner !== owner) {
     await send<null>("post", `/${ns}/push/register`, { token, platform: "web", appVersion: "web" }, "تعذر تفعيل الإشعارات");
-    storeToken(ns, token);
+    storeToken(ns, token, owner);
   }
   return token;
 }
@@ -93,6 +114,20 @@ export async function disablePush(ns: PushNamespace): Promise<void> {
     const { deleteToken } = await import("firebase/messaging");
     await deleteToken(await messaging()).catch(() => undefined);
   }
+}
+
+/**
+ * GAP-049: the session ended without an explicit logout (expired / refresh failed / revoked).
+ * The server can no longer be called with that session, so the browser's FCM token is deleted
+ * instead: FCM invalidates it, the next push to it fails as UNREGISTERED and the server drops the
+ * device row. The next sign-in on this browser registers a fresh token for that account.
+ */
+export async function forgetPushDevice(ns: PushNamespace): Promise<void> {
+  if (!storedToken(ns)) return;
+  storeToken(ns, null);
+  if (pushAvailability() !== "ready") return;
+  const { deleteToken } = await import("firebase/messaging");
+  await deleteToken(await messaging()).catch(() => undefined);
 }
 
 export function isPushEnabled(ns: PushNamespace): boolean {
