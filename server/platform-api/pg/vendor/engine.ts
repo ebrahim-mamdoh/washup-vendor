@@ -370,7 +370,7 @@ export async function performAction(t: Tx, actor: VendorActor, o: Order, payload
       if (!staffId) throw new MockApiError("اختر الموظف المسؤول عن الخدمة", 422, { staffId: ["مطلوب"] });
       await assertAssignable(t, o.branchId, staffId);
       // GAP-009: two "start" taps at once could both see a free bay; serialize per branch.
-      await t`select pg_advisory_xact_lock(hashtext(${`carzone_bays:${o.branchId}`}))`;
+      await t`select pg_advisory_xact_lock(hashtext(${`washup_bays:${o.branchId}`}))`;
       const busy = await busyBays(t, o.branchId);
       if (busy >= branch.capacity) throw new MockApiError(`كل الأماكن مشغولة (${busy}/${branch.capacity}) — انتظر حتى يفرغ مكان`, 409);
       await moveStatus(t, o, "in_service", t`, assigned_staff_id = ${staffId}`);
@@ -519,10 +519,19 @@ export async function recognize(
   const hasPhone = Boolean(phoneE164);
 
   if (phoneE164) {
+    // App users may type any phone without verifying it (live DB 2026-11-25: 10 of 12 app accounts
+    // have no confirmed phone), so an unverified app account is never matched by phone — otherwise
+    // whoever registers a stranger's number would receive that stranger's walk-in orders and pushes.
+    // Preference: already served at this wash, then a verified app phone, then rows staff created.
     [customer = null] = await customersWhere(
       q,
-      q`cu.phone = ${phoneE164}`,
-      q`order by (cu.user_id is null), cu.created_at, cu.id limit 1`,
+      q`cu.phone = ${phoneE164} and (
+          cu.user_id is null
+          or exists (select 1 from public.orders o where o.customer_id = cu.id and o.business_id = ${businessId})
+          or exists (select 1 from auth.users u where u.id = cu.user_id and u.phone_confirmed_at is not null
+                     and '+' || ltrim(u.phone, '+') = cu.phone))`,
+      q`order by exists (select 1 from public.orders o where o.customer_id = cu.id and o.business_id = ${businessId}) desc,
+               (cu.user_id is not null) desc, cu.created_at, cu.id limit 1`,
     );
     if (customer) {
       [vehicle = null] = hasPlate
@@ -595,9 +604,9 @@ export async function createOrder(t: Tx, actor: VendorActor, payload: CreateOrde
   if (plate.length < 3) throw new MockApiError("رقم اللوحة مطلوب", 422, { plate: ["مطلوب"] });
 
   // GAP-009: same advisory key as the customer app's create_order / reschedule_order RPCs
-  // (`pg_advisory_xact_lock(hashtext('carzone_slot:' || branch_id))`), so a phone booking here and
+  // (`pg_advisory_xact_lock(hashtext('washup_slot:' || branch_id))`), so a phone booking here and
   // an app booking can no longer both take the last place in a slot. Held until this transaction ends.
-  await t`select pg_advisory_xact_lock(hashtext(${`carzone_slot:${branch.id}`}))`;
+  await t`select pg_advisory_xact_lock(hashtext(${`washup_slot:${branch.id}`}))`;
 
   const { preview: price, offerId } = await priceWithOffer(t, branch.id, payload.serviceIds);
   const isPhone = payload.source === "phone";
