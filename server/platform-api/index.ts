@@ -17,7 +17,7 @@ import { washRoutes } from "./handlers/washes";
 import { MockApiError, fail } from "./http";
 import { handleSupabaseRequest } from "./pg";
 import { type HttpMethod, type RouteDef, type VendorRouteDef, matchPath } from "./router";
-import { isApplicationPhoneLookup, isLoginPath, loginThrottle } from "./throttle";
+import { isApplicationPhoneLookup, isApplicationSubmit, isLoginPath, loginThrottle } from "./throttle";
 import { VENDOR_ROUTES } from "./vendor";
 import { resolveVendorActor } from "./vendor/scope";
 
@@ -74,6 +74,10 @@ export async function handleMockRequest(req: Request, segments: string[]): Promi
   if (isLoginPath(segments) && req.method === "POST") {
     const wait = loginThrottle(req);
     if (wait) return fail(`محاولات كثيرة لتسجيل الدخول، حاول بعد ${wait} ثانية`, 429);
+  }
+  if (isApplicationSubmit(segments) && req.method === "POST") {
+    const wait = loginThrottle(req, "application-submit");
+    if (wait) return fail(`محاولات إرسال كثيرة، حاول بعد ${wait} ثانية`, 429);
   }
   if (isApplicationPhoneLookup(segments) && req.method === "GET") {
     const wait = loginThrottle(req, "application-lookup");

@@ -87,24 +87,35 @@ export const vendorAuthRoutes = [
       const sql = db();
       const phone = await staffPhoneFor(sql, String(body.phone ?? ""));
       if (!phone) throw new MockApiError("رقم الموبايل مطلوب", 422, { phone: ["مطلوب"] });
-      const [staff] = await sql<{ userId: string | null; businessId: string }[]>`
-        select user_id as "userId", business_id as "businessId" from public.staff where phone = ${phone}`;
-      if (!staff?.userId) {
-        throw new MockApiError("لا يمكن استرجاع كلمة المرور لهذا الحساب. تواصل مع الدعم.", 422);
-      }
-      let email = await adminUserEmail(staff.userId);
-      if (!email || email.endsWith("@partner.washup.app") || email.endsWith("@carzen.demo")) {
-        const [settings] = await sql<{ email: string | null }[]>`
-          select contact_email as email from public.business_settings where business_id = ${staff.businessId}`;
-        const fallback = settings?.email?.trim() ?? "";
-        if (fallback.includes("@")) {
-          const attached = await adminAttachEmail(staff.userId, fallback);
-          if (attached) email = fallback;
+
+      // GAP-066: one answer whether or not the number has an account (no account enumeration).
+      const answer = ok(
+        null,
+        "لو الرقم مسجل عندنا وله بريد إلكتروني، هيوصلك رابط استرجاع كلمة المرور خلال دقائق. لو ماوصلش، تواصل مع مالك المغسلة أو الدعم.",
+      );
+      const [staff] = await sql<{ userId: string | null; businessId: string; role: string }[]>`
+        select user_id as "userId", business_id as "businessId", role from public.staff where phone = ${phone}`;
+      if (!staff?.userId) return answer;
+
+      try {
+        let email = await adminUserEmail(staff.userId);
+        // The business contact e-mail may become the login e-mail of the OWNER only: attaching it to a
+        // manager's or employee's account would send their reset link to the owner's inbox — and this
+        // is a public call, so anyone could trigger that re-pointing.
+        const placeholder = !email || email.endsWith("@partner.washup.app") || email.endsWith("@carzen.demo");
+        if (placeholder && staff.role === "owner") {
+          const [settings] = await sql<{ email: string | null }[]>`
+            select contact_email as email from public.business_settings where business_id = ${staff.businessId}`;
+          const fallback = settings?.email?.trim() ?? "";
+          if (fallback.includes("@") && (await adminAttachEmail(staff.userId, fallback))) email = fallback;
+        } else if (placeholder) {
+          email = null;
         }
+        if (email) await sendRecoveryEmail(email, `${portalOrigin()}/reset-password`);
+      } catch (error) {
+        console.error("[forgot-password]", error);
       }
-      if (!email) throw new MockApiError("لا يوجد بريد إلكتروني مرتبط بهذا الحساب. أضف بريد المغسلة من الإعدادات أو تواصل مع الدعم.", 422);
-      await sendRecoveryEmail(email, `${portalOrigin()}/reset-password`);
-      return ok(null, "أرسلنا رابط استرجاع كلمة المرور إلى البريد المرتبط بالحساب");
+      return answer;
     },
     true,
   ),

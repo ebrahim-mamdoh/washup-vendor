@@ -187,7 +187,9 @@ export async function signOut(token: string): Promise<void> {
     return;
   }
   const { url, key } = supabaseEnv();
-  await fetch(`${url}/auth/v1/logout`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${token}` } }).catch(
+  // scope=local (GAP-065): end THIS session only. GoTrue's default (global) would also sign the
+  // user out of the owner app and every other browser.
+  await fetch(`${url}/auth/v1/logout?scope=local`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${token}` } }).catch(
     () => undefined,
   );
 }
@@ -211,6 +213,8 @@ export async function changePassword(accessToken: string, phoneE164: string, cur
   assertNewPassword(newPassword);
   const check = await signInWithPassword({ phone: phoneE164 }, currentPassword, null);
   if (!check) throw new MockApiError("كلمة المرور الحالية غير صحيحة", 401);
+  // The check above opened a session of its own; close it (GAP-065).
+  if (!isLocalAuth()) await signOut(check.token);
   if (isLocalAuth()) return;
   const { url, key } = supabaseEnv();
   const res = await fetch(`${url}/auth/v1/user`, {

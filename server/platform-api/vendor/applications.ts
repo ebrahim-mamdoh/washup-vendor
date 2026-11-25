@@ -19,6 +19,12 @@ export const vendorApplicationRoutes = [
       if (phone.length !== 10) {
         throw new MockApiError("رقم موبايل مصري غير صحيح (11 رقم يبدأ بـ 01)", 422, { phone: ["رقم غير صحيح"] });
       }
+      // GAP-030: one pending application per phone (same rule as the Postgres route).
+      if (db.applications.some((a) => a.status === "pending" && normalizePhone(a.phone) === phone)) {
+        throw new MockApiError("لديك طلب انضمام قيد المراجعة بالفعل لهذا الرقم — تابع حالته بكود الطلب أو انتظر رد فريق Wash Up", 409, {
+          phone: ["طلب قيد المراجعة"],
+        });
+      }
       const rawEmail = String(data.email ?? "").trim();
       const email = rawEmail.includes("@") ? rawEmail : `${phone}@partner.washup.app`;
       const area = String(data.area ?? "nasr").trim();

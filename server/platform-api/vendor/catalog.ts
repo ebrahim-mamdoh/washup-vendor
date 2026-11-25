@@ -11,7 +11,7 @@ import type { MockDatabase } from "../schema";
 import { defaultPermissions } from "../seed";
 import { cleanWorkingHours } from "./engine";
 import { DEFAULT_NOTIFICATION_PREFS, cleanNotificationPrefs, slotInterval, vendorSettingsFor } from "./notify";
-import { assertBranch, assertOwner, findInScope, scopeBranches } from "./scope";
+import { assertBranch, assertCatalogEditable, assertOwner, findInScope, scopeBranches } from "./scope";
 
 const CATEGORIES = ["exterior", "interior", "full", "deep"];
 
@@ -90,6 +90,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("POST", "/vendor/services", ({ db, body, actor }) => {
+    assertCatalogEditable(actor);
     if (!canEditServices(db, actor)) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
     const branchId = String(body.branchId ?? "");
     assertBranch(actor, branchId);
@@ -103,6 +104,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("PATCH", "/vendor/services/:id", ({ db, params, body, actor }) => {
+    assertCatalogEditable(actor);
     if (!canEditServices(db, actor)) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
     const svc = findInScope(actor, db.services, params.id, "الخدمة");
     const data = parseServiceBody(body);
@@ -153,6 +155,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("POST", "/vendor/offers", ({ db, body, actor }) => {
+    assertCatalogEditable(actor);
     assertOwner(actor, "إدارة العروض");
     const data = parseOffer(actor, body);
     const offer: Offer = { id: nid("of"), scope: "wash", businessId: actor.business.id, featured: false, status: body.publish ? "active" : "draft", ...data };
@@ -163,6 +166,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("PATCH", "/vendor/offers/:id", ({ db, params, body, actor }) => {
+    assertCatalogEditable(actor);
     assertOwner(actor, "إدارة العروض");
     const offer = db.offers.find((o) => o.id === params.id && o.businessId === actor.business.id && o.scope === "wash");
     if (!offer) throw new MockApiError("العرض غير موجود أو غير قابل للتعديل", 404);
@@ -180,6 +184,7 @@ export const vendorCatalogRoutes = [
     const offer = db.offers.find((o) => o.id === params.id && o.businessId === actor.business.id && o.scope === "wash");
     if (!offer) throw new MockApiError("العرض غير موجود", 404);
     const enable = Boolean(body.enabled);
+    if (enable) assertCatalogEditable(actor);
     const old = deriveOfferStatus(offer);
     offer.status = enable ? "active" : "disabled";
     offer.status = deriveOfferStatus(offer);
@@ -202,6 +207,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("PATCH", "/vendor/branches/:id", ({ db, params, body, actor }) => {
+    assertCatalogEditable(actor);
     assertOwner(actor, "تعديل بيانات الفرع");
     const target = db.branches.find((b) => b.id === params.id);
     if (!target || !actor.branchIds.includes(target.id)) throw new MockApiError("الفرع غير موجود", 404);
@@ -237,6 +243,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("PUT", "/vendor/branches/:id/settings", ({ db, params, body, actor }) => {
+    assertCatalogEditable(actor);
     assertOwner(actor, "تعديل قواعد الحجز");
     const target = db.branches.find((b) => b.id === params.id);
     if (!target || !actor.branchIds.includes(target.id)) throw new MockApiError("الفرع غير موجود", 404);

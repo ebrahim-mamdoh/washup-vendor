@@ -20,7 +20,7 @@ import { effectiveCommissionRate, toOrderListItem } from "../lookups";
 import type { VendorActor } from "../router";
 import type { MockDatabase } from "../schema";
 import { hideCheckInCode } from "./privacy";
-import { assertNotSuspended } from "./scope";
+import { SUSPENDED_ACTION_MESSAGE, assertNotSuspended, suspendedAllows } from "./scope";
 
 /** Orders that occupy a bay or a slot. */
 export const OCCUPYING: OrderStatus[] = ["pending", "confirmed", "waiting", "in_service"];
@@ -304,7 +304,12 @@ export function toVendorItem(db: MockDatabase, o: Order): VendorOrderListItem {
 
 // ── Permissions per action ──────────────────────────────────
 
+/** Same as the Postgres engine: role/permission matrix, then the suspended-mode policy (GAP-014). */
 export function allowedActions(db: MockDatabase, actor: VendorActor, o: Order): OrderAction[] {
+  return baseAllowedActions(db, actor, o).filter((a) => suspendedAllows(actor, o, a));
+}
+
+function baseAllowedActions(db: MockDatabase, actor: VendorActor, o: Order): OrderAction[] {
   if (o.closedInDayId) return ["note"];
   const p = actor.staff.permissions;
   const out: OrderAction[] = ["note"];
@@ -449,6 +454,7 @@ const PAYMENT_LABEL: Record<PaymentMethod, string> = { cash: "نقدي", card: "
 
 export function performAction(db: MockDatabase, actor: VendorActor, o: Order, payload: OrderActionPayload): string {
   const branch = db.branches.find((b) => b.id === o.branchId)!;
+  if (!suspendedAllows(actor, o, payload.action)) throw new MockApiError(SUSPENDED_ACTION_MESSAGE, 423);
   const allowed = allowedActions(db, actor, o);
   if (!allowed.includes(payload.action)) {
     if (o.closedInDayId) throw new MockApiError("الطلب مقفل بإغلاق اليوم — لا يمكن تعديله", 423);

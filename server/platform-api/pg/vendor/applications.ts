@@ -106,6 +106,15 @@ export const vendorApplicationRoutes = [
       const ownerName = requireText(data.ownerName, "ownerName", "اسم المالك", 2);
       const sql = db();
       const phoneE164 = await toE164(sql, String(data.phone ?? ""), data.dialCode);
+      // GAP-030: one open application per phone — repeats (scripted or double-clicked) would add rows
+      // and push every admin again. "Needs changes" applications are resubmitted, so only pending blocks.
+      const [open] = await sql<{ id: string }[]>`
+        select id from public.wash_applications where phone = ${phoneE164} and status = 'pending' limit 1`;
+      if (open) {
+        throw new MockApiError("لديك طلب انضمام قيد المراجعة بالفعل لهذا الرقم — تابع حالته بكود الطلب أو انتظر رد فريق Wash Up", 409, {
+          phone: ["طلب قيد المراجعة"],
+        });
+      }
       const rawEmail = String(data.email ?? "").trim();
       const email = rawEmail.includes("@") ? rawEmail : `${phoneE164.replace(/\D/g, "")}@partner.washup.app`;
       const countryCode = requireText(data.countryCode, "countryCode", "الدولة", 2).toUpperCase();

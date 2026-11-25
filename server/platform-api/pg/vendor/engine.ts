@@ -42,7 +42,7 @@ import { branchById, customersWhere, offersWhere, orderById, servicesWhere, vehi
 import { staffNames } from "../lookups";
 import { defaultCommissionPct, logAudit } from "../platform";
 import type { Q } from "../sql";
-import { assertNotSuspended } from "./scope";
+import { SUSPENDED_ACTION_MESSAGE, assertNotSuspended, suspendedAllows } from "./scope";
 
 /**
  * Order engine on Postgres — the db-dependent half of `../../vendor/engine.ts`
@@ -185,7 +185,12 @@ export async function busyBays(q: Q, branchId: string): Promise<number> {
 // ── Permissions per action ──────────────────────────────────
 
 /** Same matrix as the mock `allowedActions`; `graceMin` is the branch no-show grace. */
+/** What staff may do to this order now: role/permission matrix, then the suspended-mode policy. */
 export function allowedActions(actor: VendorActor, o: Order, graceMin: number): OrderAction[] {
+  return baseAllowedActions(actor, o, graceMin).filter((a) => suspendedAllows(actor, o, a));
+}
+
+function baseAllowedActions(actor: VendorActor, o: Order, graceMin: number): OrderAction[] {
   if (o.closedInDayId) return ["note"];
   const p = actor.staff.permissions;
   const out: OrderAction[] = ["note"];
@@ -338,6 +343,7 @@ const PAYMENT_LABEL: Record<PaymentMethod, string> = { cash: "نقدي", card: "
 export async function performAction(t: Tx, actor: VendorActor, o: Order, payload: OrderActionPayload): Promise<string> {
   const [branch] = await t<{ capacity: number; grace: number }[]>`
     select capacity, no_show_grace_min as grace from public.branches where id = ${o.branchId}`;
+  if (!suspendedAllows(actor, o, payload.action)) throw new MockApiError(SUSPENDED_ACTION_MESSAGE, 423);
   const allowed = allowedActions(actor, o, branch?.grace ?? 15);
   if (!allowed.includes(payload.action)) {
     if (o.closedInDayId) throw new MockApiError("الطلب مقفل بإغلاق اليوم — لا يمكن تعديله", 423);

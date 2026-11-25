@@ -16,7 +16,7 @@ import { dayBounds, searchPattern } from "../list";
 import { defaultCommissionPct, logAudit, pushAdminNotification, vendorSettingsFor } from "../platform";
 import { vroute } from "../router";
 import { type Q, db, tx } from "../sql";
-import { assertBranch, assertOwner, inScope, scopeBranches } from "./scope";
+import { assertBranch, assertCatalogEditable, assertOwner, inScope, scopeBranches } from "./scope";
 
 /**
  * Vendor catalog on Postgres: services (D8), wash offers (D9), branches and
@@ -197,6 +197,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("POST", "/vendor/services", async ({ body, actor }) => {
+    assertCatalogEditable(actor);
     const { service, data } = await tx(async (t) => {
       if (!(await canEditServices(t, actor))) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
       const branchId = String(body.branchId ?? "");
@@ -215,6 +216,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("PATCH", "/vendor/services/:id", async ({ params, body, actor }) => {
+    assertCatalogEditable(actor);
     const { service, before, priceChanged } = await tx(async (t) => {
       if (!(await canEditServices(t, actor))) throw new MockApiError("تعديل الخدمات متاح للمالك فقط (أو لمدير مُصرّح له)", 403);
       const [row] = await servicesWhere(t, t`sv.id = ${params.id}`);
@@ -276,6 +278,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("POST", "/vendor/offers", async ({ body, actor }) => {
+    assertCatalogEditable(actor);
     assertOwner(actor, "إدارة العروض");
     const offer = await tx(async (t) => {
       const data = parseOffer(actor, body);
@@ -293,6 +296,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("PATCH", "/vendor/offers/:id", async ({ params, body, actor }) => {
+    assertCatalogEditable(actor);
     assertOwner(actor, "إدارة العروض");
     const offer = await tx(async (t) => {
       const current = await ownOffer(t, actor, params.id, "العرض غير موجود أو غير قابل للتعديل");
@@ -317,6 +321,7 @@ export const vendorCatalogRoutes = [
   vroute("POST", "/vendor/offers/:id/status", async ({ params, body, actor }) => {
     assertOwner(actor, "إدارة العروض");
     const enable = Boolean(body.enabled);
+    if (enable) assertCatalogEditable(actor);
     const offer = await tx(async (t) => {
       const current = await ownOffer(t, actor, params.id, "العرض غير موجود");
       const old = deriveOfferStatus(current);
@@ -347,6 +352,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("PATCH", "/vendor/branches/:id", async ({ params, body, actor }) => {
+    assertCatalogEditable(actor);
     assertOwner(actor, "تعديل بيانات الفرع");
     const { branch, deactivating, upcoming } = await tx(async (t) => {
       if (!actor.branchIds.includes(params.id)) throw new MockApiError("الفرع غير موجود", 404);
@@ -408,6 +414,7 @@ export const vendorCatalogRoutes = [
   }),
 
   vroute("PUT", "/vendor/branches/:id/settings", async ({ params, body, actor }) => {
+    assertCatalogEditable(actor);
     assertOwner(actor, "تعديل قواعد الحجز");
     const branch = await tx(async (t) => {
       if (!actor.branchIds.includes(params.id)) throw new MockApiError("الفرع غير موجود", 404);

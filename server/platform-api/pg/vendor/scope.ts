@@ -10,7 +10,18 @@ import { vendorSettingsFor } from "../platform";
 import type { Q } from "../sql";
 
 // Pure guards over the actor are shared with the mock implementation.
-export { assertBranch, assertNotEmployee, assertNotSuspended, assertOwner, capPermissions, scopeBranches, singleBranch } from "../../vendor/scope";
+export {
+  SUSPENDED_ACTION_MESSAGE,
+  assertBranch,
+  assertCatalogEditable,
+  assertNotEmployee,
+  assertNotSuspended,
+  assertOwner,
+  capPermissions,
+  scopeBranches,
+  singleBranch,
+  suspendedAllows,
+} from "../../vendor/scope";
 
 /** Signed-in identity → owner/manager actor, or null when the account may not use the portal. */
 export async function resolveVendorActor(q: Q, identity: Identity): Promise<VendorActor | null> {

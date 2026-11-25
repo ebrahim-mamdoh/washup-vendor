@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { OrderStatus } from "@/types/orders";
+import type { OrderAction } from "@/types/vendor/operations";
 import type { VendorAccount } from "@/types/vendor/auth";
 import type { StaffPermissions } from "@/types/washes";
 import { MockApiError } from "../http";
@@ -90,6 +92,33 @@ export function capPermissions(actor: VendorActor, permissions: StaffPermissions
 export function assertNotSuspended(actor: VendorActor): void {
   if (actor.business.status === "suspended") {
     throw new MockApiError("المغسلة معلّقة من إدارة Wash Up — لا يمكن استقبال حجوزات جديدة حاليًا", 423);
+  }
+}
+
+/**
+ * Suspended mode (GAP-014, policy agreed with the owner on 2026-11-24): a suspended wash may
+ * FINISH the cars already at the branch and cancel bookings — nothing new.
+ * - any order: note, cancel, no-show;
+ * - cars inside (waiting / in service / done but unpaid): start, complete, collect payment, assign,
+ *   add a service, discount, refund;
+ * - blocked: confirm, check-in (a new car arriving), and catalog edits (`assertCatalogEditable`).
+ */
+const ANY_ORDER = new Set<OrderAction>(["note", "cancel", "no_show"]);
+const CAR_INSIDE = new Set<OrderAction>(["start", "complete", "collect_payment", "assign", "add_service", "discount", "refund"]);
+
+export function suspendedAllows(actor: VendorActor, o: { status: OrderStatus }, action: OrderAction): boolean {
+  if (actor.business.status !== "suspended") return true;
+  if (ANY_ORDER.has(action)) return true;
+  const inside = o.status === "waiting" || o.status === "in_service" || o.status === "completed";
+  return inside && CAR_INSIDE.has(action);
+}
+
+export const SUSPENDED_ACTION_MESSAGE = "المغسلة موقوفة من إدارة Wash Up — متاح فقط إنهاء السيارات الموجودة في الفرع وإلغاء الحجوزات";
+
+/** Services, offers and branch details are frozen while suspended (GAP-014). */
+export function assertCatalogEditable(actor: VendorActor): void {
+  if (actor.business.status === "suspended") {
+    throw new MockApiError("المغسلة موقوفة من إدارة Wash Up — تعديل الخدمات والعروض وبيانات الفروع غير متاح حتى إعادة التفعيل", 423);
   }
 }
 

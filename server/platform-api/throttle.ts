@@ -24,6 +24,11 @@ export function isLoginPath(segments: string[]): boolean {
  * Public application lookup by phone number (anything that isn't an `app_…` id): it answers
  * whether a phone has applied, so it gets the same per-IP budget as sign-in.
  */
+/** Public "join as a wash" submission (GAP-030): same per-IP budget, its own bucket. */
+export function isApplicationSubmit(segments: string[]): boolean {
+  return segments.length === 2 && segments[0] === "vendor" && segments[1] === "applications";
+}
+
 export function isApplicationPhoneLookup(segments: string[]): boolean {
   return segments.length === 3 && segments[0] === "vendor" && segments[1] === "applications" && !segments[2].startsWith("app_");
 }
