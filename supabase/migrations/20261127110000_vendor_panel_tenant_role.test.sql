@@ -1,4 +1,4 @@
--- NOT APPLIED — to be reviewed and run by the lead (after 20261127110000_vendor_panel_tenant_role.sql)
+-- RUN on tbcmgdwzarfdgzzmmele on 2026-11-26 after the migration: 84 passed, 0 failed (rolled back). Re-run after any change to the policies or the vendor code's tables.
 --
 -- GAP-027 verification of the vendor tenant role. Run the whole file in the Supabase SQL editor (as
 -- postgres). Nothing persists: everything runs in one transaction, the DO block ALWAYS ends with an
@@ -224,7 +224,7 @@ begin
        values (%L, 'primary', %L, '{"ar": "VP test", "en": "VP test"}', '{"ar": "", "en": ""}', 10, 10, false)$s$, b_branch, a_category)],
     ['move own service to a B branch', format('update public.services set branch_id = %L where id::text = %L', b_branch, a_service)],
     ['staff in B', format($s$insert into public.staff (business_id, branch_id, name, phone, role, status, max_discount_pct, permissions)
-       values (%L, %L, 'VP test', '+201599999990', 'employee', 'active', 0, '{}')$s$, b_biz, b_branch)],
+       values (%L, %L, 'VP test', '+201599999990', 'employee', 'active', 0, '{"confirmBooking": true, "cancelOrder": false, "closeShift": false, "editServices": false, "refund": false, "collectPayment": true, "runService": true, "manageStaff": false}')$s$, b_biz, b_branch)],
     ['move own staff to B (column not granted)', format('update public.staff set business_id = %L where id::text = %L', b_biz, a_staff)],
     ['notification for B', format($s$insert into public.vendor_notifications (business_id, branch_id, type, title, body, href)
        values (%L, null, 'platform', '{"ar": "VP test", "en": "VP test"}', '{"ar": "VP test", "en": "VP test"}', '/')$s$, b_biz)],
@@ -359,7 +359,7 @@ begin
     if rc <> 1 then raise exception 'unblock touched % rows', rc; end if;
     step := 'add staff';
     insert into public.staff (business_id, branch_id, name, phone, role, status, max_discount_pct, permissions)
-    values (a_biz, a_branch, 'VP test', '+2015' || reverse(rnd), 'employee', 'active', 10, '{}') returning id::text into new_staff;
+    values (a_biz, a_branch, 'VP test', '+2015' || reverse(rnd), 'employee', 'active', 10, '{"confirmBooking": true, "cancelOrder": false, "closeShift": false, "editServices": false, "refund": false, "collectPayment": true, "runService": true, "manageStaff": false}') returning id::text into new_staff;
     step := 'staff shift pattern';
     insert into public.staff_shift_patterns (id, staff_id, starts_at, ends_at, days)
     values ('pat_' || new_staff || '_00', new_staff, '09:00', '17:00', '{0,1,2,3,4,5,6}');

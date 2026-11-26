@@ -1,4 +1,6 @@
--- APPLIED to tbcmgdwzarfdgzzmmele on 2026-11-27 (role + 81 policies on 36 tables; the {branches} subquery fixed with ::text[]). NOT yet recorded in schema_migrations, and the .test.sql was NOT run: keep CARZEN_DB_TENANT_ROLE off until it passes.
+-- APPLIED to tbcmgdwzarfdgzzmmele on 2026-11-26 (role + 81 policies on 36 tables; the {branches} subquery fixed with ::text[];
+-- execute on is_localized(jsonb) granted afterwards, now part of this file). The .test.sql passed live (84 passed, 0 failed).
+-- CARZEN_DB_TENANT_ROLE stays off until a Preview deploy with the flag on shows no [tenant] / 42501 errors.
 --
 -- GAP-027 (system audit): defence-in-depth tenant isolation for the vendor portal API.
 --
@@ -228,7 +230,9 @@ do $$
 declare
   f text;
 begin
-  foreach f in array array['public.next_order_number(public.order_source)', 'public.normalize_plate(text)'] loop
+  -- is_localized: used by CHECK constraints on the jsonb name / title / body columns (insert/update fail without it).
+  foreach f in array array['public.next_order_number(public.order_source)', 'public.normalize_plate(text)',
+                           'public.is_localized(jsonb)'] loop
     if to_regprocedure(f) is null then
       raise exception 'GAP-027: function % is missing', f;
     end if;
