@@ -1,0 +1,115 @@
+# PR gates (GAP-055): typecheck, lint and a production build on every pull request and on pushes to
+# main/ebrahim, plus the shared-code drift check against the Super Admin (GAP-054).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, ebrahim]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '24' # Next.js 16 needs >= 20.9
+
+jobs:
+  checks:
+    name: typecheck + lint + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      # The build needs no secrets: the bundled mock data source, and every Supabase / Firebase /
+      # Google Maps value is optional (the features switch off without them). Never add real keys here.
+      CARZEN_DATA_SOURCE: mock
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: npm ci
+        run: npm ci --no-audit --no-fund
+
+      - name: typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: lint (eslint)
+        run: npx eslint .
+
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**', 'components/**', 'lib/**', 'server/**') }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - name: build (next build)
+        run: npm run build
+
+  shared-drift:
+    # `npm run check:shared` compares the shared files with the Super Admin checked out next to this
+    # repo (../super-admin). That repo is private: add a read-only token as the SHARED_REPO_TOKEN secret
+    # (fine-grained PAT, Contents: Read on ebrahim-mamdoh/washup-superadmin). Without it (or on fork PRs)
+    # the job skips its steps and passes.
+    name: shared code drift (check:shared)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SHARED_REPO_TOKEN: ${{ secrets.SHARED_REPO_TOKEN }}
+      SIBLING_REPO: ebrahim-mamdoh/washup-superadmin
+    steps:
+      - name: Skip without SHARED_REPO_TOKEN
+        if: env.SHARED_REPO_TOKEN == ''
+        run: echo "::notice title=check:shared skipped::Add the SHARED_REPO_TOKEN secret (read-only access to $SIBLING_REPO) to run the drift check."
+
+      - uses: actions/checkout@v4
+        if: env.SHARED_REPO_TOKEN != ''
+        with:
+          path: vendor
+          persist-credentials: false
+
+      # Compare with the same branch of the Super Admin when it exists (a change made in both repos),
+      # else the PR's base branch, else its default branch.
+      - name: Pick the Super Admin branch
+        id: sibling
+        if: env.SHARED_REPO_TOKEN != ''
+        env:
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          url="https://x-access-token:${SHARED_REPO_TOKEN}@github.com/${SIBLING_REPO}.git"
+          ref=""
+          for b in "$HEAD_REF" "$BASE_REF"; do
+            if [ -n "$b" ] && git ls-remote --exit-code --heads "$url" "refs/heads/$b" > /dev/null; then ref="$b"; break; fi
+          done
+          echo "Super Admin ref: ${ref:-<default branch>}"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: env.SHARED_REPO_TOKEN != ''
+        with:
+          repository: ${{ env.SIBLING_REPO }}
+          ref: ${{ steps.sibling.outputs.ref }}
+          token: ${{ secrets.SHARED_REPO_TOKEN }}
+          path: super-admin
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: env.SHARED_REPO_TOKEN != ''
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Plain Node (no dependencies needed).
+      - name: npm run check:shared
+        if: env.SHARED_REPO_TOKEN != ''
+        working-directory: vendor
+        run: npm run check:shared

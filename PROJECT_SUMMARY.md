@@ -43,6 +43,11 @@ can log in immediately with `demo1234` (the approval provisions the owner accoun
 
 Reset demo data: delete `.carzen/platform-db.json` (it is re-seeded on the next request), or use the Super Admin's demo reset when both apps share the store (`POST /api/v1/admin/system/reset` is served by the Super Admin only).
 
+**CI** (`.github/workflows/ci.yml`, GAP-055) runs on every pull request and on pushes to `main` / `ebrahim`
+(Node 24): `npm ci` → `npm run typecheck` → `npx eslint .` → `npm run build` (mock data source, no secrets). A second
+job runs `npm run check:shared` with the Super Admin checked out at `../super-admin`; it needs the repository secret
+**`SHARED_REPO_TOKEN`** (read-only fine-grained PAT, Contents: Read on `washup-superadmin`) and skips (passes) without it.
+
 ## 3. Folder structure
 
 ```
