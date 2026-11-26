@@ -130,7 +130,8 @@ scripts/shared-drift.mjs            # `npm run check:shared`: drift against ../s
 - Inside that transaction `db()` returns it and `tx()` opens a savepoint (AsyncLocalStorage), so handlers are
   unchanged. Use `guarded(q, fn)` around a statement whose failure you catch and recover from. Work after the
   response (`after()` push delivery) gets the normal pool again.
-- Policies (`supabase/migrations/20261127110000_vendor_panel_tenant_role.sql`, `vendor_panel_<table>_<cmd>`) scope
+- Policies (`vendor_panel_<table>_<cmd>`; migration 20261127110000, now part of the schema baseline in the customer-app repo's
+  `supabase/migrations`, history in `supabase/migrations_archive/panels/`) scope
   by **business** (managers' branch limits stay in code); customers/vehicles are readable platform-wide in a
   tenant context (walk-in recognition); registration (`/vendor/geo`, `/vendor/applications*`) runs in the public
   context (no business). Cross-tenant questions go through SECURITY DEFINER helpers that answer true/false
@@ -138,7 +139,7 @@ scripts/shared-drift.mjs            # `npm run check:shared`: drift against ../s
 - Exempt (still `postgres`): sign-in, refresh, forgot/reset password (they find the account by phone across
   businesses before a tenant exists) and the DB push hook (`TENANT_EXEMPT` in `pg/index.ts`).
 - A new table or column the vendor code writes needs a GRANT + policy in a migration, or it fails (42501 → 500)
-  under the flag. Verify with `…tenant_role.test.sql` (rolls back). Rollout: migration → test SQL → flag on a
+  under the flag. Verify with `supabase/tests/20261127110000_vendor_panel_tenant_role.test.sql` in the customer-app repo (rolls back). Rollout: migration → test SQL → flag on a
   Preview deploy → watch `[tenant]` / `[api:supabase]` errors → Production.
 
 ## 5. Modules and routes
@@ -188,7 +189,7 @@ scripts/shared-drift.mjs            # `npm run check:shared`: drift against ../s
 > run both on Supabase (`CARZEN_DATA_SOURCE=supabase`, same `DATABASE_URL`), or point both mock stores at one
 > file with `CARZEN_DB_FILE` (only with a Super Admin that has the same API version). The vendor routes exist in
 > two implementations (`server/platform-api/vendor/*` mock, `server/platform-api/pg/vendor/*` Postgres, order
-> engine `pg/vendor/engine.ts`): change both. Schema, migrations and the parity tool live in the carZone repo (`supabase/`).
+> engine `pg/vendor/engine.ts`): change both. Schema and migrations live in the customer-app repo (`supabase/`, GAP-007; see `supabase/README.md` here).
 
 | Super Admin action | Vendor portal effect |
 |--------------------|----------------------|

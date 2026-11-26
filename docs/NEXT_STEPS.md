@@ -57,9 +57,8 @@
 
 **على السيرفر المنشور:** حط `FIREBASE_SERVICE_ACCOUNT` (موجود في `.env` المحلي، base64 من ملف الـ service account) و`PUSH_WEBHOOK_SECRET`. الاتنين سريين، ومش موجودين في git.
 
-### 2. نقل ملفات الـ migrations لريبو carZone
-ريبو carZone (`D:\Project Analysis`) مشترك، والأداة منعتني أكتب فيه. انقل ملفات `washup-vendor/supabase/migrations/*` لـ `carZone/supabase/migrations/` بنفس الأسماء. بعد كده سجّل اللي اتطبق في الـ migration history (`supabase migration repair --status applied 20261020120000`).
-ملحوظة: جداول `legacy_*` وأي اختلاف في الأعمدة مش موجودين في الملفات. استخدم `supabase db pull` عشان تجيبهم.
+### 2. ~~نقل ملفات الـ migrations لريبو carZone~~ — اتعمل بشكل تاني (2026-11-26، GAP-007)
+مصدر الـ schema الوحيد بقى `supabase/migrations` في ريبو تطبيق العميل، ويبدأ بـ baseline متأكد منه من الداتابيز الحقيقية. الملفات القديمة في `supabase/migrations_archive/` هناك، والـ history في `schema_migrations` اتوحّد. التفاصيل في `supabase/README.md` في ريبو تطبيق العميل.
 
 ### 3. إعدادات Supabase من الـ Dashboard
 - **Auth → Password security:** فعّل «Leaked password protection» (الـ advisor بينبّه عليها).

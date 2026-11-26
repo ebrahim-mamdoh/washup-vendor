@@ -4,9 +4,10 @@
 //
 // The customer app is simulated exactly as PostgREST runs it: `set local role authenticated` with the
 // customer's JWT claims, then the same RPCs / table writes. Wash and admin actions are the SQL the
-// panels run. Optionally applies the pending migrations first, to test them before they go live.
+// panels run. Optionally applies pending migration files first (from the schema home, customer-app repo
+// supabase/migrations), to test them before they go live.
 //
-// Usage:  node qa/api-check/integration-db.mjs [--with-migrations]
+// Usage:  node qa/api-check/integration-db.mjs [--with-migrations <file.sql> ...]   (paths relative to the cwd)
 // Needs DATABASE_URL in .env (session pooler). Picks the first two customers that have an app login
 // and a car, and the first branch with a primary service and an add-on.
 import { readFileSync } from "node:fs";
@@ -20,13 +21,7 @@ const env = Object.fromEntries(
     .map((m) => [m[1], m[2].replace(/^"(.*)"$/, "$1")]),
 );
 const WITH_MIGRATIONS = process.argv.includes("--with-migrations");
-const MIGRATIONS = [
-  "20261021090000_customer_data_api_hardening.sql",
-  "20261021091000_app_orders_commission_ledger.sql",
-  "20261021092000_foreign_key_indexes.sql",
-  "20261025090000_booking_flow_fixes.sql",
-  "20261021100000_panel_notifications.sql",
-];
+const MIGRATIONS = WITH_MIGRATIONS ? process.argv.slice(process.argv.indexOf("--with-migrations") + 1) : [];
 
 const sql = postgres(env.DATABASE_URL, { prepare: false, max: 1, onnotice: () => {} });
 const out = [];
@@ -59,7 +54,7 @@ const hasTable = async (t, name) => (await t`select to_regclass(${"public." + na
 try {
   await sql.begin(async (t) => {
     if (WITH_MIGRATIONS) {
-      for (const f of MIGRATIONS) await t.unsafe(readFileSync(new URL(`../../supabase/migrations/${f}`, import.meta.url), "utf8"));
+      for (const f of MIGRATIONS) await t.unsafe(readFileSync(f, "utf8"));
       check(true, `applied ${MIGRATIONS.length} migrations inside the transaction`);
     }
     const started = (await t`select now() as n`)[0].n;
