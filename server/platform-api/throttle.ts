@@ -17,36 +17,20 @@ function attempts(): Map<string, number[]> {
 }
 
 /**
- * GAP-064: the client IP used as throttle key. A client can send any `X-Forwarded-For`, so its
- * first entry is never trusted:
- * - on Vercel, the edge sets `x-vercel-forwarded-for` / `x-real-ip` from the connection itself
- *   (client-sent values are overwritten);
- * - elsewhere, the LAST `X-Forwarded-For` entry (added by the nearest proxy), then `x-real-ip`.
- * Counters stay in this instance's memory (per serverless instance; Supabase Auth limits apply too).
+ * The caller's IP from a header only the hosting platform sets (GAP-064): on Vercel
+ * `x-vercel-forwarded-for` (then `x-real-ip`), both written by Vercel's edge. Elsewhere only the header
+ * named in TRUSTED_CLIENT_IP_HEADER (set by your own proxy) is used; a client-sent `x-forwarded-for`
+ * is never trusted, so it can't be rotated to dodge the limit. Without one, all callers share a bucket.
  */
 export function clientIp(req: Request): string {
-  const h = req.headers;
-  const first = (v: string | null) => v?.split(",")[0]?.trim() || "";
-  if (process.env.VERCEL) return first(h.get("x-vercel-forwarded-for")) || h.get("x-real-ip")?.trim() || "unknown";
-  const chain = (h.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return chain[chain.length - 1] || h.get("x-real-ip")?.trim() || "local";
+  const first = (name: string) => req.headers.get(name)?.split(",")[0]?.trim() || "";
+  if (process.env.VERCEL) return first("x-vercel-forwarded-for") || first("x-real-ip") || "unknown";
+  const trusted = process.env.TRUSTED_CLIENT_IP_HEADER?.trim().toLowerCase();
+  return (trusted && first(trusted)) || "local";
 }
 
 export function isLoginPath(segments: string[]): boolean {
   return segments.length === 3 && segments[1] === "auth" && (segments[2] === "login" || segments[2] === "forgot-password");
-}
-
-/**
- * Public application lookup by phone number (anything that isn't an `app_…` id): it answers
- * whether a phone has applied, so it gets the same per-IP budget as sign-in.
- */
-/** Public "join as a wash" submission (GAP-030): same per-IP budget, its own bucket. */
-export function isApplicationSubmit(segments: string[]): boolean {
-  return segments.length === 2 && segments[0] === "vendor" && segments[1] === "applications";
-}
-
-export function isApplicationPhoneLookup(segments: string[]): boolean {
-  return segments.length === 3 && segments[0] === "vendor" && segments[1] === "applications" && !segments[2].startsWith("app_");
 }
 
 /**

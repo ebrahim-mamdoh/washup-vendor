@@ -1,5 +1,6 @@
 /**
- * Phone numbers across countries (GAP-013). Pure helpers shared by the mock and Postgres servers.
+ * Phone numbers across countries (GAP-013). Pure helpers shared by the mock and Postgres servers of
+ * both apps: byte-identical in the Super Admin and the partner portal (`npm run check:shared`, GAP-054).
  *
  * Storage is E.164 (`+201001234567`, `+966501234567`). Input may be:
  * - international: `+966 50 123 4567`, `00966501234567`, or digits that already start with a known
@@ -91,6 +92,18 @@ export function parsePhone(input: string, defaultDial: string = EG): string | nu
 }
 
 /**
+ * Egyptian national number (no country code, no trunk 0): mobiles are 10 digits ("1XXXXXXXXX"),
+ * Cairo/Alexandria landlines 9 ("2XXXXXXXX"), other landlines 8–9. The SQL twin is `PHONE` in
+ * `pg/entities.ts`.
+ */
+export function nationalPhone(p: string): string {
+  let d = digitsOf(p);
+  if (d.startsWith("0020")) d = d.slice(4);
+  else if (d.startsWith("20") && d.length > 10) d = d.slice(2);
+  return d.replace(/^0+/, "");
+}
+
+/**
  * Display format. Egypt keeps the historic groups (`+20 1XX XXX XXXX`, `+20 2 XXXX XXXX`,
  * `+20 XX XXX XXXX`) — also for bare national numbers, as before. Other countries:
  * `+966 50 123 4567`.
@@ -106,10 +119,7 @@ export function prettyPhone(p: string): string {
     if (n.length <= 4) return `+${dial} ${n}`;
     return `+${dial} ${n.slice(0, 2)} ${n.slice(2, n.length - 4)} ${n.slice(-4)}`.replace(/\s+/g, " ");
   }
-  let n = d;
-  if (n.startsWith("0020")) n = n.slice(4);
-  else if (n.startsWith("20") && n.length > 10) n = n.slice(2);
-  n = n.replace(/^0+/, "");
+  const n = nationalPhone(d);
   if (n.length === 10 && n.startsWith("1")) return `+20 ${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
   if (n.length === 9 && (n.startsWith("2") || n.startsWith("3"))) return `+20 ${n[0]} ${n.slice(1, 5)} ${n.slice(5)}`;
   if (n.length >= 8) return `+20 ${n.slice(0, 2)} ${n.slice(2, 5)} ${n.slice(5)}`;

@@ -6,7 +6,7 @@ import type { ActorType } from "@/types/orders";
 import type { VendorNotificationType } from "@/types/vendor/catalog";
 
 import type { VendorBusinessSettings } from "../schema";
-import { DEFAULT_NOTIFICATION_PREFS } from "../vendor/notify";
+import { DEFAULT_NOTIFICATION_PREFS } from "../shared/notify";
 import { apiPhone } from "./entities";
 import { queuePush } from "./push";
 import type { Q } from "./sql";

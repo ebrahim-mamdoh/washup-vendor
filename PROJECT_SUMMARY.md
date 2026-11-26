@@ -3,8 +3,8 @@
 > Full context for any engineer or AI session. Read `AGENTS.md` (engineering playbook from aroma) as well.
 > Standalone repo (`washup-vendor`), split on 2026-10-19 from the carZone monorepo (`vendor-portal/` +
 > `packages/*` at commit `547e7ba`): the shared packages now live inside this app (§3).
-> `server/platform-api/` is the same code as in `washup-superadmin` (change both; only `index.ts`'s namespace guard
-> differs: this app answers `/api/v1/vendor/*` only). On Supabase use the **session** pooler (port 5432) in
+> This app serves only `/api/v1/vendor/*`; the admin namespace lives in `washup-superadmin` (GAP-054). Shared code
+> (UI kit, contracts, mock store, Postgres plumbing) must change in both repos — see §10 and `npm run check:shared`. On Supabase use the **session** pooler (port 5432) in
 > `DATABASE_URL`; `SUPABASE_SECRET_KEY` lets "add staff" create the Supabase Auth login (temporary password shown once).
 
 ---
@@ -41,7 +41,7 @@ npm run build
 Both personas are one-tap buttons on the login screen. Owners of washes approved from the Super Admin
 can log in immediately with `demo1234` (the approval provisions the owner account).
 
-Reset demo data: delete `.carzen/platform-db.json` (it is re-seeded on the next request), or `POST /api/v1/admin/system/reset` with an admin token (this app still serves the admin namespace of the API).
+Reset demo data: delete `.carzen/platform-db.json` (it is re-seeded on the next request), or use the Super Admin's demo reset when both apps share the store (`POST /api/v1/admin/system/reset` is served by the Super Admin only).
 
 ## 3. Folder structure
 
@@ -77,8 +77,11 @@ lib/
   store/ui-store.ts                 # sidebarCollapsed, selectedBranchId, mobileNavOpen, commandOpen, newOrderOpen
 styles/theme.css                    # tokens, dark mode, utilities
 types/                              # API contracts (admin domains + vendor/*), imported as @/types/<file>
-server/platform-api/                # server-only API: index.ts (dispatcher), vendor/* + handlers/* (mock),
-                                    # pg/* (Supabase Postgres), seed.ts, db.ts (mock file store + demo clock)
+server/platform-api/                # server-only API, /vendor/* only: index.ts (dispatcher), vendor/* (mock),
+                                    # pg/* + pg/vendor/* (Supabase Postgres), shared/* (phone, time, notify, cancel
+                                    # reason, geo pin, notification module — same files as the Super Admin),
+                                    # seed.ts, db.ts (mock file store + demo clock)
+scripts/shared-drift.mjs            # `npm run check:shared`: drift against ../super-admin (§10)
 ```
 
 ### Sessions & CSP (GAP-063)
@@ -217,3 +220,20 @@ changes or `SCHEMA_VERSION` (currently 5) is bumped.
    dialogs) — reuse it anywhere an order appears.
 4. "New order" is a global sheet: `useUIStore((s) => s.setNewOrderOpen)(true)`.
 5. Everything else (pages, states, charts, RTL, labels, ReasonDialog) follows the Super Admin conventions; never hand-roll status colors (use `@/lib/constants/labels`).
+
+## 10. Shared code with the Super Admin (GAP-054)
+
+The Super Admin (`../super-admin`, repo `washup-superadmin`) carries its own copy of the shared core. **A change to a
+shared file must be made in both repos**, then `npm run check:shared` (here or there; `node scripts/shared-drift.mjs
+<path-to-sibling>`) must report no drift. The authoritative list is `FILES` / `SYMBOLS` in `scripts/shared-drift.mjs`
+(the script itself is one of the shared files); the Super Admin's `PROJECT_SUMMARY.md` §11 describes it.
+
+- **Byte-identical:** `components/ui/*`, most of `components/shared/*`, `lib/{utils,format,export-csv}.ts` and the
+  other lib helpers, `styles/theme.css`, every `types/*.ts` contract, the mock store (`server/platform-api/{db,schema,
+  seed,http,lookups,throttle}.ts`), `server/platform-api/shared/*` and `pg/{sql,list,fcm,entities,push}.ts`.
+- **Same declarations only:** `lib/constants/labels.ts`, `router.ts`, `pg/{auth,lookups,platform,router}.ts`,
+  `types/vendor/{catalog,insights,team}.ts` — app-only declarations may be added (e.g. `VENDOR_PAYOUT_STATUS`, the
+  wash's wording of a settlement), a declaration both repos have must stay identical.
+- **App-specific:** dispatchers (`index.ts`, `pg/index.ts`), `vendor/*`, `pg/vendor/*`, `server/web-session.ts`,
+  `lib/axios.ts`, stores, services, hooks, layout and modules. Behaviour that differs per app goes there, not into a
+  differing copy of a shared file.

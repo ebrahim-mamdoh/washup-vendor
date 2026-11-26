@@ -1,6 +1,6 @@
 /**
  * Client-side check for a phone typed in the portal (GAP-013). Lenient on purpose: the server
- * reads national numbers in the branch's country and has the final say (`server/platform-api/phone.ts`).
+ * reads national numbers in the branch's country and has the final say (`server/platform-api/shared/phone.ts`).
  *
  * Accepts an Egyptian mobile (`01…`, `+20 1…`), any international number (`+966…`, `00966…`), or a
  * national number of another country (7–12 digits, e.g. `0501234567` for a branch in Riyadh).

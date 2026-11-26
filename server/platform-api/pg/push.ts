@@ -5,8 +5,10 @@ import { timingSafeEqual } from "node:crypto";
 import { after } from "next/server";
 
 import type { Localized } from "@/types/common";
+import type { AdminNotificationType } from "@/types/notifications";
 
 import { MockApiError } from "../http";
+import { NOTIFICATION_MODULE } from "../shared/notification-module";
 import { isPushConfigured, sendFcm } from "./fcm";
 import { type Q, db } from "./sql";
 
@@ -65,10 +67,19 @@ async function recipientsOf(q: Q, target: PushTarget, id: string): Promise<{ row
   }
   const [n] = await q<PushRow[]>`select id, type::text as type, title, body, href from public.admin_notifications where id = ${id}`;
   if (!n) return null;
+  // Admins whose role may see this notification (GAP-012/095): super always; other roles need the
+  // notifications permission and, for a module's notice, that module's view permission.
+  const moduleKey = NOTIFICATION_MODULE[n.type as AdminNotificationType] ?? null;
   const tokens = await q<{ token: string }[]>`
     select distinct d.token from public.push_devices d
     join public.admin_users a on a.user_id = d.user_id
-    where a.status = 'active' and d.app in ('admin', 'partner')`;
+    where a.status = 'active' and d.app in ('admin', 'partner')
+      and (a.role = 'super' or (
+        exists (select 1 from public.admin_role_permissions p
+                where p.role = a.role and p.permission_key = 'notifications' and p.level <> 'none')
+        and (${moduleKey}::text is null or exists (
+          select 1 from public.admin_role_permissions p
+          where p.role = a.role and p.permission_key = ${moduleKey}::text and p.level <> 'none'))))`;
   return { row: n, tokens: tokens.map((t) => t.token) };
 }
 

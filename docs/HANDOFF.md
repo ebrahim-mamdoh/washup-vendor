@@ -15,9 +15,9 @@
 - `types/`: API contracts, formerly `@carzen/contracts`, imported as `@/types/<file>`.
 - Design system, formerly `@carzen/ui`: `components/ui`, `components/shared`, `hooks/`, `lib/` (`utils`, `format`, `export-csv`, `constants/labels`) and `styles/theme.css`.
 - `server/platform-api/`: the API, formerly `@carzen/platform-api`. Served by `app/api/v1/[...path]/route.ts`.
-  - `vendor/*` + `handlers/*`: mock implementation (store in `.carzen/platform-db.json`, git-ignored).
+  - `vendor/*`: mock implementation (store in `.carzen/platform-db.json`, git-ignored).
   - `pg/*`: the Supabase Postgres implementation, enabled with `CARZEN_DATA_SOURCE=supabase` + `DATABASE_URL` + `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` (see `.env.example`). The order engine is `pg/vendor/engine.ts`. **Every vendor route exists in both implementations: change both.**
-  - It still contains and serves the **admin** namespace (`/api/v1/admin/*`). Removing it is finding M1.
+  - The **admin** namespace (`/api/v1/admin/*`, finding M1) was removed on 2026-11-26 (GAP-054): it lives only in the Super Admin. Shared code is checked with `npm run check:shared` (PROJECT_SUMMARY §10).
 - Full description: `PROJECT_SUMMARY.md`.
 
 ## 3. Supabase project `tbcmgdwzarfdgzzmmele` (checked read-only on 2026-10-19)

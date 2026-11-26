@@ -16,6 +16,10 @@ export interface Transaction {
   status: TransactionStatus;
   flag: "discrepancy" | null;
   reviewNote: string | null;
+  /** ISO currency recorded by the ledger (EGP, SAR…). */
+  currency?: string | null;
+  /** Settlement statement this row belongs to (GAP-020). */
+  payoutId?: string | null;
 }
 
 export interface Payment {
@@ -33,18 +37,24 @@ export interface TransactionListItem extends Transaction {
   orderNumber: string;
   paymentMethod: PaymentMethod | null;
   collectedAmount: number | null;
+  currencySymbol?: string;
+  currencyDecimals?: number;
 }
 
 export type TransactionFilter = TransactionStatus | "all" | "discrepancy";
 
+export type MoneyTotals = { symbol: string; decimals: number; gross: number; commission: number; netToWash: number };
+
 export type TransactionListMeta = {
   counts: StatusCounts<TransactionStatus | "discrepancy">;
   totals: { gross: number; commission: number; netToWash: number };
+  totalsByCurrency?: MoneyTotals[];
 };
 
 export interface TransactionListParams extends ListParams {
   filter?: TransactionFilter;
   washId?: string;
+  country?: string;
 }
 
 export interface DiscrepancyDetails {
@@ -68,6 +78,8 @@ export interface FinanceSeriesPoint {
 
 export interface FinanceOverview {
   period: FinancePeriod;
+  /** Currency of the single-currency fields (headline numbers, series, top washes); other currencies are only in *ByCurrency. */
+  currency?: string;
   gmv: number;
   commission: number;
   netToWashes: number;
@@ -78,6 +90,9 @@ export interface FinanceOverview {
   discrepancies: number;
   series: FinanceSeriesPoint[];
   topWashes: { id: string; name: Localized; gmv: number; commission: number; orders: number }[];
+  byCurrency?: { code: string; symbol: string; decimals: number; gmv: number; commission: number; orders: number }[];
+  refundsByCurrency?: { code: string; symbol: string; decimals: number; amount: number }[];
+  payoutsByCurrency?: { code: string; symbol: string; decimals: number; due: number }[];
 }
 
 export interface CommissionWash {
@@ -86,6 +101,8 @@ export interface CommissionWash {
   rate: number;
   isOverride: boolean;
   gmv30d: number;
+  currencySymbol?: string;
+  currencyDecimals?: number;
 }
 
 export interface CommissionSettings {
@@ -111,19 +128,34 @@ export interface Payout {
   status: PayoutStatus;
   reference: string | null;
   paidAt: string | null;
+  /** ISO currency of the statement (EGP, SAR…). */
+  currency?: string | null;
 }
 
 export interface PayoutListItem extends Payout {
   businessName: Localized;
+  currencySymbol?: string;
+  currencyDecimals?: number;
 }
 
 export type PayoutListMeta = {
   counts: StatusCounts<PayoutStatus>;
   totals: { due: number; paid: number };
+  totalsByCurrency?: { symbol: string; decimals: number; due: number; paid: number }[];
 };
 
+export interface GenerateSettlementsPayload {
+  /** YYYY-MM-DD, inclusive. */
+  periodStart: string;
+  periodEnd: string;
+  reason: string;
+}
+
 export interface MarkPayoutPaidPayload {
-  amountPaid: number;
+  /** What is being paid now; the server adds it to the payout under a row lock (GAP-092). */
+  amount: number;
+  /** The already-paid total this screen showed: a payment from a stale tab is refused (409). */
+  expectedPaid: number;
   reference: string;
   date: string;
 }

@@ -107,8 +107,8 @@ export const TRANSACTION_STATUS: Record<TransactionStatus, StatusMeta> = {
 };
 
 export const PAYOUT_STATUS: Record<PayoutStatus, StatusMeta> = {
-  due: { label: "مستحقة", tone: TONES.warning },
-  paid: { label: "مدفوعة", tone: TONES.success },
+  due: { label: "مفتوحة", tone: TONES.warning },
+  paid: { label: "محصّلة", tone: TONES.success },
 };
 
 export const OFFER_STATUS: Record<OfferStatus, StatusMeta> = {
@@ -312,7 +312,7 @@ export const AUDIT_ENTITY: Record<string, string> = {
   reviews: "تقييم",
   offers: "عرض",
   transactions: "معاملة",
-  payouts: "دفعة",
+  payouts: "تسوية عمولة",
   settings: "إعدادات",
   admins: "مسؤول",
   roles: "صلاحيات",
@@ -390,6 +390,15 @@ export const ADMIN_STATUS: Record<AdminStatus, StatusMeta> = {
 export const BRANCH_STATUS: Record<"active" | "inactive", StatusMeta> = {
   active: { label: "نشط", tone: TONES.success },
   inactive: { label: "متوقف", tone: TONES.neutral },
+};
+
+/**
+ * Commission settlements as the wash sees them (it owes Wash Up): «مستحقة» / «مدفوعة». The shared
+ * `PAYOUT_STATUS` above is the platform's wording (open / collected).
+ */
+export const VENDOR_PAYOUT_STATUS: Record<PayoutStatus, StatusMeta> = {
+  due: { label: "مستحقة", tone: TONES.warning },
+  paid: { label: "مدفوعة", tone: TONES.success },
 };
 
 export const SHIFT_STATUS: Record<ShiftClosingStatus, StatusMeta> = {

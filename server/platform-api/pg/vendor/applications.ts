@@ -4,7 +4,7 @@ import type { SubmitApplicationPayload, WashApplication } from "@/types/applicat
 import type postgres from "postgres";
 import { MockApiError, ok, requireText } from "../../http";
 import { applicationsWhere } from "../entities";
-import { isLegacyDefaultPin } from "../admin/geo";
+import { isLegacyDefaultPin } from "../../shared/geo";
 import { pushAdminNotification } from "../platform";
 import { cleanApplicationDocuments, phoneLookupView } from "../../vendor/application-view";
 import { vroute } from "../router";

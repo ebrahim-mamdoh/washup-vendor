@@ -37,7 +37,7 @@ import {
   withManualDiscount,
   zoneDayKey,
 } from "../../vendor/engine";
-import { parsePhone } from "../../phone";
+import { parsePhone } from "../../shared/phone";
 import { branchLocale } from "../locale";
 import { branchById, customersWhere, offersWhere, orderById, servicesWhere, vehiclesWhere } from "../entities";
 import { staffNames } from "../lookups";

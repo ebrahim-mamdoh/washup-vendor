@@ -3,33 +3,9 @@ import "server-only";
 import type { VendorRole } from "@/types/vendor/auth";
 import type { Business, Staff } from "@/types/washes";
 
-import type { MockDatabase, StoredAdmin } from "./schema";
+import type { MockDatabase } from "./schema";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-
-export interface HandlerContext {
-  db: MockDatabase;
-  params: Record<string, string>;
-  query: URLSearchParams;
-  body: Record<string, unknown>;
-  /** Authenticated admin (null only on public routes). */
-  admin: StoredAdmin;
-  token: string | null;
-}
-
-export type Handler = (ctx: HandlerContext) => Response | Promise<Response>;
-
-export interface RouteDef {
-  method: HttpMethod;
-  path: string;
-  handler: Handler;
-  /** Public routes skip the Bearer check (login). */
-  isPublic?: boolean;
-}
-
-export function route(method: HttpMethod, path: string, handler: Handler, isPublic = false): RouteDef {
-  return { method, path, handler, isPublic };
-}
 
 /** Matches `/admin/washes/:id/suspend` against `/admin/washes/biz_1/suspend`. */
 export function matchPath(pattern: string, path: string): Record<string, string> | null {

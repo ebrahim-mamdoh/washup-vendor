@@ -19,6 +19,9 @@ import { MockApiError } from "../http";
 import { effectiveCommissionRate, toOrderListItem } from "../lookups";
 import type { VendorActor } from "../router";
 import type { MockDatabase } from "../schema";
+import { readableCancelReason } from "../shared/cancel-reason";
+import { nationalPhone, prettyPhone } from "../shared/phone";
+import { CAIRO, zoneDateParts, zoneLocalToUtc } from "../shared/time";
 import { hideCheckInCode } from "./privacy";
 import { SUSPENDED_ACTION_MESSAGE, assertNotSuspended, suspendedAllows } from "./scope";
 
@@ -39,31 +42,8 @@ export function clockToMin(hhmm: string, isClose = false): number {
   return isClose && v === 0 ? 1440 : v;
 }
 
-const CAIRO = "Africa/Cairo";
-
-/** Calendar / clock parts in a branch timezone (wash hours are wall-clock, not the server TZ). */
-export function zoneDateParts(d: Date, timeZone = CAIRO): { y: number; m: number; day: number; weekday: number; hour: number; minute: number } {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  });
-  const p = Object.fromEntries(fmt.formatToParts(d).map((x) => [x.type, x.value]));
-  const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  return {
-    y: Number(p.year),
-    m: Number(p.month),
-    day: Number(p.day),
-    weekday: weekdayMap[p.weekday] ?? 0,
-    hour: Number(p.hour),
-    minute: Number(p.minute),
-  };
-}
+// Zone helpers live in `../shared/time` (shared with the Super Admin); re-exported for this namespace.
+export { zoneDateParts, zoneLocalToUtc };
 
 export function cairoDateParts(d: Date) {
   return zoneDateParts(d, CAIRO);
@@ -77,31 +57,6 @@ export function zoneDayKey(d: Date | string, timeZone = CAIRO): string {
 
 export function cairoDayKey(d: Date | string): string {
   return zoneDayKey(d, CAIRO);
-}
-
-/** Instant whose wall-clock in `timeZone` equals the given Y-M-D H:M. */
-export function zoneLocalToUtc(timeZone: string, y: number, month: number, day: number, hour = 0, minute = 0): Date {
-  const utc = Date.UTC(y, month - 1, day, hour, minute, 0);
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  });
-  const wallAsUtc = (instant: Date) => {
-    const p = Object.fromEntries(dtf.formatToParts(instant).filter((x) => x.type !== "literal").map((x) => [x.type, x.value]));
-    return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
-  };
-  return new Date(utc - (wallAsUtc(new Date(utc)) - utc));
-}
-
-/** Instant whose Cairo wall-clock equals the given Y-M-D H:M. */
-export function cairoLocalToUtc(y: number, month: number, day: number, hour = 0, minute = 0): Date {
-  return zoneLocalToUtc(CAIRO, y, month, day, hour, minute);
 }
 
 /** Minutes since local midnight in `timeZone` (Cairo unless a branch zone is given). */
@@ -412,26 +367,8 @@ function requireReason(value: unknown, label = "السبب"): string {
   return text;
 }
 
-/** Keys the customer app would otherwise show raw. Stored text is a sentence in Arabic and English. */
-const CANCEL_REASON_TEXT: Record<string, string> = {
-  expired_unconfirmed:
-    "اتلغى تلقائيًا لأن المغسلة ما أكدتش في الوقت المحدد — Cancelled because the wash did not confirm before the appointment",
-  expired_not_started:
-    "أُغلق الطلب لأن الخدمة لم تبدأ بعد تسجيل الوصول — Closed because the service never started after check-in",
-  "Cancelled by customer": "ألغاه العميل — Cancelled by the customer",
-};
-
-const MACHINE_KEY = /^[a-z0-9]+(?:[._][a-z0-9]+)+$/i;
-
-/** Turns a stored key into a sentence. Unknown machine keys are rejected so the app never shows them. */
-export function readableCancelReason(raw: string): string {
-  const text = raw.trim();
-  if (CANCEL_REASON_TEXT[text]) return CANCEL_REASON_TEXT[text];
-  if (MACHINE_KEY.test(text) && !/[\u0600-\u06FF]/.test(text)) {
-    throw new MockApiError("اكتب سبب الإلغاء بجملة واضحة بالعربي أو الإنجليزي", 422, { reason: ["اكتب السبب بالعربي أو الإنجليزي"] });
-  }
-  return text;
-}
+/** Cancellation reason text: `../shared/cancel-reason` (shared with the Super Admin). */
+export { readableCancelReason };
 
 /** `null` when the code matched. A string is the audit reason for a manager waiver. */
 export function assertCheckInCode(actor: { role: string }, orderCode: string, payload: { code?: string; waiveCheckIn?: boolean }): string | null {
@@ -661,20 +598,8 @@ export function normalizePhone(p: string): string {
   return digits.slice(-10);
 }
 
-/**
- * Egyptian national number (no country code, no trunk 0): mobiles are 10 digits ("1XXXXXXXXX"),
- * Cairo/Alexandria landlines 9 ("2XXXXXXXX"), other landlines 8–9.
- */
-export function nationalPhone(p: string): string {
-  let d = p.replace(/\D/g, "");
-  if (d.startsWith("0020")) d = d.slice(4);
-  else if (d.startsWith("20") && d.length > 10) d = d.slice(2);
-  return d.replace(/^0+/, "");
-}
-
-/** Display format (Egypt's historic groups, `+966 50 123 4567` elsewhere) — see `../phone`. */
-import { prettyPhone } from "../phone";
-export { prettyPhone };
+/** Phone helpers: `../shared/phone` (multi-country, GAP-013; shared with the Super Admin). */
+export { nationalPhone, prettyPhone };
 
 export function recognize(db: MockDatabase, businessId: string, plate?: string | null, phone?: string | null): CustomerRecognition {
   // Same rules as pg/vendor/engine.ts `recognize` (GAP-010): phone first; a plate alone only

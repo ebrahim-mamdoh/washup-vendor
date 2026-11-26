@@ -83,7 +83,8 @@ export interface MockDatabase {
   complaints: Complaint[];
   applications: WashApplication[];
   admins: StoredAdmin[];
-  notifications: AdminNotification[];
+  /** `readBy`: admins who read it (per-recipient read state, GAP-095); `read` = read for everyone (seed). */
+  notifications: (AdminNotification & { readBy?: string[] })[];
   auditLogs: AuditLog[];
   settings: PlatformSettings;
   defaultCommissionPct: number;

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { parsePhone } from "../../phone";
+import { parsePhone } from "../../shared/phone";
 import { branchLocale } from "../locale";
 import type { Order, PaymentMethod } from "@/types/orders";
 import type { DayClosingSummary, MethodTotals, ShiftClosing, StaffPerformance, VendorStaffMember } from "@/types/vendor/team";

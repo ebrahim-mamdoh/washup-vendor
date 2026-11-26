@@ -1,41 +1,25 @@
 import "server-only";
 
 import { getDb, persistDb } from "./db";
-import { adminRoutes } from "./handlers/admins";
-import { applicationRoutes } from "./handlers/applications";
-import { authRoutes } from "./handlers/auth";
-import { complaintRoutes } from "./handlers/complaints";
-import { customerRoutes } from "./handlers/customers";
-import { dashboardRoutes } from "./handlers/dashboard";
-import { financeRoutes } from "./handlers/finance";
-import { offerRoutes } from "./handlers/offers";
-import { orderRoutes } from "./handlers/orders";
-import { platformRoutes } from "./handlers/platform";
-import { pushRoutes } from "./handlers/push";
-import { reviewRoutes } from "./handlers/reviews";
-import { washRoutes } from "./handlers/washes";
 import { MockApiError, fail } from "./http";
 import { handleSupabaseRequest } from "./pg";
-import { type HttpMethod, type RouteDef, type VendorRouteDef, matchPath } from "./router";
-import { isApplicationPhoneLookup, isApplicationSubmit, isLoginPath, loginThrottle } from "./throttle";
+import { type HttpMethod, type VendorRouteDef, matchPath } from "./router";
+import { isLoginPath, loginThrottle } from "./throttle";
 import { VENDOR_ROUTES } from "./vendor";
 import { resolveVendorActor } from "./vendor/scope";
 
-const ROUTES: RouteDef[] = [
-  ...authRoutes,
-  ...dashboardRoutes,
-  ...washRoutes,
-  ...applicationRoutes,
-  ...orderRoutes,
-  ...customerRoutes,
-  ...complaintRoutes,
-  ...reviewRoutes,
-  ...offerRoutes,
-  ...financeRoutes,
-  ...adminRoutes,
-  ...platformRoutes,
-  ...pushRoutes,
-];
+/** Public "join as a wash" submission (GAP-030): same per-IP budget as sign-in, its own bucket. */
+function isApplicationSubmit(segments: string[]): boolean {
+  return segments.length === 2 && segments[0] === "vendor" && segments[1] === "applications";
+}
+
+/**
+ * Public application lookup by phone number (anything that isn't an `app_…` id): it answers
+ * whether a phone has applied, so it gets the same per-IP budget as sign-in.
+ */
+function isApplicationPhoneLookup(segments: string[]): boolean {
+  return segments.length === 3 && segments[0] === "vendor" && segments[1] === "applications" && !segments[2].startsWith("app_");
+}
 
 /** Simulated network latency so loading states are visible (set MOCK_API_LATENCY=0 to disable). */
 function latency() {
@@ -59,9 +43,8 @@ const MAX_BODY_BYTES = 1_000_000;
 
 export async function handleMockRequest(req: Request, segments: string[]): Promise<Response> {
   const isProduction = process.env.NODE_ENV === "production";
-  // The partner portal only serves /vendor/*: the admin namespace belongs to the Super Admin app
-  // (CARZEN_SERVE_ADMIN_API=1 re-enables this stale copy for local demos only, never in production).
-  if (segments[0] !== "vendor" && (process.env.CARZEN_SERVE_ADMIN_API !== "1" || isProduction)) {
+  // The partner portal only serves /vendor/*: the admin namespace lives in the Super Admin app (GAP-054).
+  if (segments[0] !== "vendor") {
     return fail(`المسار ${req.method.toUpperCase()} /${segments.join("/")} غير موجود`, 404);
   }
   // Fail closed: a production deploy without CARZEN_DATA_SOURCE=supabase would otherwise serve the
@@ -89,11 +72,8 @@ export async function handleMockRequest(req: Request, segments: string[]): Promi
 
   const path = `/${segments.join("/")}`;
   const method = req.method.toUpperCase() as HttpMethod;
-  const isVendor = path.startsWith("/vendor/");
-
-  const table: (RouteDef | VendorRouteDef)[] = isVendor ? VENDOR_ROUTES : ROUTES;
-  let matched: { def: RouteDef | VendorRouteDef; params: Record<string, string> } | null = null;
-  for (const def of table) {
+  let matched: { def: VendorRouteDef; params: Record<string, string> } | null = null;
+  for (const def of VENDOR_ROUTES) {
     if (def.method !== method) continue;
     const params = matchPath(def.path, path);
     if (params) {
@@ -111,18 +91,9 @@ export async function handleMockRequest(req: Request, segments: string[]): Promi
   const base = { db, params: matched.params, query: new URL(req.url).searchParams, body: await readBody(req), token };
 
   try {
-    let response: Response;
-    if (isVendor) {
-      const actor = token ? resolveVendorActor(db, token) : null;
-      if (!matched.def.isPublic && !actor) return fail("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
-      response = await (matched.def as VendorRouteDef).handler({ ...base, actor: actor! });
-    } else {
-      const adminId = token ? db.sessions[token] : undefined;
-      // Super Admin only (GAP-003): other admin roles have no panel and no API access here.
-      const admin = adminId ? db.admins.find((a) => a.id === adminId && a.status === "active" && a.role === "super") : undefined;
-      if (!matched.def.isPublic && !admin) return fail("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
-      response = await (matched.def as RouteDef).handler({ ...base, admin: admin! });
-    }
+    const actor = token ? resolveVendorActor(db, token) : null;
+    if (!matched.def.isPublic && !actor) return fail("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى", 401);
+    const response = await matched.def.handler({ ...base, actor: actor! });
     // Successful writes are flushed to the shared store so other apps see them immediately.
     if (method !== "GET" && response.ok) persistDb(db);
     return response;

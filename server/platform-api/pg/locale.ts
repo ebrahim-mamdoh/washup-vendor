@@ -1,6 +1,6 @@
 import "server-only";
 
-import { dialOf, isValidPhone, toE164 } from "../phone";
+import { dialOf, isValidPhone, toE164 } from "../shared/phone";
 import type { Q } from "./sql";
 
 /**

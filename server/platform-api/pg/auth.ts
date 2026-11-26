@@ -32,8 +32,9 @@ function cache(): Cache {
   return g[SESSIONS_KEY];
 }
 
-/** GAP-064: the token cache is bounded — expired entries go first, then the oldest. */
+/** Most tokens kept in the validation cache; expired entries are dropped first, then the oldest (GAP-064). */
 const TOKEN_CACHE_MAX = 2000;
+
 function rememberToken(token: string, identity: Identity) {
   const tokens = cache().tokens;
   tokens.delete(token);
@@ -41,6 +42,7 @@ function rememberToken(token: string, identity: Identity) {
   if (tokens.size <= TOKEN_CACHE_MAX) return;
   const at = Date.now();
   for (const [k, v] of tokens) if (v.until <= at) tokens.delete(k);
+  // Map keeps insertion order: the first keys are the oldest.
   for (const k of tokens.keys()) {
     if (tokens.size <= TOKEN_CACHE_MAX) break;
     tokens.delete(k);

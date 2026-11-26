@@ -16,8 +16,7 @@ import type { Branch, Business, Staff, WashService } from "@/types/washes";
 import type postgres from "postgres";
 
 import { MockApiError } from "../http";
-import { toE164 } from "../phone";
-import { prettyPhone } from "../vendor/engine";
+import { prettyPhone, toE164 } from "../shared/phone";
 import type { Shift } from "../schema";
 import { ISO, type Q } from "./sql";
 
@@ -158,12 +157,12 @@ export const PAYMENT_COLS = `p.id, p.order_id as "orderId", p.amount, p.method, 
 export const paymentsWhere = (q: Q, cond: Frag, tail?: Frag) => select<Payment>(q, PAYMENT_COLS, "public.payments p", cond, tail);
 
 export const TRANSACTION_COLS = `t.id, t.order_id as "orderId", t.business_id as "businessId", t.gross, t.commission_rate as "commissionRate",
-  t.commission, t.net_to_wash as "netToWash", t.date, t.status, t.flag, t.review_note as "reviewNote"`;
+  t.commission, t.net_to_wash as "netToWash", t.date, t.status, t.flag, t.review_note as "reviewNote", t.currency, t.payout_id as "payoutId"`;
 export const transactionsWhere = (q: Q, cond: Frag, tail?: Frag) => select<Transaction>(q, TRANSACTION_COLS, "public.transactions t", cond, tail);
 
 export const PAYOUT_COLS = `po.id, po.business_id as "businessId", po.period_start::text || 'T00:00:00.000Z' as "periodStart",
   po.period_end::text || 'T00:00:00.000Z' as "periodEnd", po.amount_due as "amountDue", po.amount_paid as "amountPaid", po.status,
-  po.reference, po.paid_at as "paidAt"`;
+  po.reference, po.paid_at as "paidAt", po.currency`;
 export const payoutsWhere = (q: Q, cond: Frag, tail?: Frag) => select<Payout>(q, PAYOUT_COLS, "public.payouts po", cond, tail);
 
 // ── Engagement (reviews r, offers of, complaints c, applications ap) ─────────

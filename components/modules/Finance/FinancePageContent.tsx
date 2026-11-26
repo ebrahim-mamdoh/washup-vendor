@@ -31,7 +31,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUrlState } from "@/hooks/use-url-state";
-import { PAYMENT_METHOD, PAYOUT_STATUS, TONES } from "@/lib/constants/labels";
+import { PAYMENT_METHOD, TONES, VENDOR_PAYOUT_STATUS } from "@/lib/constants/labels";
 import { downloadCsv, type CsvColumn } from "@/lib/export-csv";
 import { formatDate, formatMoney, formatNumber, formatPercent, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -557,7 +557,7 @@ export default function FinancePageContent() {
                     <td className={cn(TD, "num text-end font-semibold")}>{settlementMoney(p, p.amountDue)}</td>
                     <td className={cn(TD, "num text-end")}>{p.amountPaid ? settlementMoney(p, p.amountPaid) : <span className="text-muted-foreground">—</span>}</td>
                     <td className={TD}>
-                      <StatusBadge meta={PAYOUT_STATUS[p.status]} size="sm" />
+                      <StatusBadge meta={VENDOR_PAYOUT_STATUS[p.status]} size="sm" />
                     </td>
                     <td className={cn(TD, "text-xs")}>
                       {p.reference ? (
